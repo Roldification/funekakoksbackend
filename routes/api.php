@@ -13,8 +13,16 @@ use Illuminate\Http\Request;
 |
 */
 
+
+Route::group(['middleware' => ['apiauth', 'cors']], function() {
+	// uses 'auth' middleware plus all middleware from $middlewareGroups['web']
+	Route::post('insert-user', 'AccessController@insertAccess');
+	Route::post('login-user', 'AccessController@loginUser');
+});
+
+
 Route::get('get-user', 'AccessController@getUser')->middleware('apiauth');
-Route::post('insert-user', 'AccessController@insertAccess')->middleware('apiauth');
+
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
