@@ -67,6 +67,29 @@ class AccessController extends Controller
 	}
 	
 	
+	public function getSignee(Request $request)
+	{
+		//$value = (array)json_decode($request->post());
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select top 5 id, (lname + ', ' + fname + ' ' + mname)fullname  from _fis_signee
+			where (lname + ', ' + fname + ' ' + mname) like '".$request->post()['name']."%'"));
+			
+		//	return $request->post()['name'];
+		if($user_check)
+		return	$user_check;
+		else return []; 
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'error',
+				'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	
 	
 	public function loginUser(Request $request)
 	{

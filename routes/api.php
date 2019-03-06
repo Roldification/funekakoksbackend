@@ -22,7 +22,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 
 Route::get('get-user', 'AccessController@getUser')->middleware('apiauth');
-
+Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
