@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\DB;
 use App\SystemUser;
 use Illuminate\Http\Request;
 use App\AccessTokens;
+use App\FisDeceased;
 
 
 class AccessController extends Controller
@@ -18,6 +19,28 @@ class AccessController extends Controller
 		
 	}
 	
+	public function insertDeceaseProfile(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['deceasedata']);
+			
+			//return $value;
+			
+			$deceaseProfile = FisDeceased::create($value);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$deceaseProfile
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
 	
 	public function insertAccess(Request $request)
 	{
@@ -29,9 +52,9 @@ class AccessController extends Controller
 			$user = SystemUser::create([
 					'UserName'=> $value['username'],
 					'Password'=>$value['password'],
-					'LastName'=>$value['lastname'],
-					'FirstName'=>$value['firstname'],
-					'MiddleName'=>$value['middlename'],
+					'LastName'=>$value['name'], //since quasar, started, it l
+					'FirstName'=>$value['name'],
+					'MiddleName'=>$value['name'],
 					'UserStatus'=>1,
 					'EmployeeID'=>$value['username'],
 					'FKRoleID'=>$value['roleid'],
@@ -73,7 +96,7 @@ class AccessController extends Controller
 		$value="";
 		
 		try {
-			$user_check = DB::select(DB::raw("select top 5 id, (lname + ', ' + fname + ' ' + mname)fullname  from _fis_signee
+			$user_check = DB::select(DB::raw("select top 5 id as value, (lname + ', ' + fname + ' ' + mname)label  from _fis_signee
 			where (lname + ', ' + fname + ' ' + mname) like '".$request->post()['name']."%'"));
 			
 		//	return $request->post()['name'];
@@ -85,6 +108,85 @@ class AccessController extends Controller
 			return [
 				'status'=>'error',
 				'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	
+	public function getDeceased(Request $request)
+	{
+		//$value = (array)json_decode($request->post());
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_deceased
+			where (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
+			
+			//	return $request->post()['name'];
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	
+	
+	public function getPackageList(Request $request)
+	{
+		//$value = (array)json_decode($request->post());
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select id as value, package_name as label from _fis_package"));
+			
+			//	return $request->post()['name'];
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	
+	public function getDeceaseDropdowns(Request $request)
+	{
+		//$value = (array)json_decode($request->post());
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select ReligionID as value, ReligionName as label from clientreligion"));
+			
+			
+			$branches = 
+			[['value'=>'001', 'label'=>'MAIN'],
+			 ['value'=>'002', 'label'=>'NABUN'],
+			 ['value'=>'003', 'label'=>'CARMEN']
+			];
+			
+			
+			//	return $request->post()['name'];
+			if($user_check)
+				return	[
+					'religion' => $user_check,
+					'branches' => $branches
+				];
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
 			];
 		}
 	}
