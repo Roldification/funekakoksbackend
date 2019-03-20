@@ -192,6 +192,32 @@ class AccessController extends Controller
 	}
 	
 	
+	public function getSCLocations(Request $request)
+	{
+		try {
+			//$param = $request->post()['name'];
+			
+			
+			$cemeteries = DB::select(DB::raw("select label, value from _fis_locations where type='cemetery'"));
+			$churches = DB::select(DB::raw("select label, value from _fis_locations where type='church'"));
+			
+			return [
+				'cemeteries' => $cemeteries,
+				'churches' => $churches
+			];
+			
+			
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
+	
 	
 	public function loginUser(Request $request)
 	{
@@ -208,7 +234,7 @@ class AccessController extends Controller
 					'username'=>$value['username'],
 					'api_token'=>substr(md5(uniqid(mt_rand(), true)), 0, 30),
 					'date_issued'=>date('Y-m-d H:i:s'),
-					'date_expire'=>date('Y-m-d H:i:s', strtotime(date("Y-m-d H:i:s"). ' + 5 minute')),
+					'date_expire'=>date('Y-m-d H:i:s', strtotime(date("Y-m-d H:i:s"). ' + 5 days')),
 					'updated_at'=>date('Y-m-d'),
 					'created_at'=>date('Y-m-d'),
 				]);
