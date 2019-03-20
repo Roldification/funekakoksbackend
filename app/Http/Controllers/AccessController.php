@@ -29,9 +29,9 @@ class AccessController extends Controller
 			$user = SystemUser::create([
 					'UserName'=> $value['username'],
 					'Password'=>$value['password'],
-					'LastName'=>$value['lastname'],
-					'FirstName'=>$value['firstname'],
-					'MiddleName'=>$value['middlename'],
+					'LastName'=>$value['name'],
+					'FirstName'=>$value['name'],
+					'MiddleName'=>$value['name'],
 					'UserStatus'=>1,
 					'EmployeeID'=>$value['username'],
 					'FKRoleID'=>$value['roleid'],
