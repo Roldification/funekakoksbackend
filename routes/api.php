@@ -13,16 +13,28 @@ use Illuminate\Http\Request;
 |
 */
 
-
+/*
+ * 
+ * always be mindful that when putting POST requests via 3rd party application, always register
+ * the routes within this group
+*/
 Route::group(['middleware' => ['apiauth', 'cors']], function() {
-	// uses 'auth' middleware plus all middleware from $middlewareGroups['web']
+
 	Route::post('insert-user', 'AccessController@insertAccess');
 	Route::post('login-user', 'AccessController@loginUser');
+	Route::post('login-user', 'AccessController@loginUser');
+	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 });
 
-
-Route::get('get-user', 'AccessController@getUser')->middleware('apiauth');
+	//getSCLocations
+//though not suggested, you are welcome to just put GET requests here, request here does not need authentication.
 Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
+Route::get('get-package-list', 'AccessController@getPackageList')->middleware('cors');
+Route::get('get-package-list', 'AccessController@getPackageList')->middleware('cors');
+Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->middleware('cors');
+Route::get('get-deceased', 'AccessController@getDeceased')->middleware('cors');
+Route::get('get-sc-locations', 'AccessController@getSCLocations')->middleware('cors');
+
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

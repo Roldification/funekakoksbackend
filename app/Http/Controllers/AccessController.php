@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\DB;
 use App\SystemUser;
 use Illuminate\Http\Request;
 use App\AccessTokens;
+use App\FisDeceased;
 
 
 class AccessController extends Controller
@@ -18,6 +19,28 @@ class AccessController extends Controller
 		
 	}
 	
+	public function insertDeceaseProfile(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['deceasedata']);
+			
+			//return $value;
+			
+			$deceaseProfile = FisDeceased::create($value);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$deceaseProfile
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
 	
 	public function insertAccess(Request $request)
 	{
@@ -73,7 +96,7 @@ class AccessController extends Controller
 		$value="";
 		
 		try {
-			$user_check = DB::select(DB::raw("select top 5 id, (lname + ', ' + fname + ' ' + mname)fullname  from _fis_signee
+			$user_check = DB::select(DB::raw("select top 5 id as value, (lname + ', ' + fname + ' ' + mname)label  from _fis_signee
 			where (lname + ', ' + fname + ' ' + mname) like '".$request->post()['name']."%'"));
 			
 		//	return $request->post()['name'];
@@ -87,6 +110,111 @@ class AccessController extends Controller
 				'message'=>$e->getMessage()
 			];
 		}
+	}
+	
+	
+	public function getDeceased(Request $request)
+	{
+		//$value = (array)json_decode($request->post());
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_deceased
+			where (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
+			
+			//	return $request->post()['name'];
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	
+	
+	public function getPackageList(Request $request)
+	{
+		//$value = (array)json_decode($request->post());
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select id as value, package_name as label from _fis_package"));
+			
+			//	return $request->post()['name'];
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	
+	public function getDeceaseDropdowns(Request $request)
+	{
+		//$value = (array)json_decode($request->post());
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select ReligionID as value, ReligionName as label from clientreligion"));
+			
+			
+			$branches = 
+			[['value'=>'001', 'label'=>'MAIN'],
+			 ['value'=>'002', 'label'=>'NABUN'],
+			 ['value'=>'003', 'label'=>'CARMEN']
+			];
+			
+			
+			//	return $request->post()['name'];
+			if($user_check)
+				return	[
+					'religion' => $user_check,
+					'branches' => $branches
+				];
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	
+	public function getSCLocations(Request $request)
+	{
+		try {
+			//$param = $request->post()['name'];
+			
+			
+			$cemeteries = DB::select(DB::raw("select label, value from _fis_locations where type='cemetery'"));
+			$churches = DB::select(DB::raw("select label, value from _fis_locations where type='church'"));
+			
+			return [
+				'cemeteries' => $cemeteries,
+				'churches' => $churches
+			];
+			
+			
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+		
 	}
 	
 	
@@ -106,7 +234,7 @@ class AccessController extends Controller
 					'username'=>$value['username'],
 					'api_token'=>substr(md5(uniqid(mt_rand(), true)), 0, 30),
 					'date_issued'=>date('Y-m-d H:i:s'),
-					'date_expire'=>date('Y-m-d H:i:s', strtotime(date("Y-m-d H:i:s"). ' + 5 minute')),
+					'date_expire'=>date('Y-m-d H:i:s', strtotime(date("Y-m-d H:i:s"). ' + 5 days')),
 					'updated_at'=>date('Y-m-d'),
 					'created_at'=>date('Y-m-d'),
 				]);
