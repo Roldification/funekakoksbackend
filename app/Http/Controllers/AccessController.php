@@ -53,7 +53,7 @@ class AccessController extends Controller
 			
 			foreach ($value as $row)
 			{
-				$selection = DB::select(DB::raw("select fk_item_id, serialno from
+				$selection = DB::select(DB::raw("select fk_item_id, serialno as value, serialno as label from
 						_fis_productlist where isEncumbered=1 and branch='".$branch."'
 						and fk_item_id='".$row->item_code."'"));
 				
@@ -110,7 +110,7 @@ class AccessController extends Controller
 				"));
 			
 			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
-					s.address as signeeaddress, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName
 					from _fis_service_contract sc 
 					inner join _fis_signee s on sc.signee = s.id
