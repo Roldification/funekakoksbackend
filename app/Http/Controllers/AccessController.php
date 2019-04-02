@@ -7,6 +7,12 @@ use Illuminate\Http\Request;
 use App\AccessTokens;
 use App\FisDeceased;
 use App\ServiceContract;
+use App\FisItemSales;
+use App\FisItemInventory;
+use App\FisProductList;
+use App\FisServiceSales;
+
+
 
 
 class AccessController extends Controller
@@ -29,6 +35,7 @@ class AccessController extends Controller
 			
 			$deceaseProfile = FisDeceased::create($value);
 			
+			
 			return [
 					'status'=>'saved',
 					'message'=>$deceaseProfile
@@ -43,6 +50,48 @@ class AccessController extends Controller
 		}
 	}
 	
+	public function samplepdf()
+	{
+		$mpdf = new \Mpdf\Mpdf();
+		$mpdf->WriteHTML('<h1>Hello world!</h1>');
+		$mpdf->Output();
+	}
+	
+	
+	public function validatorsField($validatorClass)
+	{
+		/*
+		 * Harold 3/29/2019
+		 * This function expects the class to be validated.
+		 * Kindly add your validators here for validation purposes,
+		 * whoever desires to transfer this to a model, feel free to do so.
+		 * Just inform your co-developers.
+		 */
+		
+		$validation = [];
+		
+		switch ($validatorClass)
+		{
+			case 'fisItemSales':
+				$validation = [
+					'product_id' => 'required',
+					'quantity' => 'required',
+				];
+			break;
+			
+			case 'fisItemInventory':
+				$validation = [
+					//'item_inventory.*.serialno'=>'bullshit',
+					'item_inventory.serialno'=>'required'
+				];	
+			break;
+			
+		}
+		
+		return $validation;
+		
+	}
+	
 	public function getMinimalProbabilities(Request $request)
 	{
 		try {
@@ -53,13 +102,13 @@ class AccessController extends Controller
 			
 			foreach ($value as $row)
 			{
-				$selection = DB::select(DB::raw("select fk_item_id, serialno as value, serialno as label from
+				$selection = DB::select(DB::raw("select fk_item_id, id as value, id as label, price as sublabel from
 						_fis_productlist where isEncumbered=1 and branch='".$branch."'
 						and fk_item_id='".$row->item_code."'"));
 				
 				array_push($itemSelection, $selection);
 				
-				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, serialno from _fis_productlist pl
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id as serialno, ".$row->price." as sell_price from _fis_productlist pl
 					inner join _fis_items i on pl.fk_item_id = i.item_code
 					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
 					order by id"));
@@ -83,6 +132,219 @@ class AccessController extends Controller
 			];
 			
 		}
+	}
+	
+	
+	public function postContract(Request $request)
+	{
+	   try {
+	   	$value = (array)json_decode($request->post()['contract_details']);
+	   	
+	   	
+
+	   		/*
+	   		 * here lies the posting of contract.
+	   		 * 1st step, update the balance of contract,
+	   		 * 2nd step, record items get,
+	   		 * 3rd step, record services get,
+	   		 * 4th step,  record inventory of items.
+	   		 * 5th step contract posting?
+	   		 *
+	   		 */
+	   		
+	   		//$isInventoryValid = \Illuminate\Support\Facades\Validator::make($value, $this->validatorsField('fisItemInventory'));
+	   		
+	   		
+	   	DB::beginTransaction();
+	   		//check if serial no. is repeated since laravel 5.7 does not provide distinct validation
+	   		$valarr = array_count_values(array_column($value['item_inventory'], 'serialno'));
+	   		$equivalence = array_sum($valarr) / count($valarr);
+	   		
+	   		if($equivalence!=1)
+	   			return [
+	   					'status' => 'unsaved',
+	   					'message' => 'Serial No. repitition found. Make sure we do not repeat serial no.',
+	   			];
+	   			
+	   			$sc = ServiceContract::find($value['sc_id']);
+	   			$sc->update(
+	   					['contract_amount'=>$value['sc_amount'],
+	   							'grossPrice'=>	$value['sc_amount'],
+	   							'isPosted'=>1
+	   					]
+	   					);
+	   			
+	   			
+	   					
+	   			foreach($value['item_inclusions'] as $row)
+	   			{	   	
+	   				
+	   				try {
+	   					
+	   					$inventoryCount = FisProductList::where([
+	   							'fk_item_id'=>$row->item_code,
+	   							'isEncumbered'=>1,
+	   					])->count();
+	   					
+	   					if($inventoryCount<$row->quantity)
+	   					{
+	   						DB::rollback();
+	   						return [
+	   							'status'=>'unsaved',
+	   							'message'=>'Insufficient amount for Item Code '.$row->item_code.', only '.$inventoryCount.' left',
+	   						];
+	   						
+	   						break;
+	   					}
+	   					
+	   					FisItemSales::create(
+	   							[
+	   									'product_id'=>$row->item_code,
+	   									'quantity'=>$row->quantity,
+	   									'date'=>date('Y-m-d'),
+	   									'price'=>$row->price,
+	   									'total_price'=>$row->tot_price,
+	   									'discount'=>$row->discount,
+	   									'isInContract'=>1,
+	   									'contract_id'=>$value['sc_id'],
+	   									'remarks'=>'',
+	   									'isWalkin'=>0,
+	   									'client'=>'',
+	   									'signee_id'=>$sc->signee,
+	   									'isPosted'=>1,
+	   									'TransactedBy'=>'hcalio',
+	   									'isRemitted'=>0,
+	   									'remittedTo'=>'',
+	   									'OR_no'=>'-',
+	   									'isCancelled'=>0
+	   									
+	   							]
+	   							);
+	   					
+	   				} catch (\Exception $e) {
+	   					DB::rollback();
+	   					return [
+	   							'status'=>'unsaved',
+	   							'message'=>$e->getMessage()
+	   					];
+	   					break;
+	   				}
+	   				
+	   			}
+	   			
+	   			
+	   			foreach($value['item_inventory'] as $row)
+	   			{
+	   				try {
+	   					
+	   					FisItemInventory::create(
+	   							[
+	   									'transaction_date'=>date('Y-m-d'),
+	   									'particulars'=>'Purchased by SC. #'.$sc->contract_no,
+	   									'contract_id'=>$sc->contract_id,
+	   									'dr_no'=>'-',
+	   									'rr_no'=>'-',
+	   									'process'=>'OUT',
+	   									'remaining_balance'=>0,
+	   									'product_id'=>$row->item_code,
+	   									'quantity'=>1,
+	   									'item_price'=>$row->sell_price,
+	   									'remarks'=>'-',
+	   									'serialNo'=>'-',
+	   									'p_sequence'=>$row->serialno,
+	   									'fk_scID'=>$sc->contract_id,
+	   									'fk_ORNo'=>'',
+	   							]);
+	   					
+	   					$productList = FisProductList::where([
+	   							'id'=>$row->serialno,
+	   							'isEncumbered'=>1,
+	   					])->firstOrFail();
+	   					
+	   					//$productList = FisProductList::find($row->serialno);
+	   					$productList->update([
+	   						'isEncumbered'=>0
+	   					]);
+	   					
+	   					
+	   				} catch (\Exception $e) {
+	   					DB::rollback();
+	   					return [
+	   							'status'=>'unsaved',
+	   							'message'=>$e->getMessage()
+	   					];
+	   					break;
+	   					
+	   				}
+	   				
+	   				
+	   			}
+	   			
+	   			
+	   			foreach($value['service_inclusions'] as $row)
+	   			{
+	   				
+	   				try {
+	   					
+	   					FisServiceSales::create([
+	   							'fk_service_id'=>$row->id,
+	   							'grossAmount'=>$row->amount,
+	   							'isContract'=>1,
+	   							'fk_contract_id'=>$value['sc_id'],
+	   							'remarks'=>'-',
+	   							'discount'=>$row->less,
+	   							'dateApplied'=>date('Y-m-d'),
+	   							'total_amount'=>$row->tot_price,
+	   							'service_duration'=>$row->duration,
+	   							'duration_unit'=>$row->type_duration,
+	   							'reference'=>'-',
+	   							'isPosted'=>1,
+	   							'transactedBy'=>'hcalio',
+	   							'isRemitted'=>0,
+	   							'dateRemitted'=>'1/1/1900',
+	   							'RemittedTo'=>'',
+	   							'OR_no'=>'',
+	   							'isWalkin'=>0,
+	   							'client'=>'',
+	   							'signeeID'=>$sc->signee,
+	   							'isCancelled'=>0,
+	   							
+	   					]);
+	   					
+	   					
+	   					
+	   					
+	   				} catch (\Exception $e) {
+	   					DB::rollback();
+	   					return [
+	   							'status'=>'unsaved',
+	   							'message'=>$e->getMessage()
+	   					];
+	   					break;
+	   				}
+	   				
+	   			}
+
+	  		
+	   	
+	   		
+	   		DB::commit();
+	  		return [
+	  			'status'=>'saved',
+	  			'message'=>''
+	  		];
+	  	
+	   	
+	
+	   	
+	   } catch (\Exception $e) {
+	   	DB::rollback();
+	   	return [
+	   			'status' => 'unsaved',
+	   			'message' => $e->getMessage()
+	   	];
+	   }
+		
 	}
 	
 	
@@ -117,14 +379,26 @@ class AccessController extends Controller
 					inner join _fis_deceased d on sc.deceased_id = d.id
 					inner join _fis_package p on sc.package_class_id = p.id
 					inner join ClientReligion cr on d.religion = cr.ReligionID
-					where contract_id=".$serviceContract->id)); 
+					where contract_id=".$serviceContract->contract_id)); 
+			    
+		   
+			    $services = DB::select(DB::raw("select * from
+					(
+					SELECT fs.id, service_name, 0 as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, 0 as tot_price  FROM _fis_services fs
+					left join
+					(
+					select * from _fis_package_inclusions where fk_package_id=".$serviceContract->package_class_id." and inclusionType='SERV'
+					)a on fs.id = a.service_id and fs.isActive=1
+					)sdfa
+					order by duration desc"));
 							
 			
 			return [
 					'status'=>'saved',
 					'message'=> [
 							'service_contract' => $sc_details,
-							'item_inclusions' => $user_check
+							'item_inclusions' => $user_check,
+							'service_inclusions' => $services
 					]
 			];
 			

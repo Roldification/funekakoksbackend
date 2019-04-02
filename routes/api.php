@@ -24,6 +24,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('login-user', 'AccessController@loginUser');
 	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 	Route::post('insert-contract', 'AccessController@insertContract');
+	Route::post('post-contract', 'AccessController@postContract');
 	
 });
 
@@ -35,6 +36,7 @@ Route::get('get-package-list', 'AccessController@getPackageList')->middleware('c
 Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->middleware('cors');
 Route::get('get-deceased', 'AccessController@getDeceased')->middleware('cors');
 Route::get('get-sc-locations', 'AccessController@getSCLocations')->middleware('cors');
+Route::get('sample-pdf', 'AccessController@samplepdf')->middleware('cors');
 Route::get('get-minimal-probabilities', 'AccessController@getMinimalProbabilities')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
