@@ -29,6 +29,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-itemreceiving', 'AccessController@insertItemReceiving');
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('insert-RTD', 'AccessController@insertRTD');
+	Route::post('post-contract', 'AccessController@postContract');
 });
 
 //getMinimalProbabilities
@@ -38,6 +39,7 @@ Route::get('get-package-list', 'AccessController@getPackageList')->middleware('c
 Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->middleware('cors');
 Route::get('get-deceased', 'AccessController@getDeceased')->middleware('cors');
 Route::get('get-sc-locations', 'AccessController@getSCLocations')->middleware('cors');
+Route::get('sample-pdf', 'AccessController@samplepdf')->middleware('cors');
 Route::get('get-minimal-probabilities', 'AccessController@getMinimalProbabilities')->middleware('cors');
 Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');
 Route::get('get-inventory-search', 'AccessController@getInventorySearch')->middleware('cors');
