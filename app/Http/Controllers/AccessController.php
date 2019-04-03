@@ -99,7 +99,6 @@ class AccessController extends Controller
 	}
 	
 
-	public function insertInventory(Request $request)
 
 	public function samplepdf()
 	{
@@ -143,7 +142,7 @@ class AccessController extends Controller
 		
 	}
 	
-	public function getMinimalProbabilities(Request $request)
+	public function insertInventory(Request $request)
 
 	{
 		try {
