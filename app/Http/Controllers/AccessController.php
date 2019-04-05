@@ -6,14 +6,18 @@ use App\SystemUser;
 use Illuminate\Http\Request;
 use App\AccessTokens;
 use App\FisDeceased;
+use App\FisItems;
 use App\ServiceContract;
+use App\PackageName;
+use App\ReceivingItems;
+use App\FisSignee;
+use App\FisInformant;
+use App\FisRTD;
 use App\FisItemSales;
 use App\FisItemInventory;
 use App\FisProductList;
 use App\FisServiceSales;
 use App\FisItemsalesHeader;
-
-
 
 
 class AccessController extends Controller
@@ -32,8 +36,6 @@ class AccessController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['deceasedata']);
 			
-			//return $value;
-			
 			$deceaseProfile = FisDeceased::create($value);
 			
 			
@@ -50,7 +52,55 @@ class AccessController extends Controller
 			];	
 		}
 	}
+
+	public function insertRTD(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['relationdata']);
+			
+			$relationData = FisRTD::create($value);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$relationData
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertMemberProfile(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['deceasedata']);
+			$value2 = (array)json_decode($request->post()['signeedata']);
+			$value3 = (array)json_decode($request->post()['informantdata']);
+			
+			$deceaseProfile = FisDeceased::create($value);
+			$signeeProfile = FisSignee::create($value2);
+			$informantProfile = FisInformant::create($value3);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$deceaseProfile, $signeeProfile, $informantProfile
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
 	
+
+
 	public function samplepdf()
 	{
 		$mpdf = new \Mpdf\Mpdf();
@@ -93,14 +143,14 @@ class AccessController extends Controller
 		
 	}
 	
-	public function getMinimalProbabilities(Request $request)
+	public function insertInventory(Request $request)
+
 	{
 		try {
-			$value = (array)json_decode($request->post()['items']);
-			$branch = $request->post()['branch'];
-			$itemSelection = [];
-			$itemPresentation = [];
+			$value = (array)json_decode($request->post()['inventorydata']);
 			
+			$inventoryItems = FisItems::create($value);
+
 			foreach ($value as $row)
 			{
 				$selection = DB::select(DB::raw("select fk_item_id, id as value, serialno as label, price as sublabel from
@@ -120,21 +170,84 @@ class AccessController extends Controller
 			}
 			
 			return [
-					'selection' => $itemSelection,
-					'presentation' => $itemPresentation,
-					'vals' => $value
+					'status'=>'saved',
+					'message'=>$inventoryItems
 			];
 			
 		} catch (\Exception $e) {
 			
 			return [
-					'status'=>'error',
-					'message'=>$e->getMessage()
-			];
-			
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
 		}
 	}
 	
+	public function insertPackagemodal(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['packagemodaldata']);
+			
+			$packageName = PackageName::create($value);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$packageName
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+	
+	public function insertItemInclusions(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['ItemInclusionsdata']);
+				
+			$packageName = PackageName::create($value);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$packageName
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertItemReceiving(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['receivingdata']);
+			$value['date_received'] = date('Y-m-d H:i:s', strtotime($value['date_received']));
+			
+			
+			$receivingItems = ReceivingItems::create($value);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$receivingItems
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
 	
 	public function postContract(Request $request)
 	{
@@ -633,7 +746,6 @@ class AccessController extends Controller
 					)sdfa
 					order by duration desc"));
 							
-			
 			return [
 					'status'=>'saved',
 					'message'=> [
@@ -643,7 +755,6 @@ class AccessController extends Controller
 					]
 			];
 			
-
 		} catch (\Exception $e) {
 			
 			return [
@@ -652,9 +763,6 @@ class AccessController extends Controller
 			];
 			
 		}
-		
-		
-		
 	}
 	
 	public function insertAccess(Request $request)
@@ -667,7 +775,7 @@ class AccessController extends Controller
 			$user = SystemUser::create([
 					'UserName'=> $value['username'],
 					'Password'=>$value['password'],
-					'LastName'=>$value['name'], //since quasar, started, it l
+					'LastName'=>$value['name'],
 					'FirstName'=>$value['name'],
 					'MiddleName'=>$value['name'],
 					'UserStatus'=>1,
@@ -691,30 +799,67 @@ class AccessController extends Controller
 					'message'=>$user
 			];
 			
-		//	return $user;
 		} catch (\Exception $e) {
 			
 			return [
 					'status' => 'unsaved',
 					'message' => $e->getMessage(), //use $request->post when getting formData type of post request
-					//'message' => $e->getMessage()
 			];
 		}
 		
 		
 	}
 	
+	public function getMinimalProbabilities(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['items']);
+			$branch = $request->post()['branch'];
+			$itemSelection = [];
+			$itemPresentation = [];
+			
+			foreach ($value as $row)
+			{
+				$selection = DB::select(DB::raw("select fk_item_id, serialno as value, serialno as label from
+						_fis_productlist where isEncumbered=1 and branch='".$branch."'
+						and fk_item_id='".$row->item_code."'"));
+				
+				array_push($itemSelection, $selection);
+				
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, serialno from _fis_productlist pl
+					inner join _fis_items i on pl.fk_item_id = i.item_code
+					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
+					order by id"));
+				
+				array_push($itemPresentation, $presentation);
+				
+				
+			}
+			
+			return [
+					'selection' => $itemSelection,
+					'presentation' => $itemPresentation,
+					'vals' => $value
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+			
+		}
+	}
 	
 	public function getSignee(Request $request)
 	{
-		//$value = (array)json_decode($request->post());
 		$value="";
 		
 		try {
 			$user_check = DB::select(DB::raw("select top 5 id as value, (lname + ', ' + fname + ' ' + mname)label  from _fis_signee
 			where (lname + ', ' + fname + ' ' + mname) like '".$request->post()['name']."%'"));
 			
-		//	return $request->post()['name'];
 		if($user_check)
 		return	$user_check;
 		else return []; 
@@ -730,14 +875,12 @@ class AccessController extends Controller
 	
 	public function getDeceased(Request $request)
 	{
-		//$value = (array)json_decode($request->post());
 		$value="";
 		
 		try {
 			$user_check = DB::select(DB::raw("select top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_deceased
 			where (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
 			
-			//	return $request->post()['name'];
 			if($user_check)
 				return	$user_check;
 				else return [];
@@ -754,13 +897,30 @@ class AccessController extends Controller
 	
 	public function getPackageList(Request $request)
 	{
-		//$value = (array)json_decode($request->post());
 		$value="";
 		
 		try {
 			$user_check = DB::select(DB::raw("select id as value, package_name as label from _fis_package"));
 			
-			//	return $request->post()['name'];
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	public function getPackageItemInclusions(Request $request)
+	{
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select item_code as value, item_name as label from _fis_items"));
+
 			if($user_check)
 				return	$user_check;
 				else return [];
@@ -776,7 +936,7 @@ class AccessController extends Controller
 	
 	public function getDeceaseDropdowns(Request $request)
 	{
-		//$value = (array)json_decode($request->post());
+
 		$value="";
 		
 		try {
@@ -790,7 +950,6 @@ class AccessController extends Controller
 			];
 			
 			
-			//	return $request->post()['name'];
 			if($user_check)
 				return	[
 					'religion' => $user_check,
@@ -810,9 +969,7 @@ class AccessController extends Controller
 	public function getSCLocations(Request $request)
 	{
 		try {
-			//$param = $request->post()['name'];
-			
-			
+	
 			$cemeteries = DB::select(DB::raw("select label, value from _fis_locations where type='cemetery'"));
 			$churches = DB::select(DB::raw("select label, value from _fis_locations where type='church'"));
 			
@@ -831,9 +988,8 @@ class AccessController extends Controller
 		}
 		
 	}
-	
-	
-	
+
+		
 	public function loginUser(Request $request)
 	{
 		try {
@@ -878,5 +1034,64 @@ class AccessController extends Controller
 		}
 		
 		
+	}
+
+	// inventory search
+
+	public function getInventorySearch(Request $request)
+	{
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select * from _fis_items"));
+			
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getRTD(Request $request)
+	{
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select * from _fis_settings_RTD"));
+			
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getRTDValue(Request $request)
+	{
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("select relationtodeceased as value, relationtodeceased as label from _fis_settings_RTD"));
+			
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
 	}
 }
