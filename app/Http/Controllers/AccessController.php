@@ -11,6 +11,7 @@ use App\FisItemSales;
 use App\FisItemInventory;
 use App\FisProductList;
 use App\FisServiceSales;
+use App\FisItemsalesHeader;
 
 
 
@@ -102,13 +103,13 @@ class AccessController extends Controller
 			
 			foreach ($value as $row)
 			{
-				$selection = DB::select(DB::raw("select fk_item_id, id as value, id as label, price as sublabel from
+				$selection = DB::select(DB::raw("select fk_item_id, id as value, serialno as label, price as sublabel from
 						_fis_productlist where isEncumbered=1 and branch='".$branch."'
 						and fk_item_id='".$row->item_code."'"));
 				
 				array_push($itemSelection, $selection);
 				
-				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id as serialno, ".$row->price." as sell_price from _fis_productlist pl
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id, pl.serialno, ".$row->price." as sell_price from _fis_productlist pl
 					inner join _fis_items i on pl.fk_item_id = i.item_code
 					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
 					order by id"));
@@ -157,14 +158,19 @@ class AccessController extends Controller
 	   		
 	   	DB::beginTransaction();
 	   		//check if serial no. is repeated since laravel 5.7 does not provide distinct validation
-	   		$valarr = array_count_values(array_column($value['item_inventory'], 'serialno'));
-	   		$equivalence = array_sum($valarr) / count($valarr);
+	   		$equivalence = 1;
+	   		if(count($value['item_inclusions'])>=1)
+	 		{
+	 			$valarr = array_count_values(array_column($value['item_inventory'], 'id'));
+	 			$equivalence = array_sum($valarr) / count($valarr);
+	 		}
 	   		
 	   		if($equivalence!=1)
 	   			return [
 	   					'status' => 'unsaved',
 	   					'message' => 'Serial No. repitition found. Make sure we do not repeat serial no.',
 	   			];
+	   			
 	   			
 	   			$sc = ServiceContract::find($value['sc_id']);
 	   			$sc->update(
@@ -251,13 +257,13 @@ class AccessController extends Controller
 	   									'item_price'=>$row->sell_price,
 	   									'remarks'=>'-',
 	   									'serialNo'=>'-',
-	   									'p_sequence'=>$row->serialno,
+	   									'p_sequence'=>$row->id,
 	   									'fk_scID'=>$sc->contract_id,
 	   									'fk_ORNo'=>'',
 	   							]);
 	   					
 	   					$productList = FisProductList::where([
-	   							'id'=>$row->serialno,
+	   							'id'=>$row->id,
 	   							'isEncumbered'=>1,
 	   					])->firstOrFail();
 	   					
@@ -344,6 +350,241 @@ class AccessController extends Controller
 	   			'message' => $e->getMessage()
 	   	];
 	   }
+		
+	}
+	
+	
+	public function postPurchase(Request $request)
+	{
+		
+		try {
+			$value = (array)json_decode($request->post()['mechandise']);
+			
+			DB::beginTransaction();
+			
+			$equivalence = 1;
+			if(count($value['item_inclusions'])>=1)
+			{
+				$valarr = array_count_values(array_column($value['item_inventory'], 'id'));
+				$equivalence = array_sum($valarr) / count($valarr);
+			}
+			
+			
+			if($equivalence!=1)
+				return [
+						'status' => 'unsaved',
+						'message' => 'Serial No. repitition found. Make sure we do not repeat serial no.',
+				];
+			
+				//start here
+				
+				FisItemsalesHeader::create([
+					'OR_no'=>$value['sales_header']->reference,
+					'date'=>date('Y-m-d H:i:s'),
+					'transactedBy'=>'hcalio',
+					'client'=>$value['sales_header']->client,
+					'signee_id'=>$value['sales_header']->signee_id,
+					'isPosted'=>1,
+					'PayType'=>$value['sales_header']->PayType,
+					'isCancelled'=>0
+				]);
+				
+				foreach($value['item_inclusions'] as $row)
+				{
+					
+					try {
+						
+						$inventoryCount = FisProductList::where([
+								'fk_item_id'=>$row->item_code,
+								'isEncumbered'=>1,
+								'branch'=>$value['sales_header']->branch
+						])->count();
+						
+						if($inventoryCount<$row->quantity)
+						{
+							DB::rollback();
+							return [
+									'status'=>'unsaved',
+									'message'=>'Insufficient amount for Item Code '.$row->item_code.', only '.$inventoryCount.' left',
+							];
+							
+							break;
+						}
+						
+						FisItemSales::create(
+								[
+										'product_id'=>$row->item_code,
+										'quantity'=>$row->quantity,
+										'date'=>date('Y-m-d'),
+										'price'=>$row->price,
+										'total_price'=>$row->tot_price,
+										'discount'=>$row->discount,
+										'isInContract'=>0,
+										'contract_id'=>0,
+										'remarks'=>'',
+										'isWalkin'=>0,
+										'client'=>$value['sales_header']->client,
+										'signee_id'=>$value['sales_header']->signee_id,
+										'isPosted'=>1,
+										'TransactedBy'=>'hcalio',
+										'isRemitted'=>0,
+										'remittedTo'=>'',
+										'OR_no'=>$value['sales_header']->reference,
+										'isCancelled'=>0
+										
+								]
+								);
+						
+					} catch (\Exception $e) {
+						DB::rollback();
+						return [
+								'status'=>'unsaved',
+								'message'=>$e->getMessage()
+						];
+						break;
+					}
+					
+				}
+				
+				
+				foreach($value['item_inventory'] as $row)
+				{
+					try {
+						
+						FisItemInventory::create(
+								[
+										'transaction_date'=>date('Y-m-d'),
+										'particulars'=>'Purchased by '.$value['sales_header']->client,
+										'contract_id'=>0,
+										'dr_no'=>'-',
+										'rr_no'=>'-',
+										'process'=>'OUT',
+										'remaining_balance'=>0,
+										'product_id'=>$row->item_code,
+										'quantity'=>1,
+										'item_price'=>$row->sell_price,
+										'remarks'=>'-',
+										'serialNo'=>'-',
+										'p_sequence'=>$row->id,
+										'fk_scID'=>0,
+										'fk_ORNo'=>$value['sales_header']->reference,
+								]);
+						
+						$productList = FisProductList::where([
+								'id'=>$row->id,
+								'isEncumbered'=>1,
+						])->firstOrFail();
+						
+						//$productList = FisProductList::find($row->serialno);
+						$productList->update([
+								'isEncumbered'=>0
+						]);
+						
+						
+					} catch (\Exception $e) {
+						DB::rollback();
+						return [
+								'status'=>'unsaved',
+								'message'=>$e->getMessage()
+						];
+						break;
+						
+					}
+					
+					
+				}
+				
+				
+				foreach($value['service_inclusions'] as $row)
+				{
+					
+					try {
+						
+						FisServiceSales::create([
+								'fk_service_id'=>$row->id,
+								'grossAmount'=>$row->amount,
+								'isContract'=>1,
+								'fk_contract_id'=>0,
+								'remarks'=>'-',
+								'discount'=>$row->less,
+								'dateApplied'=>date('Y-m-d'),
+								'total_amount'=>$row->tot_price,
+								'service_duration'=>$row->duration,
+								'duration_unit'=>$row->type_duration,
+								'reference'=>$value['sales_header']->reference,
+								'isPosted'=>1,
+								'transactedBy'=>'hcalio',
+								'isRemitted'=>0,
+								'dateRemitted'=>'1/1/1900',
+								'RemittedTo'=>'',
+								'OR_no'=>$value['sales_header']->reference,
+								'isWalkin'=>0,
+								'client'=>$value['sales_header']->client,
+								'signeeID'=>$value['sales_header']->signee_id,
+								'isCancelled'=>0,
+								
+						]);
+						
+						
+						
+						
+					} catch (\Exception $e) {
+						DB::rollback();
+						return [
+								'status'=>'unsaved',
+								'message'=>$e->getMessage()
+						];
+						break;
+					}
+					
+				}
+				
+				
+				
+				
+				DB::commit();
+				return [
+						'status'=>'saved',
+						'message'=>''
+				];
+			    //end here
+		} catch (\Exception $e) {
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
+	public function getItemsServicesForMerchandising(Request $request)
+	{
+		try {
+			$user_check = DB::select(DB::raw("SELECT item_code, item_name, 0 as quantity, 0 as price, 0 as discount, 0 as tot_price FROM
+				_fis_items fi
+				order by item_code asc
+				"));
+			
+			$services = DB::select(DB::raw("SELECT fs.id, service_name, 0 as amount, 0 as less,
+				0 as duration, '' as type_duration, 0 as tot_price
+				FROM _fis_services fs"));
+			
+			return [
+				'status'=>'ok',
+				'message'=> [
+					'item_inclusions' => $user_check,
+					'service_inclusions' => $services
+				]
+			];
+			
+			
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'error',
+				'message'=>$e->getMessage(),
+			];
+		}
 		
 	}
 	
