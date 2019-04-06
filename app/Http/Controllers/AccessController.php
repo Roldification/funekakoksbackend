@@ -820,13 +820,13 @@ class AccessController extends Controller
 			
 			foreach ($value as $row)
 			{
-				$selection = DB::select(DB::raw("select fk_item_id, serialno as value, serialno as label from
+				$selection = DB::select(DB::raw("select fk_item_id, id as value, serialno as label, price as sublabel from
 						_fis_productlist where isEncumbered=1 and branch='".$branch."'
 						and fk_item_id='".$row->item_code."'"));
 				
 				array_push($itemSelection, $selection);
 				
-				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, serialno from _fis_productlist pl
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id, serialno, ".$row->price." as sell_price from _fis_productlist pl
 					inner join _fis_items i on pl.fk_item_id = i.item_code
 					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
 					order by id"));
