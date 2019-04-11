@@ -17,6 +17,7 @@ use App\FisItemSales;
 use App\FisItemInventory;
 use App\FisProductList;
 use App\FisServiceSales;
+use App\FisItemsalesHeader;
 
 
 class AccessController extends Controller
@@ -55,13 +56,13 @@ class AccessController extends Controller
 			$inventoryItems = FisItems::create($value);
 			foreach ($value as $row)
 			{
-				$selection = DB::select(DB::raw("select fk_item_id, id as value, id as label, price as sublabel from
+				$selection = DB::select(DB::raw("select fk_item_id, id as value, serialno as label, price as sublabel from
 						_fis_productlist where isEncumbered=1 and branch='".$branch."'
 						and fk_item_id='".$row->item_code."'"));
 				
 				array_push($itemSelection, $selection);
 				
-				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id as serialno, ".$row->price." as sell_price from _fis_productlist pl
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id, pl.serialno, ".$row->price." as sell_price from _fis_productlist pl
 					inner join _fis_items i on pl.fk_item_id = i.item_code
 					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
 					order by id"));
@@ -402,8 +403,12 @@ class AccessController extends Controller
 	   		
 	   	DB::beginTransaction();
 	   		//check if serial no. is repeated since laravel 5.7 does not provide distinct validation
-	   		$valarr = array_count_values(array_column($value['item_inventory'], 'serialno'));
-	   		$equivalence = array_sum($valarr) / count($valarr);
+	   		$equivalence = 1;
+	   		if(count($value['item_inclusions'])>=1)
+	 		{
+	 			$valarr = array_count_values(array_column($value['item_inventory'], 'id'));
+	 			$equivalence = array_sum($valarr) / count($valarr);
+	 		}
 	   		
 	   		if($equivalence!=1)
 	   			return [
@@ -411,10 +416,12 @@ class AccessController extends Controller
 	   					'message' => 'Serial No. repitition found. Make sure we do not repeat serial no.',
 	   			];
 	   			
+	   			
 	   			$sc = ServiceContract::find($value['sc_id']);
 	   			$sc->update(
 	   					['contract_amount'=>$value['sc_amount'],
 	   							'grossPrice'=>	$value['sc_amount'],
+	   						    'contract_balance'=> $value['sc_amount'],
 	   							'isPosted'=>1
 	   					]
 	   					);
@@ -496,13 +503,13 @@ class AccessController extends Controller
 	   									'item_price'=>$row->sell_price,
 	   									'remarks'=>'-',
 	   									'serialNo'=>'-',
-	   									'p_sequence'=>$row->serialno,
+	   									'p_sequence'=>$row->id,
 	   									'fk_scID'=>$sc->contract_id,
 	   									'fk_ORNo'=>'',
 	   							]);
 	   					
 	   					$productList = FisProductList::where([
-	   							'id'=>$row->serialno,
+	   							'id'=>$row->id,
 	   							'isEncumbered'=>1,
 	   					])->firstOrFail();
 	   					
@@ -579,7 +586,353 @@ class AccessController extends Controller
 	  			'message'=>''
 	  		];
 	  	
+	   		
 	   	
+	   } catch (\Exception $e) {
+	   	DB::rollback();
+	   	return [
+	   			'status' => 'unsaved',
+	   			'message' => $e->getMessage()
+	   	];
+	   }
+		
+	}
+	
+	
+	public function postPurchase(Request $request)
+	{
+		
+		try {
+			$value = (array)json_decode($request->post()['mechandise']);
+			
+			DB::beginTransaction();
+			
+			$equivalence = 1;
+			if(count($value['item_inclusions'])>=1)
+			{
+				$valarr = array_count_values(array_column($value['item_inventory'], 'id'));
+				$equivalence = array_sum($valarr) / count($valarr);
+			}
+			
+			
+			if($equivalence!=1)
+				return [
+						'status' => 'unsaved',
+						'message' => 'Serial No. repitition found. Make sure we do not repeat serial no.',
+				];
+			
+				//start here
+				
+				FisItemsalesHeader::create([
+					'OR_no'=>$value['sales_header']->reference,
+					'date'=>date('Y-m-d H:i:s'),
+					'transactedBy'=>'hcalio',
+					'client'=>$value['sales_header']->client,
+					'signee_id'=>$value['sales_header']->signee_id,
+					'isPosted'=>1,
+					'PayType'=>$value['sales_header']->PayType,
+					'isCancelled'=>0
+				]);
+				
+				foreach($value['item_inclusions'] as $row)
+				{
+					
+					try {
+						
+						$inventoryCount = FisProductList::where([
+								'fk_item_id'=>$row->item_code,
+								'isEncumbered'=>1,
+								'branch'=>$value['sales_header']->branch
+						])->count();
+						
+						if($inventoryCount<$row->quantity)
+						{
+							DB::rollback();
+							return [
+									'status'=>'unsaved',
+									'message'=>'Insufficient amount for Item Code '.$row->item_code.', only '.$inventoryCount.' left',
+							];
+							
+							break;
+						}
+						
+						FisItemSales::create(
+								[
+										'product_id'=>$row->item_code,
+										'quantity'=>$row->quantity,
+										'date'=>date('Y-m-d'),
+										'price'=>$row->price,
+										'total_price'=>$row->tot_price,
+										'discount'=>$row->discount,
+										'isInContract'=>0,
+										'contract_id'=>0,
+										'remarks'=>'',
+										'isWalkin'=>0,
+										'client'=>$value['sales_header']->client,
+										'signee_id'=>$value['sales_header']->signee_id,
+										'isPosted'=>1,
+										'TransactedBy'=>'hcalio',
+										'isRemitted'=>0,
+										'remittedTo'=>'',
+										'OR_no'=>$value['sales_header']->reference,
+										'isCancelled'=>0
+										
+								]
+								);
+						
+					} catch (\Exception $e) {
+						DB::rollback();
+						return [
+								'status'=>'unsaved',
+								'message'=>$e->getMessage()
+						];
+						break;
+					}
+					
+				}
+				
+				
+				foreach($value['item_inventory'] as $row)
+				{
+					try {
+						
+						FisItemInventory::create(
+								[
+										'transaction_date'=>date('Y-m-d'),
+										'particulars'=>'Purchased by '.$value['sales_header']->client,
+										'contract_id'=>0,
+										'dr_no'=>'-',
+										'rr_no'=>'-',
+										'process'=>'OUT',
+										'remaining_balance'=>0,
+										'product_id'=>$row->item_code,
+										'quantity'=>1,
+										'item_price'=>$row->sell_price,
+										'remarks'=>'-',
+										'serialNo'=>'-',
+										'p_sequence'=>$row->id,
+										'fk_scID'=>0,
+										'fk_ORNo'=>$value['sales_header']->reference,
+								]);
+						
+						$productList = FisProductList::where([
+								'id'=>$row->id,
+								'isEncumbered'=>1,
+						])->firstOrFail();
+						
+						//$productList = FisProductList::find($row->serialno);
+						$productList->update([
+								'isEncumbered'=>0
+						]);
+						
+						
+					} catch (\Exception $e) {
+						DB::rollback();
+						return [
+								'status'=>'unsaved',
+								'message'=>$e->getMessage()
+						];
+						break;
+						
+					}
+					
+					
+				}
+				
+				
+				foreach($value['service_inclusions'] as $row)
+				{
+					
+					try {
+						
+						FisServiceSales::create([
+								'fk_service_id'=>$row->id,
+								'grossAmount'=>$row->amount,
+								'isContract'=>1,
+								'fk_contract_id'=>0,
+								'remarks'=>'-',
+								'discount'=>$row->less,
+								'dateApplied'=>date('Y-m-d'),
+								'total_amount'=>$row->tot_price,
+								'service_duration'=>$row->duration,
+								'duration_unit'=>$row->type_duration,
+								'reference'=>$value['sales_header']->reference,
+								'isPosted'=>1,
+								'transactedBy'=>'hcalio',
+								'isRemitted'=>0,
+								'dateRemitted'=>'1/1/1900',
+								'RemittedTo'=>'',
+								'OR_no'=>$value['sales_header']->reference,
+								'isWalkin'=>0,
+								'client'=>$value['sales_header']->client,
+								'signeeID'=>$value['sales_header']->signee_id,
+								'isCancelled'=>0,
+								
+						]);
+						
+						
+						
+						
+					} catch (\Exception $e) {
+						DB::rollback();
+						return [
+								'status'=>'unsaved',
+								'message'=>$e->getMessage()
+						];
+						break;
+					}
+					
+				}
+				
+				
+				
+				
+				DB::commit();
+				return [
+						'status'=>'saved',
+						'message'=>''
+				];
+			    //end here
+		} catch (\Exception $e) {
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
+	
+	public function getBillingOfClient(Request $request)
+	{
+		try {
+			//$request->post()['name']
+			
+			$qry = DB::select(DB::raw("SELECT commodity, reference, charge_account, 'PERSONAL' as charge_label, pay_type, 'Cash Payment' as pay_label, balance, amount FROM
+(
+select signee, 'SERVICE CONTRACT' as commodity, contract_no as reference, 2 as charge_account, 1 as pay_type, contract_balance as balance, 0 as amount from _fis_service_contract
+UNION ALL
+select signee_id as signee, 'ADDTL. PURCHASES' as commodity, OR_no as reference, 2 as charge_account, 1 as pay_type,
+(isnull((select sum(total_price) from _fis_item_sales where OR_no = sh.OR_no and isCancelled=0), 0) + isnull((select sum(total_amount) from _fis_service_sales where isCancelled=0 and OR_no = sh.OR_no), 0))balance,
+0 as amount
+from _fis_itemsales_header sh
+)SDFA
+WHERE signee=".$request->post()['client_id']));
+			
+			return $qry;
+			
+			
+		} catch (Exception $e) {
+			return [
+				'status'=>'error',
+				'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
+	
+	public function getAccounts()
+	{
+		$accounts = DB::select(DB::raw("SELEct * from _fis_account"));
+	}
+	
+	
+	public function getItemsServicesForMerchandising(Request $request)
+	{
+		try {
+			$user_check = DB::select(DB::raw("SELECT item_code, item_name, 0 as quantity, 0 as price, 0 as discount, 0 as tot_price FROM
+				_fis_items fi
+				order by item_code asc
+				"));
+			
+			$services = DB::select(DB::raw("SELECT fs.id, service_name, 0 as amount, 0 as less,
+				0 as duration, '' as type_duration, 0 as tot_price
+				FROM _fis_services fs"));
+			
+			return [
+				'status'=>'ok',
+				'message'=> [
+					'item_inclusions' => $user_check,
+					'service_inclusions' => $services
+				]
+			];
+			
+			
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'error',
+				'message'=>$e->getMessage(),
+			];
+		}
+		
+	}
+	
+	
+	public function insertContract(Request $request)
+	{
+		try {
+			
+			$value = (array)json_decode($request->post()['servicecontract']);
+			
+			$value['contract_balance'] = $value['contract_amount'];
+			$value['burial_time'] = date('Y-m-d H:i:s', strtotime($value['burial_time']));
+			$serviceContract = ServiceContract::create($value);
+			
+			$user_check = DB::select(DB::raw("select * from
+				(
+				SELECT item_code, item_name, isnull(quantity, 0) as quantity, 0 as price, 0 as discount, 0 as tot_price FROM _fis_items fi
+				left join 
+				(
+				select * from _fis_package_inclusions
+				where fk_package_id=".$serviceContract->package_class_id."
+				and inclusionType='ITEM'
+				)b on fi.item_code = b.item_id
+				)sdf
+				order by quantity desc,  item_code asc
+				"));
+			
+			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
+					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName
+					from _fis_service_contract sc 
+					inner join _fis_signee s on sc.signee = s.id
+					inner join _fis_deceased d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.id
+					inner join ClientReligion cr on d.religion = cr.ReligionID
+					where contract_id=".$serviceContract->contract_id)); 
+			    
+		   
+			    $services = DB::select(DB::raw("select * from
+					(
+					SELECT fs.id, service_name, 0 as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, 0 as tot_price  FROM _fis_services fs
+					left join
+					(
+					select * from _fis_package_inclusions where fk_package_id=".$serviceContract->package_class_id." and inclusionType='SERV'
+					)a on fs.id = a.service_id and fs.isActive=1
+					)sdfa
+					order by duration desc"));
+							
+			return [
+					'status'=>'saved',
+					'message'=> [
+							'service_contract' => $sc_details,
+							'item_inclusions' => $user_check,
+							'service_inclusions' => $services
+					]
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage()
+			];
+			
+		}
+	}
+
 	
 	   	
 	   } catch (\Exception $e) {
@@ -603,13 +956,13 @@ class AccessController extends Controller
 			
 			foreach ($value as $row)
 			{
-				$selection = DB::select(DB::raw("select fk_item_id, serialno as value, serialno as label from
+				$selection = DB::select(DB::raw("select fk_item_id, id as value, serialno as label, price as sublabel from
 						_fis_productlist where isEncumbered=1 and branch='".$branch."'
 						and fk_item_id='".$row->item_code."'"));
 				
 				array_push($itemSelection, $selection);
 				
-				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, serialno from _fis_productlist pl
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id, serialno, ".$row->price." as sell_price from _fis_productlist pl
 					inner join _fis_items i on pl.fk_item_id = i.item_code
 					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
 					order by id"));
