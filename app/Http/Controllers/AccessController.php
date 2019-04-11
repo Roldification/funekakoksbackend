@@ -12,7 +12,7 @@ use App\PackageName;
 use App\ReceivingItems;
 use App\FisSignee;
 use App\FisInformant;
-use App\FisRTD;
+use App\FisRelation;
 use App\FisItemSales;
 use App\FisItemInventory;
 use App\FisProductList;
@@ -25,47 +25,23 @@ class AccessController extends Controller
     
 	public function getUser()
 	{	echo date('Y-m-d H:i:s');
-		
 		return SystemUser::all();
 		
 	}
-	
-	public function insertDeceaseProfile(Request $request)
-	{
-		try {
-			$value = (array)json_decode($request->post()['deceasedata']);
-			
-			$deceaseProfile = FisDeceased::create($value);
-			
-			
-			return [
-					'status'=>'saved',
-					'message'=>$deceaseProfile
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
 
-	public function insertRTD(Request $request)
-	{
+
+
+	// ALL INSERT HERE
+	public function insertRelation(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['relationdata']);
-			
-			$relationData = FisRTD::create($value);
-			
+			$relationData = FisRelation::create($value);
 			return [
-					'status'=>'saved',
-					'message'=>$relationData
+				'status'=>'saved',
+				'message'=>$relationData
 			];
 			
 		} catch (\Exception $e) {
-			
 			return [
 				'status'=>'unsaved',
 				'message'=>$e->getMessage()
@@ -73,20 +49,31 @@ class AccessController extends Controller
 		}
 	}
 
-	public function insertMemberProfile(Request $request)
-	{
+	public function insertInventory(Request $request) {
 		try {
-			$value = (array)json_decode($request->post()['deceasedata']);
-			$value2 = (array)json_decode($request->post()['signeedata']);
-			$value3 = (array)json_decode($request->post()['informantdata']);
-			
-			$deceaseProfile = FisDeceased::create($value);
-			$signeeProfile = FisSignee::create($value2);
-			$informantProfile = FisInformant::create($value3);
+			$value = (array)json_decode($request->post()['inventorydata']);
+			$inventoryItems = FisItems::create($value);
+			foreach ($value as $row)
+			{
+				$selection = DB::select(DB::raw("select fk_item_id, id as value, id as label, price as sublabel from
+						_fis_productlist where isEncumbered=1 and branch='".$branch."'
+						and fk_item_id='".$row->item_code."'"));
+				
+				array_push($itemSelection, $selection);
+				
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id as serialno, ".$row->price." as sell_price from _fis_productlist pl
+					inner join _fis_items i on pl.fk_item_id = i.item_code
+					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
+					order by id"));
+				
+				array_push($itemPresentation, $presentation);
+				
+				
+			}
 			
 			return [
 					'status'=>'saved',
-					'message'=>$deceaseProfile, $signeeProfile, $informantProfile
+					'message'=>$inventoryItems
 			];
 			
 		} catch (\Exception $e) {
@@ -97,6 +84,256 @@ class AccessController extends Controller
 			];	
 		}
 	}
+	
+	public function insertPackagemodal(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['packagemodaldata']);
+			$packageName = PackageName::create($value);
+			return [
+				'status'=>'saved',
+				'message'=>$packageName
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+	
+	public function insertItemInclusions(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['ItemInclusionsdata']);	
+			$packageName = PackageName::create($value);
+			return [
+				'status'=>'saved',
+				'message'=>$packageName
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertItemReceiving(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['receivingdata']);
+			$value['date_received'] = date('Y-m-d H:i:s', strtotime($value['date_received']));
+			$receivingItems = ReceivingItems::create($value);
+			return [
+				'status'=>'saved',
+				'message'=>$receivingItems
+			];
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertContract(Request $request)
+	{
+		try {
+			
+			$value = (array)json_decode($request->post()['servicecontract']);
+			
+			$value['contract_balance'] = $value['contract_amount'];
+			$value['burial_time'] = date('Y-m-d H:i:s', strtotime($value['burial_time']));
+			$serviceContract = ServiceContract::create($value);
+			
+			$user_check = DB::select(DB::raw("select * from
+				(
+				SELECT item_code, item_name, isnull(quantity, 0) as quantity, 0 as price, 0 as discount, 0 as tot_price FROM _fis_items fi
+				left join 
+				(
+				select * from _fis_package_inclusions
+				where fk_package_id=".$serviceContract->package_class_id."
+				and inclusionType='ITEM'
+				)b on fi.item_code = b.item_id
+				)sdf
+				order by quantity desc,  item_code asc
+				"));
+			
+			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
+					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName
+					from _fis_service_contract sc 
+					inner join _fis_signee s on sc.signee = s.id
+					inner join _fis_deceased d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.id
+					inner join ClientReligion cr on d.religion = cr.ReligionID
+					where contract_id=".$serviceContract->contract_id)); 
+			    
+		   
+			    $services = DB::select(DB::raw("select * from
+					(
+					SELECT fs.id, service_name, 0 as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, 0 as tot_price  FROM _fis_services fs
+					left join
+					(
+					select * from _fis_package_inclusions where fk_package_id=".$serviceContract->package_class_id." and inclusionType='SERV'
+					)a on fs.id = a.service_id and fs.isActive=1
+					)sdfa
+					order by duration desc"));
+							
+			return [
+					'status'=>'saved',
+					'message'=> [
+							'service_contract' => $sc_details,
+							'item_inclusions' => $user_check,
+							'service_inclusions' => $services
+					]
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage()
+			];
+			
+		}
+	}
+
+	public function insertAccess(Request $request) {
+		try {
+			
+			$value = (array)json_decode($request->post()['userdata']);
+			
+			$user = SystemUser::create([
+					'UserName'=> $value['username'],
+					'Password'=>$value['password'],
+					'LastName'=>$value['name'],
+					'FirstName'=>$value['name'],
+					'MiddleName'=>$value['name'],
+					'UserStatus'=>1,
+					'EmployeeID'=>$value['username'],
+					'FKRoleID'=>$value['roleid'],
+					'FKBranchID'=>$value['branchid'],
+					'DateLastPasswordChange'=>date('Y-m-d H:i:s'),
+					'DisbursementLimit'=>0,
+					'CashOnHand'=>0,
+					'UserSLCode'=>'1-1-101-01-002',
+					'CreatedBy'=>'sa',
+					'CreatedDate'=>date('Y-m-d'),
+					'UpdatedBy'=>'sa',
+					'DateUpdated'=>date('Y-m-d'),
+					
+					
+			]);
+				
+			return [
+					'status'=>'saved',
+					'message'=>$user
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+					'status' => 'unsaved',
+					'message' => $e->getMessage(), //use $request->post when getting formData type of post request
+			];
+		}
+		
+		
+	}
+
+	public function insertSigneeProfile(Request $request) {
+		try {
+			$value2 = (array)json_decode($request->post()['signeedata']);
+			$signeeProfile = FisSignee::create([
+				'isTCMember'	=> $value2['isTCMember'],
+        		'fname'	=> $value2['fname'],
+		        'mname'	=> $value2['mname'],
+		        'lname'	=> $value2['lname'],
+		       	'address' => $value2['address'],
+		        'contactNo'	=> $value2['contactNo'],
+		        'email_address' => $value2['email_address'],
+		       	'fb_account' => $value2['fb_account'],
+				'date_entry' => date('Y-m-d'),
+				'transactedBy' => 'hcalio']);
+			return [
+				'status'=>'saved',
+				'message'=>$signeeProfile
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertInformantProfile(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['informantdata']);
+			$informantProfile = FisInformant::create([
+				'isTCMember' => $value['isTCMember'],
+        		'firstName'	=> $value['firstName'],
+		        'middleName' => $value['middleName'],
+		        'lastName' => $value['lastName'],
+		       	'address' => $value['address'],
+		        'contactNo' => $value['contactNo'],
+		       	'incentives' => $value['incentives'],
+				'date_entry' => date('Y-m-d'),
+				'transactedBy' => 'hcalio']);
+			return [
+				'status'=>'saved',
+				'message'=>$informantProfile
+			];
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertDeceaseProfile(Request $request){
+		try {
+			$value = (array)json_decode($request->post()['deceasedata']);
+			$deceasedProfile = FisDeceased::create([
+				'isTCMember' => $value['isTCMember'],
+        		'firstname'	=> $value['firstname'],
+		        'middlename' => $value['middlename'],
+		        'lastname' => $value['lastname'],
+		        'birthday' => date('Y-m-d', strtotime($value['birthday'])),
+		        'age' => $value['age'],
+		        'religion' => $value['religion'],
+		        'address' => $value['address'],
+		        'datedied' => date('Y-m-d', strtotime($value['datedied'])),
+		        'causeOfDeath' => $value['causeOfDeath'],
+		        'deathPlace' => $value['deathPlace'],
+		        'primary_branch' => $value['primary_branch'],
+		        'servicing_branch' => $value['servicing_branch'],
+		        'signee_id' => $value['signee_id'],
+		        'signee_name' => $value['signee_name'],
+		        'informant_id' => $value['informant_id'],
+		        'informant_name' => $value['informant_name'],
+		        'relationToSignee' => $value['relationToSignee'],
+		       	'date_entry' => date('Y-m-d'),
+				'transactedBy' => 'hcalio']);
+
+			return [
+				'status'=>'saved',
+				'message'=>$deceasedProfile
+			];
+
+
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	// END OF INSERT FUNCTION
 	
 
 
@@ -142,111 +379,6 @@ class AccessController extends Controller
 		
 	}
 	
-	public function insertInventory(Request $request)
-
-	{
-		try {
-			$value = (array)json_decode($request->post()['inventorydata']);
-			
-			$inventoryItems = FisItems::create($value);
-
-			foreach ($value as $row)
-			{
-				$selection = DB::select(DB::raw("select fk_item_id, id as value, id as label, price as sublabel from
-						_fis_productlist where isEncumbered=1 and branch='".$branch."'
-						and fk_item_id='".$row->item_code."'"));
-				
-				array_push($itemSelection, $selection);
-				
-				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id as serialno, ".$row->price." as sell_price from _fis_productlist pl
-					inner join _fis_items i on pl.fk_item_id = i.item_code
-					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
-					order by id"));
-				
-				array_push($itemPresentation, $presentation);
-				
-				
-			}
-			
-			return [
-					'status'=>'saved',
-					'message'=>$inventoryItems
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
-	
-	public function insertPackagemodal(Request $request)
-	{
-		try {
-			$value = (array)json_decode($request->post()['packagemodaldata']);
-			
-			$packageName = PackageName::create($value);
-			
-			return [
-					'status'=>'saved',
-					'message'=>$packageName
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
-	
-	public function insertItemInclusions(Request $request)
-	{
-		try {
-			$value = (array)json_decode($request->post()['ItemInclusionsdata']);
-				
-			$packageName = PackageName::create($value);
-			
-			return [
-					'status'=>'saved',
-					'message'=>$packageName
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
-
-	public function insertItemReceiving(Request $request)
-	{
-		try {
-			$value = (array)json_decode($request->post()['receivingdata']);
-			$value['date_received'] = date('Y-m-d H:i:s', strtotime($value['date_received']));
-			
-			
-			$receivingItems = ReceivingItems::create($value);
-			
-			return [
-					'status'=>'saved',
-					'message'=>$receivingItems
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
-
 	
 	public function postContract(Request $request)
 	{
@@ -461,114 +593,6 @@ class AccessController extends Controller
 	}
 	
 	
-	public function insertContract(Request $request)
-	{
-		try {
-			
-			$value = (array)json_decode($request->post()['servicecontract']);
-			
-			$value['contract_balance'] = $value['contract_amount'];
-			$value['burial_time'] = date('Y-m-d H:i:s', strtotime($value['burial_time']));
-			$serviceContract = ServiceContract::create($value);
-			
-			$user_check = DB::select(DB::raw("select * from
-				(
-				SELECT item_code, item_name, isnull(quantity, 0) as quantity, 0 as price, 0 as discount, 0 as tot_price FROM _fis_items fi
-				left join 
-				(
-				select * from _fis_package_inclusions
-				where fk_package_id=".$serviceContract->package_class_id."
-				and inclusionType='ITEM'
-				)b on fi.item_code = b.item_id
-				)sdf
-				order by quantity desc,  item_code asc
-				"));
-			
-			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
-					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName
-					from _fis_service_contract sc 
-					inner join _fis_signee s on sc.signee = s.id
-					inner join _fis_deceased d on sc.deceased_id = d.id
-					inner join _fis_package p on sc.package_class_id = p.id
-					inner join ClientReligion cr on d.religion = cr.ReligionID
-					where contract_id=".$serviceContract->contract_id)); 
-			    
-		   
-			    $services = DB::select(DB::raw("select * from
-					(
-					SELECT fs.id, service_name, 0 as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, 0 as tot_price  FROM _fis_services fs
-					left join
-					(
-					select * from _fis_package_inclusions where fk_package_id=".$serviceContract->package_class_id." and inclusionType='SERV'
-					)a on fs.id = a.service_id and fs.isActive=1
-					)sdfa
-					order by duration desc"));
-							
-			return [
-					'status'=>'saved',
-					'message'=> [
-							'service_contract' => $sc_details,
-							'item_inclusions' => $user_check,
-							'service_inclusions' => $services
-					]
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-					'status'=>'unsaved',
-					'message'=>$e->getMessage()
-			];
-			
-		}
-	}
-	
-	public function insertAccess(Request $request)
-	{
-		
-		try {
-			
-			$value = (array)json_decode($request->post()['userdata']);
-			
-			$user = SystemUser::create([
-					'UserName'=> $value['username'],
-					'Password'=>$value['password'],
-					'LastName'=>$value['name'],
-					'FirstName'=>$value['name'],
-					'MiddleName'=>$value['name'],
-					'UserStatus'=>1,
-					'EmployeeID'=>$value['username'],
-					'FKRoleID'=>$value['roleid'],
-					'FKBranchID'=>$value['branchid'],
-					'DateLastPasswordChange'=>date('Y-m-d H:i:s'),
-					'DisbursementLimit'=>0,
-					'CashOnHand'=>0,
-					'UserSLCode'=>'1-1-101-01-002',
-					'CreatedBy'=>'sa',
-					'CreatedDate'=>date('Y-m-d'),
-					'UpdatedBy'=>'sa',
-					'DateUpdated'=>date('Y-m-d'),
-					
-					
-			]);
-				
-			return [
-					'status'=>'saved',
-					'message'=>$user
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-					'status' => 'unsaved',
-					'message' => $e->getMessage(), //use $request->post when getting formData type of post request
-			];
-		}
-		
-		
-	}
-	
 	public function getMinimalProbabilities(Request $request)
 	{
 		try {
@@ -651,48 +675,7 @@ class AccessController extends Controller
 			];
 		}
 	}
-	
-	
-	
-	public function getPackageList(Request $request)
-	{
-		$value="";
 		
-		try {
-			$user_check = DB::select(DB::raw("select id as value, package_name as label from _fis_package"));
-			
-			if($user_check)
-				return	$user_check;
-				else return [];
-				
-		} catch (\Exception $e) {
-			return [
-					'status'=>'error',
-					'message'=>$e->getMessage()
-			];
-		}
-	}
-	
-	public function getPackageItemInclusions(Request $request)
-	{
-		$value="";
-		
-		try {
-			$user_check = DB::select(DB::raw("select item_code as value, item_name as label from _fis_items"));
-
-			if($user_check)
-				return	$user_check;
-				else return [];
-				
-		} catch (\Exception $e) {
-			return [
-					'status'=>'error',
-					'message'=>$e->getMessage()
-			];
-		}
-	}
-	
-	
 	public function getDeceaseDropdowns(Request $request)
 	{
 
@@ -795,62 +778,311 @@ class AccessController extends Controller
 		
 	}
 
-	// inventory search
 
-	public function getInventorySearch(Request $request)
-	{
-		$value="";
-		
+	public function getInventorySearch(Request $request) {
+		$value = "";
 		try {
-			$user_check = DB::select(DB::raw("select * from _fis_items"));
-			
+		$user_check = DB::select(DB::raw("select * from _fis_items"));
+			if($user_check)
+			return	$user_check;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getRelation(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("select * from _fis_settings_relation"));
+			if($user_check)
+			return	$user_check;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getRelationValue(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("select rtd_id as value, relation as label from _fis_settings_relation"));
+
+		if($user_check)
+			return	$user_check;
+			else return [];		
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getPackageList(Request $request) {
+		$value="";
+		try {
+		$user_check = DB::select(DB::raw("select id as value, package_name as label from _fis_package"));
 			if($user_check)
 				return	$user_check;
 				else return [];
 				
 		} catch (\Exception $e) {
 			return [
-					'status'=>'error',
-					'message'=>$e->getMessage()
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+	
+	public function getPackageItemInclusions(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("select item_code as value, item_name as label from _fis_items"));
+			if($user_check)
+			return	$user_check;
+			else return [];		
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
 			];
 		}
 	}
 
-	public function getRTD(Request $request)
+	public function getInformant(Request $request)
 	{
-		$value="";
-		
+		$value = "";
 		try {
-			$user_check = DB::select(DB::raw("select * from _fis_settings_RTD"));
+		$user_check = DB::select(DB::raw("select top 5 id as value, (lastName + ', ' + firstName + ' ' + middleName) label  from _fis_informant
+			where (lastName + ', ' + firstName + ' ' + middleName) like '".$request->post()['name']."%'"));
 			
-			if($user_check)
-				return	$user_check;
-				else return [];
-				
+		if($user_check)
+		return	$user_check;
+		else return []; 
 		} catch (\Exception $e) {
 			return [
-					'status'=>'error',
-					'message'=>$e->getMessage()
+			'status'=>'error',
+			'message'=>$e->getMessage()
 			];
 		}
 	}
 
-	public function getRTDValue(Request $request)
-	{
-		$value="";
-		
+	public function getMemberDeceased(Request $request) {
+		$value = "";
 		try {
-			$user_check = DB::select(DB::raw("select relationtodeceased as value, relationtodeceased as label from _fis_settings_RTD"));
-			
-			if($user_check)
-				return	$user_check;
-				else return [];
+		$deceased = DB::select(DB::raw("select * from  _fis_deceased
+		left join clientreligion on _fis_deceased.religion = clientreligion.ReligionID
+		left join _fis_settings_relation on _fis_deceased.relationToSignee = _fis_settings_relation.rtd_id "));	
+
+			if($deceased)
+			return	$deceased;
+			else return [];
 				
 		} catch (\Exception $e) {
 			return [
-					'status'=>'error',
-					'message'=>$e->getMessage()
+			'status'=>'error',
+			'message'=>$e->getMessage()
 			];
 		}
 	}
+
+	public function getMemberSignee(Request $request) {
+		$value = "";
+		try {
+		$signee = DB::select(DB::raw("select * from _fis_signee"));	
+
+			if($signee)
+			return	$signee;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getMemberInformant(Request $request) {
+		$value = "";
+		try {
+		$informant = DB::select(DB::raw("select * from  _fis_informant"));	
+
+			if($informant)
+			return	$informant;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	// ADD ALL THE 'UPDATE' HERE
+
+	public function updateRelation(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['relationdataupdate']);
+			
+				$rtd = FisRelation::find($value['rtd_id']);
+	   			$rtd->update(
+	   					['relation'=>$value['relation']]);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$rtd
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function updateDeceased(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['deceasedDataupdate']);
+			
+				$deceased = FisDeceased::find($value['id']);
+	   			$deceased ->update(
+	   					[
+			   			'firstname' => $value['firstname'],
+						'middlename' => $value['middlename'],
+						'lastname' => $value['lastname'],
+						'isTCMember' => $value['isTCMember'],
+						'birthday' => $value['birthday'],
+						'datedied' => $value['datedied'],
+						'address' => $value['address'],
+						'causeOfDeath' => $value['causeOfDeath'],
+						'deathPlace' => $value['deathPlace'],
+						'religion' => $value['religion'],
+						'primary_branch' => $value['primary_branch'],
+						'servicing_branch' => $value['servicing_branch'],
+						'age' => $value['age'],
+						'relationToSignee' => $value['relationToSignee'],
+						'signee_id' => $value['signee_id'],
+						'signee_name' => $value['signee_name'],
+						'informant_id' => $value['informant_id'],
+						'informant_name' => $value['informant_name']
+	   					]);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$deceased
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	} 
+
+	public function updateSignee(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['signeeDataupdate']);
+			
+				$signee = FisSignee::find($value['id']);
+	   			$signee ->update(
+	   					[
+			   			'fname' => $value['fname'],
+						'mname' => $value['mname'],
+						'lname' => $value['lname'],
+						'isTCMember' => $value['isTCMember'],
+						'contactNo' => $value['contactNo'],
+						'address' => $value['address'],
+						'email_address' => $value['email_address'],
+						'fb_account' => $value['fb_account']
+	   					]);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$signee
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function updateInformant(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['informantDataupdate']);
+			
+				$informant = FisInformant::find($value['id']);
+	   			$informant ->update(
+	   					[
+			   			'firstName' => $value['firstName'],
+						'middleName' => $value['middleName'],
+						'lastName' => $value['lastName'],
+						'isTCmember' => $value['isTCmember'],
+						'address' => $value['address'],
+						'contactNo' => $value['contactNo'],
+						'incentives' => $value['incentives']
+	   					]);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$informant
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	// CLOSE OF UPDATE
+
+	// ADD ALL THE 'DELETE' HERE
+	public function deleteRelation(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['relationdatadelete']);
+			
+				$rtd = FisRelation::find($value['rtd_id']);
+	   			$rtd->delete();
+			
+			return [
+					'status'=>'saved',
+					'message'=>$rtd
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	// CLOSE OF DELETE
+
 }
