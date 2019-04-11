@@ -289,6 +289,7 @@ class AccessController extends Controller
 	   			$sc->update(
 	   					['contract_amount'=>$value['sc_amount'],
 	   							'grossPrice'=>	$value['sc_amount'],
+	   						    'contract_balance'=> $value['sc_amount'],
 	   							'isPosted'=>1
 	   					]
 	   					);
@@ -669,6 +670,42 @@ class AccessController extends Controller
 		}
 		
 	}
+	
+	
+	public function getBillingOfClient(Request $request)
+	{
+		try {
+			//$request->post()['name']
+			
+			$qry = DB::select(DB::raw("SELECT commodity, reference, charge_account, 'PERSONAL' as charge_label, pay_type, 'Cash Payment' as pay_label, balance, amount FROM
+(
+select signee, 'SERVICE CONTRACT' as commodity, contract_no as reference, 2 as charge_account, 1 as pay_type, contract_balance as balance, 0 as amount from _fis_service_contract
+UNION ALL
+select signee_id as signee, 'ADDTL. PURCHASES' as commodity, OR_no as reference, 2 as charge_account, 1 as pay_type,
+(isnull((select sum(total_price) from _fis_item_sales where OR_no = sh.OR_no and isCancelled=0), 0) + isnull((select sum(total_amount) from _fis_service_sales where isCancelled=0 and OR_no = sh.OR_no), 0))balance,
+0 as amount
+from _fis_itemsales_header sh
+)SDFA
+WHERE signee=".$request->post()['client_id']));
+			
+			return $qry;
+			
+			
+		} catch (Exception $e) {
+			return [
+				'status'=>'error',
+				'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
+	
+	public function getAccounts()
+	{
+		$accounts = DB::select(DB::raw("SELEct * from _fis_account"));
+	}
+	
 	
 	public function getItemsServicesForMerchandising(Request $request)
 	{

@@ -36,7 +36,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 });
 
 
-//getMinimalProbabilities
+	//getBillingOfClient
 
 //though not suggested, you are welcome to just put GET requests here, request here does not need authentication.
 Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
@@ -51,6 +51,7 @@ Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclus
 Route::get('get-inventory-search', 'AccessController@getInventorySearch')->middleware('cors');
 Route::get('get-RTD', 'AccessController@getRTD')->middleware('cors');
 Route::get('get-RTDValue', 'AccessController@getRTDValue')->middleware('cors');
+Route::get('get-billing-of-client', 'AccessController@getBillingOfClient')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
