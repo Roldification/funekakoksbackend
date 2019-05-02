@@ -30,13 +30,13 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('insert-RTD', 'AccessController@insertRTD');
 	Route::post('post-contract', 'AccessController@postContract');
-
+	Route::post('post-billing-payment', 'AccessController@postBillingPayment');
 	Route::post('post-purchase', 'AccessController@postPurchase');
 	
 });
 
 
-	//getBillingOfClient
+	//postBillingPayment
 
 //though not suggested, you are welcome to just put GET requests here, request here does not need authentication.
 Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
@@ -52,6 +52,7 @@ Route::get('get-inventory-search', 'AccessController@getInventorySearch')->middl
 Route::get('get-RTD', 'AccessController@getRTD')->middleware('cors');
 Route::get('get-RTDValue', 'AccessController@getRTDValue')->middleware('cors');
 Route::get('get-billing-of-client', 'AccessController@getBillingOfClient')->middleware('cors');
+Route::get('get-accounts', 'AccessController@getAccounts')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

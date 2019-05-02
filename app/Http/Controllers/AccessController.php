@@ -18,6 +18,9 @@ use App\FisItemInventory;
 use App\FisProductList;
 use App\FisServiceSales;
 use App\FisItemsalesHeader;
+use App\FisTransactionHeader;
+use App\AccountingHelper;
+
 
 
 class AccessController extends Controller
@@ -255,7 +258,7 @@ class AccessController extends Controller
 	   	$value = (array)json_decode($request->post()['contract_details']);
 	   	
 	   	
-
+			//return $value;
 	   		/*
 	   		 * here lies the posting of contract.
 	   		 * 1st step, update the balance of contract,
@@ -263,13 +266,30 @@ class AccessController extends Controller
 	   		 * 3rd step, record services get,
 	   		 * 4th step,  record inventory of items.
 	   		 * 5th step contract posting?
-	   		 *
 	   		 */
 	   		
 	   		//$isInventoryValid = \Illuminate\Support\Facades\Validator::make($value, $this->validatorsField('fisItemInventory'));
 	   		
 	   		
 	   	DB::beginTransaction();
+	   	
+	   		$acctgHeader = [];
+	   		$acctgHeader['branch_code'] = '201';
+	   		$acctgHeader['transaction_date'] = date('Y-m-d');
+	   		$acctgHeader['transaction_code'] = "JNLVOUCHER";
+	   		$acctgHeader['username'] = "hcalio";
+	   		$acctgHeader['reference'] = "SC".$value['sc_number'];
+	   		$acctgHeader['status'] = 1;
+	   		$acctgHeader['particulars'] = "Funecare Service Contract #".$value['sc_number'];
+	   		$acctgHeader['customer'] = $value['sc_signee'];
+	   		$acctgHeader['checkno'] = "";
+	   		
+	   		
+	   		$acctgDetails = [];
+	   		
+	   		$pushDetails = [];
+
+	   		
 	   		//check if serial no. is repeated since laravel 5.7 does not provide distinct validation
 	   		$equivalence = 1;
 	   		if(count($value['item_inclusions'])>=1)
@@ -288,14 +308,22 @@ class AccessController extends Controller
 	   			$sc = ServiceContract::find($value['sc_id']);
 	   			$sc->update(
 	   					['contract_amount'=>$value['sc_amount'],
-	   							'grossPrice'=>	$value['sc_amount'],
-	   						    'contract_balance'=> $value['sc_amount'],
-	   							'isPosted'=>1
+	   					 'grossPrice'=>	$value['sc_amount'],
+	   					 'contract_balance'=> $value['sc_amount'],
+	   					 'status'=>'POSTED',
+	   					 'isPosted'=>1
 	   					]
 	   					);
 	   			
 	   			
-	   					
+	   			$pushDetails['entry_type']="DR";
+	   			$pushDetails['SLCode']="1-1-112-03-004";
+	   			$pushDetails['amount']=$value['sc_amount'];
+	   			$pushDetails['detail_particulars']="To record AR from Service Contract No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   			
+	   			
+	   			array_push($acctgDetails, $pushDetails);
+	   			
 	   			foreach($value['item_inclusions'] as $row)
 	   			{	   	
 	   				
@@ -340,6 +368,16 @@ class AccessController extends Controller
 	   									
 	   							]
 	   							);
+	   					
+	   					
+	   					$pushDetails['entry_type']="CR";
+	   					$pushDetails['SLCode']= $row->income_SLCode;
+	   					$pushDetails['amount']= $row->tot_price;
+	   					$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					
+	   					array_push($acctgDetails, $pushDetails);
+	   					
+	   					
 	   					
 	   				} catch (\Exception $e) {
 	   					DB::rollback();
@@ -432,6 +470,13 @@ class AccessController extends Controller
 	   					]);
 	   					
 	   					
+	   					$pushDetails['entry_type']="CR";
+	   					$pushDetails['SLCode']= $row->SLCode;
+	   					$pushDetails['amount']= $row->tot_price;
+	   					$pushDetails['detail_particulars']="Income of ".$row->service_name." from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					
+	   					array_push($acctgDetails, $pushDetails);
+	   					
 	   					
 	   					
 	   				} catch (\Exception $e) {
@@ -445,14 +490,24 @@ class AccessController extends Controller
 	   				
 	   			}
 
-	  		
+	   			$saveAccounting =  AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
 	   	
+	   			if($saveAccounting['status']=='saved')
+	   			{
+	   				DB::commit();
+	   				return [
+	   						'status'=>'saved',
+	   						'message'=>''
+	   				];
+	   			}
+	   			
+	   			else
+	   			{
+	   				DB::rollback();
+	   				return $saveAccounting;
+	   			}
 	   		
-	   		DB::commit();
-	  		return [
-	  			'status'=>'saved',
-	  			'message'=>''
-	  		];
+	   		
 	  	
 	   	
 	
@@ -468,9 +523,48 @@ class AccessController extends Controller
 	}
 	
 	
+	public function postBillingPayment(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['payment_details']);
+			DB::beginTransaction();
+			
+			
+			
+			$tran_header = FisTransactionHeader::create((array)$value['bill_header']);
+			
+			foreach ($value['pay_details'] as $row)
+			{
+				
+				
+				
+			}
+			
+			
+			
+			
+			return $value['pay_details'];
+			
+			
+			
+			
+			
+		} catch (\Exception $e) {
+			DB::rollback();
+			return [
+					'status' => 'unsaved',
+					'message' => $e->getMessage()
+			];
+		}
+		
+		
+		
+	}
+	
+	
 	public function postPurchase(Request $request)
 	{
-		
+	
 		try {
 			$value = (array)json_decode($request->post()['mechandise']);
 			
@@ -500,7 +594,10 @@ class AccessController extends Controller
 					'signee_id'=>$value['sales_header']->signee_id,
 					'isPosted'=>1,
 					'PayType'=>$value['sales_header']->PayType,
-					'isCancelled'=>0
+					'isCancelled'=>0,
+					'total_amount'=>$value['grand_total'],
+					'balance'=>$value['grand_total'],
+					'status'=>'ACTIVE'
 				]);
 				
 				foreach($value['item_inclusions'] as $row)
@@ -677,11 +774,11 @@ class AccessController extends Controller
 		try {
 			//$request->post()['name']
 			
-			$qry = DB::select(DB::raw("SELECT commodity, reference, charge_account, 'PERSONAL' as charge_label, pay_type, 'Cash Payment' as pay_label, balance, amount FROM
+			$qry = DB::select(DB::raw("SELECT commodity, id, reference, charge_account, 'PERSONAL' as charge_label, pay_type, 'Cash Payment' as pay_label, balance, amount FROM
 (
-select signee, 'SERVICE CONTRACT' as commodity, contract_no as reference, 2 as charge_account, 1 as pay_type, contract_balance as balance, 0 as amount from _fis_service_contract
+select signee, 'SERVICE CONTRACT' as commodity, contract_id as id, contract_no as reference, 2 as charge_account, 1 as pay_type, contract_balance as balance, 0 as amount from _fis_service_contract
 UNION ALL
-select signee_id as signee, 'ADDTL. PURCHASES' as commodity, OR_no as reference, 2 as charge_account, 1 as pay_type,
+select signee_id as signee, 'ADDTL. PURCHASES' as commodity, id, OR_no as reference, 2 as charge_account, 1 as pay_type,
 (isnull((select sum(total_price) from _fis_item_sales where OR_no = sh.OR_no and isCancelled=0), 0) + isnull((select sum(total_amount) from _fis_service_sales where isCancelled=0 and OR_no = sh.OR_no), 0))balance,
 0 as amount
 from _fis_itemsales_header sh
@@ -703,7 +800,14 @@ WHERE signee=".$request->post()['client_id']));
 	
 	public function getAccounts()
 	{
-		$accounts = DB::select(DB::raw("SELEct * from _fis_account"));
+		$accounts = DB::select(DB::raw("select account_id as value, account_type as label from _fis_account"));
+		$payment_type = DB::select(DB::raw("select typeid as value, typename as label from _fis_paymenttype"));
+		
+		return [
+			'accounts' => $accounts,
+			'payment_type' => $payment_type
+		];
+		
 	}
 	
 	
@@ -745,13 +849,16 @@ WHERE signee=".$request->post()['client_id']));
 			
 			$value = (array)json_decode($request->post()['servicecontract']);
 			
+			$sc_count = ServiceContract::where('fun_branch', $value['fun_branch'])->count();
+			
+			$value['contract_no'] = date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
 			$value['contract_balance'] = $value['contract_amount'];
 			$value['burial_time'] = date('Y-m-d H:i:s', strtotime($value['burial_time']));
 			$serviceContract = ServiceContract::create($value);
 			
-			$user_check = DB::select(DB::raw("select * from
+			$user_check = DB::select(DB::raw("select item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode from
 				(
-				SELECT item_code, item_name, isnull(quantity, 0) as quantity, 0 as price, 0 as discount, 0 as tot_price FROM _fis_items fi
+				SELECT item_code, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi
 				left join 
 				(
 				select * from _fis_package_inclusions
@@ -762,7 +869,7 @@ WHERE signee=".$request->post()['client_id']));
 				order by quantity desc,  item_code asc
 				"));
 			
-			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
+			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
 					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName
 					from _fis_service_contract sc 
@@ -775,7 +882,7 @@ WHERE signee=".$request->post()['client_id']));
 		   
 			    $services = DB::select(DB::raw("select * from
 					(
-					SELECT fs.id, service_name, 0 as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, 0 as tot_price  FROM _fis_services fs
+					SELECT fs.id, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
 					left join
 					(
 					select * from _fis_package_inclusions where fk_package_id=".$serviceContract->package_class_id." and inclusionType='SERV'
@@ -784,13 +891,13 @@ WHERE signee=".$request->post()['client_id']));
 					order by duration desc"));
 							
 			return [
-					'status'=>'saved',
-					'message'=> [
-							'service_contract' => $sc_details,
-							'item_inclusions' => $user_check,
-							'service_inclusions' => $services
-					]
-			];
+						'status'=>'saved',
+						'message'=> [
+								'service_contract' => $sc_details,
+								'item_inclusions' => $user_check,
+								'service_inclusions' => $services
+						]
+				   ];
 			
 		} catch (\Exception $e) {
 			
