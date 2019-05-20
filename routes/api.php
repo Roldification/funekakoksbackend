@@ -59,8 +59,6 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	Route::post('post-purchase', 'AccessController@postPurchase');
 	Route::post('post-contract', 'AccessController@postContract');	
-});
-
 
 	Route::post('post-contract', 'AccessController@postContract');
 	Route::post('post-billing-payment', 'AccessController@postBillingPayment');
