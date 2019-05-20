@@ -24,6 +24,15 @@ use App\FisMemberData;
 use App\FisServices;
 use App\FisSupplier;
 use App\FisInclusions;
+use App\FisTransactionHeader;
+use App\AccountingHelper;
+use App\FisBranch;
+use Mpdf\Mpdf;
+use App\FisSalesTransaction;
+use App\FisPaymentType;
+use App\FisSCPayments;
+
+
 
 
 class AccessController extends Controller
@@ -245,6 +254,7 @@ class AccessController extends Controller
 		}
 	}
 
+
 	public function insertSupplier(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['supplierdata']);
@@ -262,68 +272,8 @@ class AccessController extends Controller
 		}
 	}
 
-	public function insertContract(Request $request)
-	{
-		try {
-			
-			$value = (array)json_decode($request->post()['servicecontract']);
-			
-			$value['contract_balance'] = $value['contract_amount'];
-			$value['burial_time'] = date('Y-m-d H:i:s', strtotime($value['burial_time']));
-			$serviceContract = ServiceContract::create($value);
-			
-			$user_check = DB::select(DB::raw("select * from
-				(
-				SELECT item_code, item_name, isnull(quantity, 0) as quantity, 0 as price, 0 as discount, 0 as tot_price FROM _fis_items fi
-				left join 
-				(
-				select * from _fis_package_inclusions
-				where fk_package_id=".$serviceContract->package_class_id."
-				and inclusionType='ITEM'
-				)b on fi.item_code = b.item_id
-				)sdf
-				order by quantity desc,  item_code asc
-				"));
-			
-			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
-					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName
-					from _fis_service_contract sc 
-					inner join _fis_signee s on sc.signee = s.id
-					inner join _fis_deceased d on sc.deceased_id = d.id
-					inner join _fis_package p on sc.package_class_id = p.id
-					inner join ClientReligion cr on d.religion = cr.ReligionID
-					where contract_id=".$serviceContract->contract_id)); 
-			    
-		   
-			    $services = DB::select(DB::raw("select * from
-					(
-					SELECT fs.id, service_name, 0 as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, 0 as tot_price  FROM _fis_services fs
-					left join
-					(
-					select * from _fis_package_inclusions where fk_package_id=".$serviceContract->package_class_id." and inclusionType='SERV'
-					)a on fs.id = a.service_id and fs.isActive=1
-					)sdfa
-					order by duration desc"));
-							
-			return [
-					'status'=>'saved',
-					'message'=> [
-							'service_contract' => $sc_details,
-							'item_inclusions' => $user_check,
-							'service_inclusions' => $services
-					]
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-					'status'=>'unsaved',
-					'message'=>$e->getMessage()
-			];
-			
-		}
-	}
+	
+
 
 	public function insertAccess(Request $request) {
 		try {
@@ -367,7 +317,6 @@ class AccessController extends Controller
 
 	public function insertMemberProfile(Request $request){
 		try {
-
 			$value = (array)json_decode($request->post()['memberdata']);
 			$memberProfile = FisMemberData::create([
 				  'profile_type' => $value['profile_type'],
@@ -394,6 +343,7 @@ class AccessController extends Controller
 			      'relationToSignee' => $deceaseValue['servicing_branch'],
 			      'fk_profile_id' => $memberProfile->id
 				]);
+
 
 			}
 
@@ -430,11 +380,31 @@ class AccessController extends Controller
 
 
 
-	// END OF INSERT FUNCTION
-	public function samplepdf()
+
+	public function samplepdf(Request $request)
+
 	{
+		$id = json_decode($request->post()['id']);
+		//return $myid;
+		
+		$accounts = DB::select(DB::raw("select *, dbo._computeAge(birthday, getdate())as deceased_age from _SERVICE_CONTRACT_VIEW where contract_id=$id"));
+		
+		$inclusions = DB::select(DB::raw("select item_name as inclusionname from _fis_item_sales sales
+				inner join _fis_items i on sales.product_id = i.item_code
+				where contract_id=$id
+				
+				union all
+				
+				select service_name as inclusionname from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id
+				where fk_contract_id=$id"));
+		
+		
 		$mpdf = new \Mpdf\Mpdf();
-		$mpdf->WriteHTML('<h1>Hello world!</h1>');
+	
+		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
+		$mpdf->WriteHTML(view('sc_printing', ['accounts'=>$accounts, 'inclusions'=>$inclusions]));
+		$mpdf->showImageErrors = true;
 		$mpdf->Output();
 	}
 	
@@ -479,8 +449,8 @@ class AccessController extends Controller
 	   try {
 	   	$value = (array)json_decode($request->post()['contract_details']);
 	   	
-	   	
-
+	  	
+			
 	   		/*
 	   		 * here lies the posting of contract.
 	   		 * 1st step, update the balance of contract,
@@ -488,13 +458,39 @@ class AccessController extends Controller
 	   		 * 3rd step, record services get,
 	   		 * 4th step,  record inventory of items.
 	   		 * 5th step contract posting?
-	   		 *
 	   		 */
 	   		
 	   		//$isInventoryValid = \Illuminate\Support\Facades\Validator::make($value, $this->validatorsField('fisItemInventory'));
 	   		
+	   	$contract_discount = 0;
+	   	
+	   	$contract_discount = is_numeric($value['sc_discount']) ? $value['sc_discount'] : 0;
+	   	
 	   		
 	   	DB::beginTransaction();
+	   	
+	   		$acctgHeader = [];
+	   		$acctgHeader['branch_code'] = '201';
+	   		$acctgHeader['transaction_date'] = date('Y-m-d');
+	   		$acctgHeader['transaction_code'] = "JNLVOUCHER";
+	   		$acctgHeader['username'] = "hcalio";
+	   		$acctgHeader['reference'] = "SC".$value['sc_number'];
+	   		$acctgHeader['status'] = 1;
+	   		$acctgHeader['particulars'] = "Funecare Service Contract #".$value['sc_number'];
+	   		$acctgHeader['customer'] = $value['sc_signee'];
+	   		$acctgHeader['checkno'] = "";
+	   		
+	   		
+	   		$currentBranch = FisBranch::where([
+	   				'branchID'=>'201'
+	   		])->firstOrFail();
+	   		
+	   		
+	   		$acctgDetails = [];
+	   		
+	   		$pushDetails = [];
+
+	   		
 	   		//check if serial no. is repeated since laravel 5.7 does not provide distinct validation
 	   		$equivalence = 1;
 	   		if(count($value['item_inclusions'])>=1)
@@ -512,15 +508,51 @@ class AccessController extends Controller
 	   			
 	   			$sc = ServiceContract::find($value['sc_id']);
 	   			$sc->update(
-	   					['contract_amount'=>$value['sc_amount'],
-	   							'grossPrice'=>	$value['sc_amount'],
-	   						    'contract_balance'=> $value['sc_amount'],
-	   							'isPosted'=>1
+	   					['contract_amount'=>$value['sc_amount'] - $contract_discount,
+	   					 'grossPrice'=>	$value['sc_amount'],
+	   					 'contract_balance'=> $value['sc_amount'] - $contract_discount,
+	   					 'status'=>'ACTIVE',
+	   					 'discount'=>$contract_discount,
+	   					 'isPosted'=>1
 	   					]
 	   					);
 	   			
+	   			$scpayment = FisSCPayments::create([
+	   					'contract_id'=>$value['sc_id'],
+	   					'accountType'=>2, 
+	   					'AR_Debit'=>$value['sc_amount'] - $contract_discount,
+	   					'AR_Credit'=>0,
+	   					'balance'=>$value['sc_amount'] - $contract_discount,
+	   					'reference_no'=>'RELEASE_'.$sc->contract_no,
+	   					'payment_date'=>date('Y-m-d'),
+	   					'payment_mode'=>3, //3 sa for the meantime
+	   					'transactedBy'=>'hcalio',
+	   					'isCancelled'=>0,
+	   					'isRemitted'=>0,
+	   					'remittedTo'=>'',
+	   					'isPosted'=>1,
+	   					'remarks'=>'SC Contract Posting',
+	   					'tran_type'=>'RELEASE',
+	   			]);
 	   			
-	   					
+	   			
+	   			$pushDetails['entry_type']="DR";
+	   			$pushDetails['SLCode']="1-1-112-03-004";
+	   			$pushDetails['amount']=$value['sc_amount'] - $contract_discount;
+	   			$pushDetails['detail_particulars']="To record AR from Service Contract No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   			array_push($acctgDetails, $pushDetails);
+	   			
+	   			if($contract_discount>0)
+	   			{
+	   				$pushDetails['entry_type']="DR";
+	   				$pushDetails['SLCode']="4-1-411-01-001";
+	   				$pushDetails['amount']= $contract_discount;
+	   				$pushDetails['detail_particulars']="To record Discount from SC No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   				array_push($acctgDetails, $pushDetails);
+	   			}
+	   			
+	   			
+	   			
 	   			foreach($value['item_inclusions'] as $row)
 	   			{	   	
 	   				
@@ -566,6 +598,16 @@ class AccessController extends Controller
 	   							]
 	   							);
 	   					
+	   					
+	   					$pushDetails['entry_type']="CR";
+	   					$pushDetails['SLCode']= $row->income_SLCode;
+	   					$pushDetails['amount']= $row->tot_price;
+	   					$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					
+	   					array_push($acctgDetails, $pushDetails);
+	   					
+	   					
+	   					
 	   				} catch (\Exception $e) {
 	   					DB::rollback();
 	   					return [
@@ -581,6 +623,12 @@ class AccessController extends Controller
 	   			foreach($value['item_inventory'] as $row)
 	   			{
 	   				try {
+	   					
+	   					$productList = FisProductList::where([
+	   							'id'=>$row->id,
+	   							'isEncumbered'=>1,
+	   					])->firstOrFail();
+	   					
 	   					
 	   					FisItemInventory::create(
 	   							[
@@ -601,15 +649,32 @@ class AccessController extends Controller
 	   									'fk_ORNo'=>'',
 	   							]);
 	   					
-	   					$productList = FisProductList::where([
-	   							'id'=>$row->id,
-	   							'isEncumbered'=>1,
-	   					])->firstOrFail();
+	   					
+	   					
+	   					
 	   					
 	   					//$productList = FisProductList::find($row->serialno);
 	   					$productList->update([
 	   						'isEncumbered'=>0
 	   					]);
+	   					
+
+	   					
+	   					if($row->SLCode!="-")
+	   					{
+	   						$pushDetails['entry_type']="DR";
+	   						$pushDetails['SLCode']= $row->SLCode;
+	   						$pushDetails['amount']= $productList->price;
+	   						$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from SC No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   						array_push($acctgDetails, $pushDetails);
+	   						
+	   						$pushDetails['entry_type']="CR";
+	   						$pushDetails['SLCode']= $currentBranch->borrowHO;
+	   						$pushDetails['amount']= $productList->price;
+	   						$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from SC No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   						array_push($acctgDetails, $pushDetails);
+	   						
+	   					}
 	   					
 	   					
 	   				} catch (\Exception $e) {
@@ -657,6 +722,13 @@ class AccessController extends Controller
 	   					]);
 	   					
 	   					
+	   					$pushDetails['entry_type']="CR";
+	   					$pushDetails['SLCode']= $row->SLCode;
+	   					$pushDetails['amount']= $row->tot_price;
+	   					$pushDetails['detail_particulars']="Income of ".$row->service_name." from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					
+	   					array_push($acctgDetails, $pushDetails);
+	   					
 	   					
 	   					
 	   				} catch (\Exception $e) {
@@ -670,14 +742,24 @@ class AccessController extends Controller
 	   				
 	   			}
 
-	  		
+	   			$saveAccounting =  AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
 	   	
+	   			if($saveAccounting['status']=='saved')
+	   			{
+	   				DB::commit();
+	   				return [
+	   						'status'=>'saved',
+	   						'message'=>''
+	   				];
+	   			}
+	   			
+	   			else
+	   			{
+	   				DB::rollback();
+	   				return $saveAccounting;
+	   			}
 	   		
-	   		DB::commit();
-	  		return [
-	  			'status'=>'saved',
-	  			'message'=>''
-	  		];
+	   		
 	  	
 	   		
 	   	
@@ -692,12 +774,242 @@ class AccessController extends Controller
 	}
 	
 	
+	public function postBillingPayment(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['payment_details']);
+		//	$value = (array)json_decode($request->post()['payment_details']);
+			DB::beginTransaction();
+			
+			
+			
+			$tran_header = FisTransactionHeader::create((array)$value['bill_header']);
+			
+			foreach ($value['pay_details'] as $row)
+			{
+				switch ($row->commodity)
+				{
+					case "SERVICE CONTRACT" :
+						/* STRAT FOR PAYMENT
+						 * 1. DEDUCT TO CONTRACT
+						 * 2. LOG TRANSACTION
+						 * 3.ACCTG. ENTRY
+						 */
+						
+						$contract = ServiceContract::where('contract_id', $row->id)
+						->where('contract_balance', '>', 0)
+						->whereNotIn('status', ['DRAFT', 'CANCELLED'])
+						->first();
+						
+						if(!$contract)
+						{
+							DB::rollBack();
+							return [
+									'status'=>'unsaved',
+									'message'=>'SC #'.$row->reference.' does not qualify for SC Payment',
+							];
+							
+						}
+						
+						if($row->amount>$contract->contract_balance)
+						{
+							DB::rollBack();
+							return [
+								'status'=>'unsaved',
+								'message'=>'SC #'.$row->reference.' payment is greater than the balance',
+							];
+						}
+						
+						$remainingbalance = $contract->contract_balance - $row->amount;
+						
+						$contract->update([
+								'contract_balance'=> $remainingbalance,
+								'status'=> $remainingbalance == 0 ? 'CLOSED' : $contract->status
+						]);
+						
+						$scpayment = FisSCPayments::create([
+						 'contract_id'=>$row->id,
+						 'accountType'=>$row->charge_account,
+						 'AR_Debit'=>0,
+						 'AR_Credit'=>$row->amount,
+						 'balance'=>$remainingbalance,
+						 'reference_no'=>$value['bill_header']->reference,
+						 'payment_date'=>date('Y-m-d'),
+						 'payment_mode'=>$row->pay_type,
+						 'transactedBy'=>'hcalio',
+						 'isCancelled'=>0,
+						 'isRemitted'=>0,
+						 'remittedTo'=>'',
+						 'isPosted'=>1,
+						 'remarks'=>$value['bill_header']->remarks,
+						 'tran_type'=>$remainingbalance== 0 ? 'PAYCLOSE' : 'PAYPARTIAL',
+						]);
+						
+						
+						$acctgHeader_pay = [];
+						$acctgDetails_pay = [];
+						$pushDetails_pay= [];
+						
+						$paytype = FisPaymentType::find($row->pay_type);
+						
+						$acctgHeader_pay['branch_code'] = $contract->fun_branch;
+						$acctgHeader_pay['transaction_date'] = date('Y-m-d');
+						$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
+						$acctgHeader_pay['username'] = 'hcalio';
+						$acctgHeader_pay['reference'] = "SCPay".$contract->contract_no."-".$value['bill_header']->reference;
+						$acctgHeader_pay['status'] = $paytype->trantype;
+						$acctgHeader_pay['particulars'] = "Posting of SC Payment w/ SC #".$contract->contract_no;
+						$acctgHeader_pay['customer'] = $value['bill_header']->client;
+						$acctgHeader_pay['checkno'] = "";
+						
+						
+						
+						$pushDetails_pay['entry_type']="DR";
+						$pushDetails_pay['SLCode']=$paytype->sl_debit;
+						$pushDetails_pay['amount']=$row->amount;
+						$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
+						array_push($acctgDetails_pay, $pushDetails_pay);
+						
+						$pushDetails_pay['entry_type']="CR";
+						$pushDetails_pay['SLCode']=$paytype->sl_credit;
+						$pushDetails_pay['amount']=$row->amount;
+						$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
+						array_push($acctgDetails_pay, $pushDetails_pay);
+						
+						AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
+						
+						
+						
+						break;
+					case "ADDTL. PURCHASES":
+						
+						$salesheader = FisItemsalesHeader::where('id', $row->id)
+						->where('balance','>',0)
+						->whereNotIn('status', ['DRAFT', 'CANCELLED'])
+						->first();
+						
+						if(!$salesheader)
+						{
+							DB::rollBack();
+							return [
+									'status'=>'unsaved',
+									'message'=>'Sales #'.$row->reference.' does not qualify for Merchandise Payment',
+							];
+						}
+						
+						if($row->amount>$salesheader->balance)
+						{
+							DB::rollBack();
+							return [
+									'status'=>'unsaved',
+									'message'=>'Sales #'.$row->reference.' payment is greater than the balance',
+							];
+						}
+						
+						$remainingbalance_sales = $salesheader->balance - $row->amount;
+						
+						$salesheader->update([
+								'balance'=> $remainingbalance_sales,
+								'status'=> $remainingbalance_sales == 0 ? 'CLOSED' : $salesheader->status
+						]);
+						
+						
+						
+						$transaction_sale = FisSalesTransaction::create([
+								'sales_id'=>$salesheader->id,
+								'accountType'=>$row->charge_account, //2 is for peronal. see _fis_account table
+								'AR_Debit'=>0,
+								'AR_Credit'=>$row->amount,
+								'balance'=>$remainingbalance_sales,
+								'reference_no'=>$value['bill_header']->reference,
+								'payment_date'=>date('Y-m-d'),
+								'transactedBy'=>'hcalio',
+								'payment_mode'=>$row->pay_type,
+								'isCancelled'=>0,
+								'isRemitted'=>0,
+								'remittedTo'=>'',
+								'isPosted'=>1,
+								'remarks'=>$value['bill_header']->remarks,
+								'tran_type'=>$remainingbalance_sales == 0 ? 'PAYCLOSE' : 'PAYPARTIAL',
+						]);
+						
+						$acctgHeader_pay = [];
+						$acctgDetails_pay = [];
+						$pushDetails_pay= [];
+						
+						$paytype = FisPaymentType::find($row->pay_type);
+						
+						$acctgHeader_pay['branch_code'] = $salesheader->fun_branch;
+						$acctgHeader_pay['transaction_date'] = date('Y-m-d');
+						$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
+						$acctgHeader_pay['username'] = 'hcalio';
+						$acctgHeader_pay['reference'] = "MerchPay".$salesheader->OR_no."-".$value['bill_header']->reference;
+						$acctgHeader_pay['status'] = $paytype->trantype;
+						$acctgHeader_pay['particulars'] = "Posting of Merch Payment w/ Ref. #".$salesheader->OR_no;
+						$acctgHeader_pay['customer'] = $value['bill_header']->client;
+						$acctgHeader_pay['checkno'] = "";
+						
+						
+						
+						$pushDetails_pay['entry_type']="DR";
+						$pushDetails_pay['SLCode']=$paytype->sl_debit;
+						$pushDetails_pay['amount']=$row->amount;
+						$pushDetails_pay['detail_particulars']="Payment from Merch Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
+						array_push($acctgDetails_pay, $pushDetails_pay);
+						
+						$pushDetails_pay['entry_type']="CR";
+						$pushDetails_pay['SLCode']=$paytype->sl_credit;
+						$pushDetails_pay['amount']=$row->amount;
+						$pushDetails_pay['detail_particulars']="Payment from Merch Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
+						array_push($acctgDetails_pay, $pushDetails_pay);
+						
+						AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
+						
+						
+						
+						break;
+					default:
+						break;
+					
+				}
+				
+				
+				
+			}
+			
+			
+			
+			DB::commit();
+			
+			return [
+				'status'=>'saved',
+				'message'=>'Successfully Posted Payment',
+			];
+			
+			
+			
+			
+			
+		} catch (\Exception $e) {
+			DB::rollback();
+			return [
+					'status' => 'unsaved',
+					'message' => $e->getMessage()
+			];
+		}
+		
+		
+		
+	}
+	
+	
 	public function postPurchase(Request $request)
 	{
-		
+	
 		try {
 			$value = (array)json_decode($request->post()['mechandise']);
 			
+			//return $value;
 			DB::beginTransaction();
 			
 			$equivalence = 1;
@@ -716,16 +1028,118 @@ class AccessController extends Controller
 			
 				//start here
 				
-				FisItemsalesHeader::create([
+				$currentBranch = FisBranch::where([
+						'branchID'=>$value['sales_header']->branch
+				])->firstOrFail();
+				
+				
+				$salesHead = FisItemsalesHeader::create([
 					'OR_no'=>$value['sales_header']->reference,
 					'date'=>date('Y-m-d H:i:s'),
-					'transactedBy'=>'hcalio',
+					'transactedBy'=>$value['sales_header']->transactedBy,
 					'client'=>$value['sales_header']->client,
 					'signee_id'=>$value['sales_header']->signee_id,
 					'isPosted'=>1,
-					'PayType'=>$value['sales_header']->PayType,
-					'isCancelled'=>0
+					//'PayType'=>$value['sales_header']->PayType,
+					'isCancelled'=>0,
+					'total_amount'=>$value['grand_total'],
+					'balance'=>$value['grand_total'],
+					'status'=>'ACTIVE',
+					'fun_branch'=>$value['sales_header']->branch
 				]);
+				
+				$acctgHeader = [];
+				$acctgHeader_pay = [];
+				$acctgDetails_pay= [];
+				$pushDetails_pay= [];
+				
+				$acctgHeader['branch_code'] = $value['sales_header']->branch;
+				$acctgHeader['transaction_date'] = date('Y-m-d');
+				$acctgHeader['transaction_code'] = "JNLVOUCHER";
+				$acctgHeader['username'] = $salesHead->transactedBy;
+				$acctgHeader['reference'] = "Merch".$salesHead->OR_no;
+				$acctgHeader['status'] = 1;
+				$acctgHeader['particulars'] = "Posting of Merchandise w/ Ref #".$salesHead->OR_no;
+				$acctgHeader['customer'] = $salesHead->client;
+				$acctgHeader['checkno'] = "";
+				
+				
+				$acctgDetails = [];
+				$pushDetails = [];
+				
+				$pushDetails['entry_type']="DR";
+				$pushDetails['SLCode']="1-1-112-03-004";
+				$pushDetails['amount']=$salesHead->balance;
+				$pushDetails['detail_particulars']="To record AR from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+				array_push($acctgDetails, $pushDetails);
+				
+				
+				if(is_numeric($value['sales_header']->amount_pay) && $value['sales_header']->amount_pay>0)
+				{
+					if($value['sales_header']->amount_pay>$salesHead->balance)
+					{
+						DB::rollBack();
+						return [
+								'status'=>'unsaved',
+								'message'=>'Amount paid is greater than the balance'
+						];
+					}
+					
+					
+					$transactionsale = FisSalesTransaction::create([
+							'sales_id'=>$salesHead->id,
+							'accountType'=>2, //2 is for peronal. see _fis_account table
+							'AR_Debit'=>0,
+							'AR_Credit'=>$value['sales_header']->amount_pay,
+							'balance'=>$salesHead->balance - $value['sales_header']->amount_pay,
+							'reference_no'=>$value['sales_header']->reference,
+							'payment_date'=>date('Y-m-d'),
+							'transactedBy'=>$salesHead->transactedBy,
+							'payment_mode'=>$value['sales_header']->PayType,
+							'isCancelled'=>0,
+							'isRemitted'=>0,
+							'remittedTo'=>'',
+							'isPosted'=>1,
+							'remarks'=>'merchandising payment',
+							'tran_type'=>$salesHead->balance - $value['sales_header']->amount_pay == 0 ? 'PAYCLOSE' : 'PAYPARTIAL',
+					]);
+					
+					
+					$salesHead->update([
+							'balance' => $transactionsale->balance,
+							'status'=> $transactionsale->balance == 0 ? 'CLOSED' : 'ACTIVE'
+					]);
+					
+					$paytype = FisPaymentType::find($value['sales_header']->PayType);
+					
+					
+					
+					$acctgHeader_pay['branch_code'] = $value['sales_header']->branch;
+					$acctgHeader_pay['transaction_date'] = date('Y-m-d');
+					$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
+					$acctgHeader_pay['username'] = $salesHead->transactedBy;
+					$acctgHeader_pay['reference'] = "Merch".$salesHead->OR_no;
+					$acctgHeader_pay['status'] = $paytype->trantype;
+					$acctgHeader_pay['particulars'] = "Posting of Merch. Payment w/ Ref #".$salesHead->OR_no;
+					$acctgHeader_pay['customer'] = $salesHead->client;
+					$acctgHeader_pay['checkno'] = "";
+					
+					
+					
+					$pushDetails_pay['entry_type']="DR";
+					$pushDetails_pay['SLCode']=$paytype->sl_debit;
+					$pushDetails_pay['amount']=$value['sales_header']->amount_pay;
+					$pushDetails_pay['detail_particulars']="To payment from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+					array_push($acctgDetails_pay, $pushDetails_pay);
+					
+					$pushDetails_pay['entry_type']="CR";
+					$pushDetails_pay['SLCode']=$paytype->sl_credit;
+					$pushDetails_pay['amount']=$value['sales_header']->amount_pay;
+					$pushDetails_pay['detail_particulars']="To payment from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+					array_push($acctgDetails_pay, $pushDetails_pay);
+					
+				}
+				
 				
 				foreach($value['item_inclusions'] as $row)
 				{
@@ -773,6 +1187,15 @@ class AccessController extends Controller
 								]
 								);
 						
+						
+						$pushDetails['entry_type']="CR";
+						$pushDetails['SLCode']= $row->income_SLCode;
+						$pushDetails['amount']= $row->tot_price;
+						$pushDetails['detail_particulars']="Income ".$row->item_name." frm Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+						
+						array_push($acctgDetails, $pushDetails);
+						
+						
 					} catch (\Exception $e) {
 						DB::rollback();
 						return [
@@ -819,6 +1242,24 @@ class AccessController extends Controller
 						]);
 						
 						
+						if($row->SLCode!="-")
+						{
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['amount']= $productList->price;
+							$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							array_push($acctgDetails, $pushDetails);
+							
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							$pushDetails['amount']= $productList->price;
+							$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							array_push($acctgDetails, $pushDetails);
+							
+						}
+						
+						
+						
 					} catch (\Exception $e) {
 						DB::rollback();
 						return [
@@ -863,7 +1304,12 @@ class AccessController extends Controller
 								
 						]);
 						
+						$pushDetails['entry_type']="CR";
+						$pushDetails['SLCode']= $row->SLCode;
+						$pushDetails['amount']= $row->tot_price;
+						$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
 						
+						array_push($acctgDetails, $pushDetails);
 						
 						
 					} catch (\Exception $e) {
@@ -875,12 +1321,55 @@ class AccessController extends Controller
 						break;
 					}
 					
+					
+					
 				}
 				
 				
 				
+				$saveAccounting =  AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
 				
-				DB::commit();
+				if($saveAccounting['status']=='saved')
+				{
+					if(count($acctgHeader_pay)>=1)
+					{
+						$savePayAccounting = AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
+						if($savePayAccounting['status']=='saved')
+						{
+							DB::commit();
+							return [
+									'status'=>'saved',
+									'message'=>''
+							];
+						}
+						
+						else
+						{
+							DB::rollback();
+							return $saveAccounting;
+						}
+						
+					}
+					
+					else
+					{
+						DB::commit();
+						return [
+								'status'=>'saved',
+								'message'=>''
+						];
+					}
+					
+					
+				}
+				
+				else
+				{
+					DB::rollback();
+					return $saveAccounting;
+				}
+				
+			
 				return [
 						'status'=>'saved',
 						'message'=>''
@@ -901,16 +1390,18 @@ class AccessController extends Controller
 		try {
 			//$request->post()['name']
 			
-			$qry = DB::select(DB::raw("SELECT commodity, reference, charge_account, 'PERSONAL' as charge_label, pay_type, 'Cash Payment' as pay_label, balance, amount FROM
-(
-select signee, 'SERVICE CONTRACT' as commodity, contract_no as reference, 2 as charge_account, 1 as pay_type, contract_balance as balance, 0 as amount from _fis_service_contract
-UNION ALL
-select signee_id as signee, 'ADDTL. PURCHASES' as commodity, OR_no as reference, 2 as charge_account, 1 as pay_type,
-(isnull((select sum(total_price) from _fis_item_sales where OR_no = sh.OR_no and isCancelled=0), 0) + isnull((select sum(total_amount) from _fis_service_sales where isCancelled=0 and OR_no = sh.OR_no), 0))balance,
-0 as amount
-from _fis_itemsales_header sh
-)SDFA
-WHERE signee=".$request->post()['client_id']));
+			$qry = DB::select(DB::raw("SELECT commodity, id, reference, charge_account, 'PERSONAL' as charge_label, pay_type, 'Cash Payment' as pay_label, balance, amount FROM
+					(
+					select signee, 'SERVICE CONTRACT' as commodity, contract_id as id, contract_no as reference, 2 as charge_account, 1 as pay_type, contract_balance as balance, 0 as amount from _fis_service_contract where status='ACTIVE' and contract_balance>0
+					and fun_branch='".$request->post()['funbranch']."'
+					UNION ALL
+					select signee_id as signee, 'ADDTL. PURCHASES' as commodity, id, OR_no as reference, 2 as charge_account, 1 as pay_type,
+					balance,
+					0 as amount
+					from _fis_itemsales_header sh where status='ACTIVE'
+					and fun_branch='".$request->post()['funbranch']."'
+					)SDFA
+					WHERE signee=".$request->post()['client_id']));
 			
 			return $qry;
 			
@@ -925,22 +1416,53 @@ WHERE signee=".$request->post()['client_id']));
 	}
 	
 	
+	
+	public function getContractList(Request $request)
+	{
+		try {
+			//$request->post()['name']
+			
+			$qry = DB::select(DB::raw("SELECT contract_id, contract_no, (s.lname + ', ' + s.fname + ' ' + s.mname)signee, (d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date FROM _FIS_SERVICE_CONTRACT sc
+				inner join _fis_signee s on sc.signee = s.id
+				inner join _fis_deceased d on sc.deceased_id = d.id"));
+			
+			return $qry;
+			
+			
+		} catch (Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
+	
+	
 	public function getAccounts()
 	{
-		$accounts = DB::select(DB::raw("SELEct * from _fis_account"));
+		$accounts = DB::select(DB::raw("select account_id as value, account_type as label from _fis_account"));
+		$payment_type = DB::select(DB::raw("select typeid as value, typename as label from _fis_paymenttype"));
+		
+		return [
+			'accounts' => $accounts,
+			'payment_type' => $payment_type
+		];
+		
 	}
 	
 	
 	public function getItemsServicesForMerchandising(Request $request)
 	{
 		try {
-			$user_check = DB::select(DB::raw("SELECT item_code, item_name, 0 as quantity, 0 as price, 0 as discount, 0 as tot_price FROM
+			$user_check = DB::select(DB::raw("SELECT item_code, item_name, 0 as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM
 				_fis_items fi
 				order by item_code asc
 				"));
 			
 			$services = DB::select(DB::raw("SELECT fs.id, service_name, 0 as amount, 0 as less,
-				0 as duration, '' as type_duration, 0 as tot_price
+				0 as duration, '' as type_duration, 0 as tot_price, SLCode
 				FROM _fis_services fs"));
 			
 			return [
@@ -962,12 +1484,84 @@ WHERE signee=".$request->post()['client_id']));
 		
 	}
 	
-		
+
+	
+	public function insertContract(Request $request)
+	{
+		try {
+			
+			$value = (array)json_decode($request->post()['servicecontract']);
+			
+			$sc_count = ServiceContract::where('fun_branch', $value['fun_branch'])->count();
+			
+			$value['contract_no'] = date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
+			$value['contract_balance'] = $value['contract_amount'];
+			$value['contract_date'] = date('Y-m-d');
+			$value['burial_time'] = date('Y-m-d H:i:s', strtotime($value['burial_time']));
+			$serviceContract = ServiceContract::create($value);
+			
+			$user_check = DB::select(DB::raw("select item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode from
+				(
+				SELECT item_code, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi
+				left join 
+				(
+				select * from _fis_package_inclusions
+				where fk_package_id=".$serviceContract->package_class_id."
+				and inclusionType='ITEM'
+				)b on fi.item_code = b.item_id
+				)sdf
+				order by quantity desc,  item_code asc
+				"));
+			
+			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
+					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					from _fis_service_contract sc 
+					inner join _fis_signee s on sc.signee = s.id
+					inner join _fis_deceased d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.id
+					inner join ClientReligion cr on d.religion = cr.ReligionID
+					where contract_id=".$serviceContract->contract_id)); 
+			    
+		   
+			    $services = DB::select(DB::raw("select * from
+					(
+					SELECT fs.id, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
+					left join
+					(
+					select * from _fis_package_inclusions where fk_package_id=".$serviceContract->package_class_id." and inclusionType='SERV'
+					)a on fs.id = a.service_id and fs.isActive=1
+					)sdfa
+					order by duration desc"));
+							
+			return [
+						'status'=>'saved',
+						'message'=> [
+								'service_contract' => $sc_details,
+								'item_inclusions' => $user_check,
+								'service_inclusions' => $services
+						]
+				   ];
+			
+		} catch (\Exception $e) {
+	
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage()
+			];
+			
+		}
+	}
+
+	
+	
+
 	public function getMinimalProbabilities(Request $request)
 	{
 		try {
-			$value = (array)json_decode($request->post()['items']);
-			$branch = $request->post()['branch'];
+			$valueScaffold = (array)json_decode($request->post()['items_scaffold']);
+			$value = $valueScaffold['items'];
+			$branch = $valueScaffold['branch'];
 			$itemSelection = [];
 			$itemPresentation = [];
 			
@@ -979,7 +1573,8 @@ WHERE signee=".$request->post()['client_id']));
 				
 				array_push($itemSelection, $selection);
 				
-				$presentation = DB::select(DB::raw("SELECT top ".$row->quantity." item_code, item_name, pl.id, serialno, ".$row->price." as sell_price from _fis_productlist pl
+
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id, serialno, ".$row->price." as sell_price, SLCode from _fis_productlist pl
 					inner join _fis_items i on pl.fk_item_id = i.item_code
 					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
 					order by id"));

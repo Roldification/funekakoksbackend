@@ -82,6 +82,7 @@
             <div class="content">
                 <div class="title m-b-md">
                     Laravel
+                     <img src="<?php echo public_path()?>/images/4friend.jpg" alt="Logo"/>
                 </div>
 
                 <div class="links">
@@ -93,6 +94,13 @@
                     <a href="https://forge.laravel.com">Forge</a>
                     <a href="https://github.com/laravel/laravel">GitHub</a>
                 </div>
+                
+                <div class="row">
+		    	 	<div class="col-md-6" style="background-color:green; height:10px;">
+		    	 	</div>
+		    	
+		    	 </div>
+    	 
             </div>
         </div>
     </body>

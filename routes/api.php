@@ -62,6 +62,22 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 });
 
 
+	Route::post('post-contract', 'AccessController@postContract');
+	Route::post('post-billing-payment', 'AccessController@postBillingPayment');
+	Route::post('update-relation', 'AccessController@updateRelation');
+	Route::post('update-deceased', 'AccessController@updateDeceased');
+	Route::post('update-signee', 'AccessController@updateSignee');
+	Route::post('update-informant', 'AccessController@updateInformant');
+	Route::post('delete-relation', 'AccessController@deleteRelation');
+	Route::post('post-purchase', 'AccessController@postPurchase');
+	Route::post('unpost-contract', 'ServiceContractController@unpostContract');
+	Route::post('get-minimal-probabilities', 'AccessController@getMinimalProbabilities');
+});
+
+
+	//unpostContract
+
+
 //though not suggested, you are welcome to just put GET requests here, request here does not need authentication.
 Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
 Route::get('get-informant', 'AccessController@getInformant')->middleware('cors');
@@ -83,6 +99,11 @@ Route::get('get-supplier-value', 'AccessController@getSupplierValue')->middlewar
 
 Route::get('get-slcode', 'AccessController@getSLCode')->middleware('cors');
 
+
+Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');
+Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');
+Route::get('get-inventory-search', 'AccessController@getInventorySearch')->middleware('cors');
+Route::get('get-contract-list', 'AccessController@getContractList')->middleware('cors');
 Route::get('get-relation', 'AccessController@getRelation')->middleware('cors');
 Route::get('get-relation-value', 'AccessController@getRelationValue')->middleware('cors');
 Route::get('get-member-info', 'AccessController@getMemberInfo')->middleware('cors');
@@ -95,6 +116,9 @@ Route::get('get-embalmer-value', 'AccessController@getEmbalmerValue')->middlewar
 
 
 Route::get('get-billing-of-client', 'AccessController@getBillingOfClient')->middleware('cors');
+Route::get('get-accounts', 'AccessController@getAccounts')->middleware('cors');
+
+Route::get('get-details-of-contract', 'ServiceContractController@getDetailsOfContract')->middleware('cors');
 
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
