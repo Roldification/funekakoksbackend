@@ -17,11 +17,13 @@ use Illuminate\Http\Request;
  * 
  * always be mindful that when putting POST requests via 3rd party application, always register
  * the routes within this group
-*/
+ */
 Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-user', 'AccessController@insertAccess');
+	Route::post('get-accounts-of-client', 'ServiceContractController@getAccountsOfClient');
 	Route::post('login-user', 'AccessController@loginUser');
 	Route::post('insert-contract', 'AccessController@insertContract');
+	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('insert-relation', 'AccessController@insertRelation');
 
@@ -69,7 +71,9 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('delete-relation', 'AccessController@deleteRelation');
 	Route::post('post-purchase', 'AccessController@postPurchase');
 	Route::post('unpost-contract', 'ServiceContractController@unpostContract');
+	Route::post('unpost-sales', 'ServiceContractController@unpostSales');
 	Route::post('get-minimal-probabilities', 'AccessController@getMinimalProbabilities');
+	Route::post('insert-charging', 'ServiceContractController@insertCharging');
 });
 
 
@@ -84,6 +88,7 @@ Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->mid
 Route::get('get-deceased', 'AccessController@getDeceased')->middleware('cors');
 Route::get('get-sc-locations', 'AccessController@getSCLocations')->middleware('cors');
 Route::get('sample-pdf', 'AccessController@samplepdf')->middleware('cors');
+Route::get('get-charging', 'ServiceContractController@getCharging')->middleware('cors');
 Route::get('get-minimal-probabilities', 'AccessController@getMinimalProbabilities')->middleware('cors');
 
 Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');

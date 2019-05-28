@@ -31,6 +31,8 @@ use Mpdf\Mpdf;
 use App\FisSalesTransaction;
 use App\FisPaymentType;
 use App\FisSCPayments;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\FisCharging;
 
 
 
@@ -89,6 +91,59 @@ class AccessController extends Controller
 				'message'=>$e->getMessage()
 			];	
 		}
+	}
+	
+	public function insertDeceaseProfile(Request $request)
+	{
+		try {
+			
+			$value = (array)json_decode($request->post()['deceasedata']);
+			
+	
+			DB::beginTransaction();
+			
+			$profile = FisMemberData::create([
+					'customer_id'=>$value['cidReference'],
+					'firstname'=>$value['firstname'],
+					'middlename'=>$value['middlename'],
+					'lastname'=>$value['lastname'],
+					'contact_no'=>'', //deceased has no contact number
+					'address'=>$value['address'],
+					'is_member'=>$value['isTCMember'],
+					'profile_type'=>'Decease',
+					'date_entry'=>date('Y-m-d'),
+			]);
+			
+			$deceased = FisDeceased::create([
+					'fk_profile_id'=>$profile->id,
+					'birthday'=>$value['birthday'],
+					'date_died'=>$value['datedied'],
+					'causeOfDeath'=>$value['causeOfDeath'],
+					'religion'=>$value['religion'],
+					'primary_branch'=>$value['primary_branch'],
+					'servicing_branch'=>$value['servicing_branch'],
+					'deathPlace'=>$value['deathPlace'],
+					'relationToSignee'=> 4 //$value['relationToSignee'],
+			]);
+			
+			DB::commit();
+			
+			return [
+					'status'=>'saved',
+					'message'=>$profile,
+			];
+			
+			
+		} catch (\Exception $e) {
+			DB::rollBack();
+			
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage()
+			];
+			
+		}
+		
 	}
 
 	public function insertBranch(Request $request) {
@@ -593,7 +648,8 @@ class AccessController extends Controller
 	   									'isRemitted'=>0,
 	   									'remittedTo'=>'',
 	   									'OR_no'=>'-',
-	   									'isCancelled'=>0
+	   									'isCancelled'=>0,
+	   									'sales_id'=>0
 	   									
 	   							]
 	   							);
@@ -645,7 +701,7 @@ class AccessController extends Controller
 	   									'remarks'=>'-',
 	   									'serialNo'=>'-',
 	   									'p_sequence'=>$row->id,
-	   									'fk_scID'=>$sc->contract_id,
+	   									'fk_sales_id'=>0,
 	   									'fk_ORNo'=>'',
 	   							]);
 	   					
@@ -713,7 +769,7 @@ class AccessController extends Controller
 	   							'isRemitted'=>0,
 	   							'dateRemitted'=>'1/1/1900',
 	   							'RemittedTo'=>'',
-	   							'OR_no'=>'',
+	   							'sales_id'=>0,
 	   							'isWalkin'=>0,
 	   							'client'=>'',
 	   							'signeeID'=>$sc->signee,
@@ -795,6 +851,34 @@ class AccessController extends Controller
 						 * 2. LOG TRANSACTION
 						 * 3.ACCTG. ENTRY
 						 */
+						
+						try {
+							$charging = FisCharging::where([
+							  'fk_scID'=>$row->id,
+							  'accountType'=>$row->charge_account,
+							])->firstOrFail();
+							$chargePayment = $charging->balance - $row->amount;
+							
+							if($chargePayment<0)
+							{
+								DB::rollBack();
+								return [
+										'status'=>'unsaved',
+										'message'=>'Only '.$charging->balance.' is allowed for payment of the chosen Acct. Type',
+								];
+							}
+							
+							$charging->update([
+									'balance'=> $chargePayment
+							]);
+							
+						} catch (\Exception $e) {
+							DB::rollBack();
+							return [
+									'status'=>'unsaved',
+									'message'=>$e->getMessage(),
+							];
+						}
 						
 						$contract = ServiceContract::where('contract_id', $row->id)
 						->where('contract_balance', '>', 0)
@@ -1032,6 +1116,15 @@ class AccessController extends Controller
 						'branchID'=>$value['sales_header']->branch
 				])->firstOrFail();
 				
+				if($value['sales_header']->reference == '' || $value['sales_header']->client=='')
+				{
+					DB::rollBack();
+					return [
+						'status'=>'unsaved',
+						'message'=>'Please dont leave Client empty'
+					];
+					
+				}
 				
 				$salesHead = FisItemsalesHeader::create([
 					'OR_no'=>$value['sales_header']->reference,
@@ -1182,7 +1275,8 @@ class AccessController extends Controller
 										'isRemitted'=>0,
 										'remittedTo'=>'',
 										'OR_no'=>$value['sales_header']->reference,
-										'isCancelled'=>0
+										'isCancelled'=>0,
+										'sales_id'=>$salesHead->id
 										
 								]
 								);
@@ -1227,7 +1321,7 @@ class AccessController extends Controller
 										'remarks'=>'-',
 										'serialNo'=>'-',
 										'p_sequence'=>$row->id,
-										'fk_scID'=>0,
+										'fk_sales_id'=>$salesHead->id,
 										'fk_ORNo'=>$value['sales_header']->reference,
 								]);
 						
@@ -1296,7 +1390,7 @@ class AccessController extends Controller
 								'isRemitted'=>0,
 								'dateRemitted'=>'1/1/1900',
 								'RemittedTo'=>'',
-								'OR_no'=>$value['sales_header']->reference,
+								'sales_id'=>$salesHead->id,
 								'isWalkin'=>0,
 								'client'=>$value['sales_header']->client,
 								'signeeID'=>$value['sales_header']->signee_id,
@@ -1385,6 +1479,8 @@ class AccessController extends Controller
 	}
 	
 	
+	
+	
 	public function getBillingOfClient(Request $request)
 	{
 		try {
@@ -1422,9 +1518,11 @@ class AccessController extends Controller
 		try {
 			//$request->post()['name']
 			
-			$qry = DB::select(DB::raw("SELECT contract_id, contract_no, (s.lname + ', ' + s.fname + ' ' + s.mname)signee, (d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date FROM _FIS_SERVICE_CONTRACT sc
-				inner join _fis_signee s on sc.signee = s.id
-				inner join _fis_deceased d on sc.deceased_id = d.id"));
+			$qry = DB::select(DB::raw("SELECT contract_id, contract_no, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee, (d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date FROM _FIS_SERVICE_CONTRACT sc
+				inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+				inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
+								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+								where profile_type='Decease')d on sc.deceased_id = d.id"));
 			
 			return $qry;
 			
@@ -1513,13 +1611,15 @@ class AccessController extends Controller
 				order by quantity desc,  item_code asc
 				"));
 			
-			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
+			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc 
-					inner join _fis_signee s on sc.signee = s.id
-					inner join _fis_deceased d on sc.deceased_id = d.id
-					inner join _fis_package p on sc.package_class_id = p.id
+					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
+								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.package_code
 					inner join ClientReligion cr on d.religion = cr.ReligionID
 					where contract_id=".$serviceContract->contract_id)); 
 			    
@@ -1605,8 +1705,8 @@ class AccessController extends Controller
 		$value="";
 		
 		try {
-			$user_check = DB::select(DB::raw("SELECT top 5 id as value, (lname + ', ' + fname + ' ' + mname)label  from _fis_signee
-			where (lname + ', ' + fname + ' ' + mname) like '".$request->post()['name']."%'"));
+			$user_check = DB::select(DB::raw("SELECT top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_profileheader
+			where profile_type='Signee' and (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
 			
 		if($user_check)
 		return	$user_check;
@@ -1626,8 +1726,8 @@ class AccessController extends Controller
 		$value="";
 		
 		try {
-			$user_check = DB::select(DB::raw("SELECT top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_deceased
-			where (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
+			$user_check = DB::select(DB::raw("SELECT top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_ProfileHeader
+			where profile_type='Decease' and (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
 			
 			if($user_check)
 				return	$user_check;
@@ -1648,10 +1748,12 @@ class AccessController extends Controller
 		
 		try {
 			$user_check = DB::select(DB::raw("SELECT ReligionID as value, ReligionName as label from clientreligion"));
+			$branches = DB::select(DB::raw("SELECT branch_code as value, branch_name as label from _fis_settings_branches"));
 			
 			if($user_check)
 				return	[
-					'religion' => $user_check
+					'religion' => $user_check,
+					'branches' => $branches
 				];
 				else return [];
 				

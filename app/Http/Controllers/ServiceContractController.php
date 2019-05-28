@@ -23,6 +23,8 @@ use App\FisTransactionHeader;
 use App\AccountingHelper;
 use App\FisBranch;
 use App\SystemUser;
+use App\FisMemberData;
+use App\FisCharging;
 
 class ServiceContractController extends Controller
 {
@@ -35,34 +37,44 @@ class ServiceContractController extends Controller
 					'contract_id'=>$request->post()['contract_id']
 			])->firstOrFail();
 			
-			if($service_contract->status=='ACTIVE' && $service_contract->isPosted==1)
+			if(($service_contract->status=='ACTIVE' || $service_contract->status=='CLOSED') && $service_contract->isPosted==1)
 			{
-				$user_check = DB::select(DB::raw("select product_id, quantity, unit_type, price, total_price, 'item' as inclusiontype from _fis_item_sales sales
+				$availments = DB::select(DB::raw("select product_id, quantity, unit_type, price, total_price, 'item' as inclusiontype from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
-				where contract_id=".$request->post()['contract_id']));
-				
-				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
-						s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-						d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
-						from _fis_service_contract sc
-						inner join _fis_signee s on sc.signee = s.id
-						inner join _fis_deceased d on sc.deceased_id = d.id
-						inner join _fis_package p on sc.package_class_id = p.id
-						inner join ClientReligion cr on d.religion = cr.ReligionID
-						where contract_id=".$service_contract->contract_id));
-				
-				
-				$services = DB::select(DB::raw("select CAST(fk_service_id as varchar(10)) as id, service_duration, duration_unit, total_amount, total_amount as totprice, 'service' as inclusiontype from _fis_service_sales ss
+				where contract_id=".$request->post()['contract_id']."
+				UNION ALL
+				select CAST(fk_service_id as varchar(10)) as id, service_duration, duration_unit, total_amount, total_amount as totprice, 'service' as inclusiontype from _fis_service_sales ss
 				inner join _fis_services s on s.id = ss.fk_service_id
 				where fk_contract_id=".$request->post()['contract_id']));
+				
+				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					from _fis_service_contract sc 
+					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
+								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.package_code
+					inner join ClientReligion cr on d.religion = cr.ReligionID
+					where contract_id=".$service_contract->contract_id));
+				
+				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type reference_no, payment_date, payment_mode, transactedBy, remarks from _fis_sc_payments sp inner join _fis_account a
+					on a.account_id = sp.accountType
+					where contract_id=".$service_contract->contract_id));
+				
+				
+				/*$services = DB::select(DB::raw("select CAST(fk_service_id as varchar(10)) as id, service_duration, duration_unit, total_amount, total_amount as totprice, 'service' as inclusiontype from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id
+				where fk_contract_id=".$request->post()['contract_id'])); */
 				
 				
 				return [
 						'status'=>'success_posted',
 						'message'=> [
 								'service_contract' => $sc_details,
-								'item_inclusions' => $user_check,
-								'service_inclusions' => $services
+								'inclusions' => $availments,
+								'transactions' => $sc_transaction
 						]
 				];
 				
@@ -84,15 +96,17 @@ class ServiceContractController extends Controller
 						order by quantity desc,  item_code asc
 						"));
 					
-					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.lname + ', ' + s.fname + ' ' + s.mname)signee,
-						s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-						d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
-						from _fis_service_contract sc
-						inner join _fis_signee s on sc.signee = s.id
-						inner join _fis_deceased d on sc.deceased_id = d.id
-						inner join _fis_package p on sc.package_class_id = p.id
-						inner join ClientReligion cr on d.religion = cr.ReligionID
-						where contract_id=".$service_contract->contract_id));
+					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					from _fis_service_contract sc 
+					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
+								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.package_code
+					inner join ClientReligion cr on d.religion = cr.ReligionID
+					where contract_id=".$service_contract->contract_id));
 					
 					
 					$services = DB::select(DB::raw("select * from
@@ -134,10 +148,281 @@ class ServiceContractController extends Controller
 		
 	}
 	
+	
+	public function unpostSales(Request $request)
+	{
+		try {
+			$value = [];
+			
+			$salesDetails = DB::select(DB::raw("select total_amount, balance, status, isPosted, fun_branch, '-' as sc_deceased, id, OR_no, client from _fis_itemsales_header
+					where id=".$request->post()['sales_id']));
+			
+			$value['total_amount']	= $salesDetails[0]->total_amount;
+			$value['balance']	= $salesDetails[0]->balance;
+			$value['status']	= $salesDetails[0]->status;
+			$value['isPosted']	= $salesDetails[0]->isPosted;
+			$value['fun_branch']	= $salesDetails[0]->fun_branch;
+			$value['sc_deceased']	= $salesDetails[0]->sc_deceased;
+			$value['id']	= $salesDetails[0]->id;
+			$value['OR_no']	= $salesDetails[0]->OR_no;
+			$value['client']	= $salesDetails[0]->client;
+			
+			DB::beginTransaction();
+			
+			if($value['status']=="CANCELLED")
+			{
+				return [
+						'status'=>'saved',
+						'message'=>'Merchandise Purchase is already Cancelled.'
+				];
+			}
+			
+			if($value['total_amount']!=$value['balance'])
+			{
+				return [
+						'status'=>'unsaved',
+						'message'=>'Please make sure Merchandise Purchase is not closed nor paid.'
+				];
+			}
+			
+			if($value['isPosted']=="0")
+			{
+				$sales = FisItemsalesHeader::find($value['id']);
+				$sales->update([
+						[
+								'status'=>'CANCELLED',
+								'isPosted'=>2
+						]
+				]);
+				
+				DB::commit();
+				return [
+						'status'=>'saved',
+						'message'=>'Unposted Merchandise Purchase Successfully Cancelled.'
+				];
+				
+			}
+			
+			$value['item_inclusions'] = DB::select(DB::raw("select product_id as item_code, price, sales.id as sales_id, total_price as tot_price, quantity, discount, SLCode, income_SLCode, item_name from _fis_item_sales sales
+					inner join _fis_items i on sales.product_id = i.item_code
+					where sales_id=".$request->post()['sales_id']));
+			
+			
+			$value['item_inventory'] = DB::select(DB::raw("select SLCode, p_sequence as id, item_code, item_name, inventory.item_price , inventory.serialNo from _fis_item_inventory inventory
+					inner join _fis_items i on inventory.product_id = i.item_code
+					where fk_sales_id=".$request->post()['sales_id']));
+			
+			$value['service_inclusions'] = DB::select(DB::raw("select ss.id as sales_id, SLCode, grossAmount as amount, service_duration as duration, s.id, discount as less, service_name, total_amount as tot_price, duration_unit as type_duration from _fis_service_sales ss
+					inner join _fis_services s on ss.fk_service_id = s.id where sales_id=".$request->post()['sales_id']));
+			
+			
+			$acctgHeader = [];
+			$acctgHeader['branch_code'] = $value['fun_branch'];
+			$acctgHeader['transaction_date'] = date('Y-m-d');
+			$acctgHeader['transaction_code'] = "JNLVOUCHER";
+			$acctgHeader['username'] = "hcalio";
+			$acctgHeader['reference'] = "CSP".$value['OR_no'];
+			$acctgHeader['status'] = 1;
+			$acctgHeader['particulars'] = "Cancellation of Merch. Purchase #".$value['OR_no'];
+			$acctgHeader['customer'] = $value['client'];
+			$acctgHeader['checkno'] = "";
+			
+			$currentBranch = FisBranch::where([
+					'branchID'=>$value['fun_branch']
+			])->firstOrFail();
+			
+			
+			$acctgDetails = [];
+			
+			$pushDetails = [];
+			
+			
+			
+			
+			$sales = FisItemsalesHeader::find($value['id']);
+			$sales->update(
+					[
+							'status'=>'CANCELLED',
+							'isPosted'=>2
+					]
+					);
+			
+			
+			$pushDetails['entry_type']="CR";
+			$pushDetails['SLCode']="1-1-112-03-004";
+			$pushDetails['amount']=$value['total_amount'];
+			$pushDetails['detail_particulars']="To record AR from Merch. Puchase #".$value['OR_no']." Signee Name : ".$value['client'];
+			array_push($acctgDetails, $pushDetails);
+			
+			//no discount "yet"
+			
+			foreach($value['item_inclusions'] as $row)
+			{
+				
+				try {
+					
+					$itemSales = FisItemSales::find($row->sales_id);
+					$itemSales->update([
+							'isCancelled'=>1
+					]);
+					
+					
+					
+					$pushDetails['entry_type']="DR";
+					$pushDetails['SLCode']= $row->income_SLCode;
+					$pushDetails['amount']= $row->tot_price;
+					$pushDetails['detail_particulars']="Income ".$row->item_name." from Merch. Purchase #".$value['OR_no']." Signee: ".$value['client'];
+					
+					array_push($acctgDetails, $pushDetails);
+					
+					
+					
+				} catch (\Exception $e) {
+					DB::rollback();
+					return [
+							'status'=>'unsaved',
+							'message'=>$e->getMessage()
+					];
+					break;
+				}
+				
+			}
+			
+			
+			foreach($value['item_inventory'] as $row)
+			{
+				try {
+					
+					$productList = FisProductList::where([
+							'id'=>$row->id,
+							//'isEncumbered'=>1,
+					])->firstOrFail();
+					
+					
+					FisItemInventory::create(
+							[
+									'transaction_date'=>date('Y-m-d'),
+									'particulars'=>'Purchased by Merch. Purchase #'.$value['OR_no'],
+									'contract_id'=>0,
+									'dr_no'=>'-',
+									'rr_no'=>'-',
+									'process'=>'IN',
+									'remaining_balance'=>0,
+									'product_id'=>$row->item_code,
+									'quantity'=>1,
+									'item_price'=>$row->item_price,
+									'remarks'=>'-',
+									'serialNo'=>$productList->serialNo,
+									'p_sequence'=>$row->id,
+									'fk_sales_id'=>$value['id'],
+									'fk_ORNo'=>'',
+							]);
+					
+					
+					$productList->update([
+							'isEncumbered'=>1
+					]);
+					
+					
+					
+					if($row->SLCode!="-")
+					{
+						$pushDetails['entry_type']="CR";
+						$pushDetails['SLCode']= $row->SLCode;
+						$pushDetails['amount']= $productList->price;
+						$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from Merch. Purchase #".$value['OR_no']." Signee Name : ".$value['client'];
+						array_push($acctgDetails, $pushDetails);
+						
+						$pushDetails['entry_type']="DR";
+						$pushDetails['SLCode']= $currentBranch->borrowHO;
+						$pushDetails['amount']= $productList->price;
+						$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from Merch. Purchase #".$value['OR_no']." Signee Name : ".$value['client'];
+						array_push($acctgDetails, $pushDetails);
+						
+					}
+					
+					
+				} catch (\Exception $e) {
+					DB::rollback();
+					return [
+							'status'=>'unsaved',
+							'message'=>$e->getMessage()
+					];
+					break;
+					
+				}
+				
+				
+			}
+			
+			
+			foreach($value['service_inclusions'] as $row)
+			{
+				
+				try {
+					
+					$serviceSales = FisServiceSales::find($row->sales_id);
+					$serviceSales->update([
+							'isCancelled'=>1
+					]);
+					
+					
+					$pushDetails['entry_type']="DR";
+					$pushDetails['SLCode']= $row->SLCode;
+					$pushDetails['amount']= $row->tot_price;
+					$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Purchase #".$value['OR_no']." Signee: ".$value['client'];
+					
+					array_push($acctgDetails, $pushDetails);
+					
+					
+					
+				} catch (\Exception $e) {
+					DB::rollback();
+					return [
+							'status'=>'unsaved',
+							'message'=>$e->getMessage()
+					];
+					break;
+				}
+				
+			}
+			
+			
+			
+			$saveAccounting =  AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
+			
+			if($saveAccounting['status']=='saved')
+			{
+				DB::commit();
+				return [
+						'status'=>'saved',
+						'message'=>''
+				];
+			}
+			
+			else
+			{
+				DB::rollback();
+				return $saveAccounting;
+			}
+			
+			
+			
+			
+		} catch (\Exception $e) {
+			DB::rollBack();
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
 	public function unpostContract(Request $request)
 	{
 		try {
-			//$value = (array)json_decode($request->post()['contract_details']);
+
 			
 			$value = [];
 			
@@ -145,7 +430,7 @@ class ServiceContractController extends Controller
 					inner join _fis_items i on sales.product_id = i.item_code
 					where contract_id=".$request->post()['contract_id']));
 			
-			$contractDetails = DB::select(DB::raw("select contract_amount, sc.status, sc.isPosted, fun_branch, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)sc_deceased, discount as sc_discount, contract_id as sc_id, contract_no as sc_number,
+			$contractDetails = DB::select(DB::raw("select contract_amount, contract_balance, grossPrice, sc.status, sc.isPosted, fun_branch, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)sc_deceased, discount as sc_discount, contract_id as sc_id, contract_no as sc_number,
 					(s.lname + ', ' + s.fname + ' ' + s.mname)sc_signee
 					from _fis_service_contract sc 
 					inner join _fis_deceased d on d.id = sc.deceased_id
@@ -162,11 +447,22 @@ class ServiceContractController extends Controller
 			$value['status']	= $contractDetails[0]->status;
 			$value['isPosted']	= $contractDetails[0]->isPosted;
 			
+			DB::beginTransaction();
+			
 			if($value['status']=="CANCELLED")
 			{
 				return [
 						'status'=>'saved',
 						'message'=>'Contract is already Cancelled.'
+				];
+			}
+			
+			
+			if($contractDetails[0]->contract_amount!=$contractDetails[0]->contract_balance)
+			{
+				return [
+						'status'=>'unsaved',
+						'message'=>'Please make sure Contract is not closed or no payment has been made.'
 				];
 			}
 			
@@ -179,7 +475,7 @@ class ServiceContractController extends Controller
 								'isPosted'=>2
 						]
 						);
-				
+				DB::commit();
 				return [
 						'status'=>'saved',
 						'message'=>'Unposted Contract Successfully Cancelled.'
@@ -195,8 +491,6 @@ class ServiceContractController extends Controller
 		 	$value['service_inclusions'] = DB::select(DB::raw("select ss.id as sales_id, SLCode, grossAmount as amount, service_duration as duration, s.id, discount as less, service_name, total_amount as tot_price, duration_unit as type_duration from _fis_service_sales ss
 					inner join _fis_services s on ss.fk_service_id = s.id where fk_contract_id=".$request->post()['contract_id']));
 		 	
-		 	
-			//return $value;
 			/*
 			 * here lies the posting of contract.
 			 * 1st step, update the balance of contract,
@@ -212,7 +506,7 @@ class ServiceContractController extends Controller
 			$contract_discount = is_numeric($value['sc_discount']) ? $value['sc_discount'] : 0;
 			
 			
-			DB::beginTransaction();
+			
 			
 			$acctgHeader = [];
 			$acctgHeader['branch_code'] = '201';
@@ -249,7 +543,7 @@ class ServiceContractController extends Controller
 				
 				$pushDetails['entry_type']="CR";
 				$pushDetails['SLCode']="1-1-112-03-004";
-				$pushDetails['amount']=$value['sc_amount'] - $contract_discount;
+				$pushDetails['amount']=$contractDetails[0]->grossPrice - $contract_discount;
 				$pushDetails['detail_particulars']="To record AR from Service Contract No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 				array_push($acctgDetails, $pushDetails);
 				
@@ -322,7 +616,7 @@ class ServiceContractController extends Controller
 										'remarks'=>'-',
 										'serialNo'=>$productList->serialNo,
 										'p_sequence'=>$row->id,
-										'fk_scID'=>$sc->contract_id,
+										'fk_sales_id'=>0,
 										'fk_ORNo'=>'',
 								]);
 						
@@ -395,6 +689,8 @@ class ServiceContractController extends Controller
 					
 				}
 				
+		
+				
 				$saveAccounting =  AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
 				
 				if($saveAccounting['status']=='saved')
@@ -421,6 +717,81 @@ class ServiceContractController extends Controller
 			return [
 					'status' => 'unsaved',
 					'message' => $e->getMessage()
+			];
+		}
+		
+	}
+	
+	
+	public function getAccountsOfClient(Request $request)
+	{
+		$clientid = $request->post()['client'];
+		
+		try {
+			$signee = FisMemberData::find($clientid);
+			
+			if($signee->profile_type=='Signee')
+			{
+				
+				$contracts = DB::select(DB::raw("select contract_id, contract_no, contract_date, contract_amount, contract_balance, status from _fis_service_contract where signee=$clientid"));
+				$merchandises = DB::select(DB::raw("select id, OR_no as reference_no, date as posting_date, total_amount as amount, balance, status from _fis_itemsales_header where signee_id=$clientid"));
+				
+				return [
+						'status'=>'success',
+						'message'=> [
+								'signee' => $signee,
+								'contractlist' => $contracts,
+								'merchandises' => $merchandises
+						]
+				];
+			}
+			
+			else
+			{
+				return [
+						'status'=>'error',
+						'message'=>'Profile Not a signee'
+				];
+			}
+			
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+		//return $clientid;
+	}
+	
+	public function getCharging(Request $request)
+	{
+		$contract = $request->post()['contractid'];
+		$charging = DB::select(DB::raw("select account_type as accountTypeLabel, accountType, total_amount, balance from _fis_sc_charging sc  inner join _fis_account a
+			on a.account_id = sc.accountType
+			where fk_scID='$contract'"));
+		
+		return $charging;
+		
+	}
+	
+	public function insertCharging(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['payment_details']);
+			$value['balance'] = $value['total_amount'];
+			$value['date'] = date('Y-m-d H:i:s');
+			$charging = FisCharging::create($value);
+			return [
+					'status'=>'saved',
+					'message'=>''
+			];
+			
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage()
 			];
 		}
 		
