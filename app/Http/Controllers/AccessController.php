@@ -31,7 +31,7 @@ use Mpdf\Mpdf;
 use App\FisSalesTransaction;
 use App\FisPaymentType;
 use App\FisSCPayments;
-
+use App\FisPackage;
 
 
 
@@ -210,22 +210,64 @@ class AccessController extends Controller
 
 	public function insertInclusions(Request $request) {
 		try {
-			$value = (array)json_decode($request->post()['packageData']);
-			foreach ($value as $row){
-			$inclusions = FisInclusions::create([
-					'fk_package_id'=> $value['package_id'],
-					'inclusion_id'=> $value['inventory_id'],
-					'inclusion_name'=> $value['name'],
-					'quantity'=> $value['quantity'],
-					'service_type'=> $value['service_type'],
-					'inventory_type'=> $value['inventory_type'],
+			$value = (array)json_decode($request->post()['inclusionsData']);
+
+			$value['package_code'] = $value['package_id'];
+			$packagePrice = FisPackage::find($value['package_code']);
+	   		$packagePrice->update([
+	   					'discount'=>$value['discount'],
+	   					'standardPrice'=>$value['standardPrice'],
+	   					'salesPrice'=>$value['salesPrice']
+	   				]);
+
+			foreach ($value['inclusions'] as $row){
+			try {
+					$inclusions = FisInclusions::create([
+					'fk_package_id'=> $row->package_id,
+					'inclusion_id'=> $row->inventory_id,
+					'inclusion_name'=> $row ->name,
+					'quantity'=> $row->quantity,
+					'service_type'=> $row->service_type,
+					'inventory_type'=> $row->inventory_type,
+					'selling_price'=> $row->inventory_price,
+					'total_amount'=> $row->total_price,
 					'transactedBy'=> 'hcalio',
 					'dateEncoded'=> date('Y-m-d')
-			]);
+					]);		
+			} catch (\Exception $e) {
+			return [
+				'message'=>$e->getMessage()
+			]; }
 			}
+
 			return [
 				'status'=>'saved',
-				'message'=>$inclusions
+				'message'=>$inclusions, $packagePrice
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertPackage(Request $request) {
+		try {
+	
+			$value = (array)json_decode($request->post()['packagetitledata']);
+			$value['dateExpired'] = date('Y-m-d H:i:s', strtotime($value['dateExpired']));
+			$packageData = FisPackage::create([
+			      'package_code' => $value['package_code'],
+			      'package_name' => $value['package_name'],
+			      'isActive' => $value['isActive'],
+			      'date_expired' => $value['dateExpired'],
+			      'date_created' => date('Y-m-d')
+				]);
+			return [
+				'status'=>'saved',
+				'message'=>$packageData
 			];
 			
 		} catch (\Exception $e) {
@@ -326,7 +368,7 @@ class AccessController extends Controller
 			      'middlename' => $value['middlename'],
 			      'lastname' => $value['lastname'],
 			      'address' => $value['address'],
-			      'contact_no' => $value['contact_no'],
+			      'contact_no' => '+63'.$value['contact_no'],
 			      'date_entry' => date('Y-m-d')
 				]);
 
@@ -1736,7 +1778,10 @@ class AccessController extends Controller
 		try {
 		$user_check = DB::select(DB::raw("SELECT item_name, selling_price, item_code,  isActive, 'Item' as type FROM _fis_items
 			UNION ALL
-			SELECT service_name, selling_price, service_code, isActive, 'Service' as type FROM _fis_services"));
+			SELECT service_name, selling_price, service_code, isActive, 'Service' as type FROM _fis_services
+			UNION ALL
+			SELECT package_name, salesPrice, package_code, isActive, 'Package' as type FROM _fis_package
+			"));
 
 			if($user_check)
 			return	$user_check;
@@ -1800,6 +1845,25 @@ class AccessController extends Controller
 		}
 	}
 
+	public function getInclusionList(Request $request) {
+		$value = (array)json_decode($request->post()['incList']);
+		try {
+		$inclusions = DB::select(DB::raw("SELECT PN.fk_package_id, PN.inclusion_name, PN.quantity, PN.selling_price, PN.total_amount,
+			PN.service_type, PN.inventory_type, P.package_code
+			FROM _fis_package_inclusions as PN
+			FULL OUTER JOIN _fis_package AS P on PN.fk_package_id = P.package_code
+			WHERE PN.fk_package_id = '".$value['item_code']."'"));
+			if($inclusions)
+			return	$inclusions;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
 	public function getItemList(Request $request) {
 		$value = (array)json_decode($request->post()['itemList']);
 		try {
@@ -1824,6 +1888,7 @@ class AccessController extends Controller
 				WHERE service_code = '".$value['item_code']."'"));
 				
 			if($user_check)
+
 				return	$user_check;
 			else return [];
 
@@ -1834,6 +1899,27 @@ class AccessController extends Controller
 			];
 		}
 	}
+
+	public function getPackageListEdit(Request $request) {
+		$value = (array)json_decode($request->post()['itemList']);
+		try {
+			$user_check = DB::select(DB::raw("SELECT * FROM _fis_package
+
+				WHERE package_code = '".$value['item_code']."'"));
+				
+			if($user_check)
+				
+				return	$user_check;
+			else return [];
+
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
 
 	public function getRelation(Request $request) {
 		$value = "";
@@ -2325,6 +2411,30 @@ class AccessController extends Controller
 		}
 	}
 
+	public function updatePackage(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['packageupdate']);
+			$value['date_expired'] = date('Y-m-d H:i:s', strtotime($value['date_expired']));
+			$package = FisPackage::find($value['package_code']);
+	   		$package->update([
+			      'package_code' => $value['package_code'],
+			      'package_name' => $value['package_name'],
+			      'date_expired' => $value['date_expired']
+				]);
+			return [
+					'status'=>'saved',
+					'message'=>$package
+			];
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
 
 
 	// CLOSE OF UPDATE
@@ -2428,14 +2538,23 @@ class AccessController extends Controller
 				}
 
 				elseif(($value['type']) == 'Service') {
-					$value['SLCode'] = $value['item_code'];
-					$inventory = FisServices::find($value['SLCode']);
+					$value['service_code'] = $value['item_code'];
+					$inventory = FisServices::find($value['service_code']);
 	   				$inventory->delete();
+				}
+
+				elseif(($value['type']) == 'Package') {
+					$value['package_code'] = $value['item_code'];
+					$value['fk_package_id'] = $value['item_code'];
+					$inventory = FisPackage::find($value['package_code']);
+					$inclusions = FisInclusions::find($value['fk_package_id']);
+	   				$inventory->delete();
+	   				$inclusions->delete();
 				}
 				
 			return [
 					'status'=>'saved',
-					'message'=>$inventory
+					'message'=>$inventory,$inclusions
 			];
 			
 		} catch (\Exception $e) {

@@ -33,8 +33,13 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-embalmer', 'AccessController@insertEmbalmer');
 	Route::post('insert-planprofile', 'AccessController@insertPlanProfile');
 	Route::post('insert-inclusions', 'AccessController@insertInclusions');
+	Route::post('insert-package', 'AccessController@insertPackage');
 
 	Route::post('insert-supplier', 'AccessController@insertSupplier');
+
+	//tc cares
+	Route::post('insert-plan-profile', 'AccessController@insertPlanProfile');
+	//
 
 	Route::post('update-relation', 'AccessController@updateRelation');
 	Route::post('update-info', 'AccessController@updateInfo');
@@ -45,6 +50,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-items', 'AccessController@updateItems');
 	Route::post('update-service', 'AccessController@updateService');
 	Route::post('update-supplier', 'AccessController@updateSupplier');
+	Route::post('update-package', 'AccessController@updatePackage');
 
 	Route::post('delete-relation', 'AccessController@deleteRelation');
 	Route::post('delete-branch', 'AccessController@deleteBranch');
@@ -54,8 +60,10 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('delete-supplier', 'AccessController@deleteSupplier');
 	
 	Route::post('get-product-list', 'AccessController@getProductList');
+	Route::post('get-inclusion-list', 'AccessController@getInclusionList');
 	Route::post('get-items', 'AccessController@getItemList');
 	Route::post('get-service', 'AccessController@getServiceList');
+	Route::post('get-package', 'AccessController@getPackageListEdit');
 
 	Route::post('post-purchase', 'AccessController@postPurchase');
 	Route::post('post-contract', 'AccessController@postContract');	
@@ -66,8 +74,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-deceased', 'AccessController@updateDeceased');
 	Route::post('update-signee', 'AccessController@updateSignee');
 	Route::post('update-informant', 'AccessController@updateInformant');
-	Route::post('delete-relation', 'AccessController@deleteRelation');
-	Route::post('post-purchase', 'AccessController@postPurchase');
+	Route::post('delete-relation', 'AccessController@deleteRelation');;
 	Route::post('unpost-contract', 'ServiceContractController@unpostContract');
 	Route::post('get-minimal-probabilities', 'AccessController@getMinimalProbabilities');
 });
