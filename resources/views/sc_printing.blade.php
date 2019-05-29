@@ -38,7 +38,7 @@
     	 			<td style="width:19%;"><font face="segoeui"><strong>Charge to Mr./Ms./Mrs.</strong></font></td>
     	 			<td style="width:44%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->fname." ".$accounts[0]->mname." ".$accounts[0]->lname; ?></font></td>
     	 			<td style="width:12%; text-align:right;"><font face="segoeui"><strong>Contact No.</strong></font></td>
-    	 			<td style="width:20%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->contactNo; ?></font></td>
+    	 			<td style="width:20%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->contact_no; ?></font></td>
     	 			
     	 		</tr>
     	 	</table>
@@ -81,9 +81,9 @@
 				<table style="width:100%;">
 					<tr>
 						<td style="width:10%;"><font face="segoeui"><strong>Date Died:</strong></font></td>
-						<td style="width:25%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('M d, Y', strtotime($accounts[0]->datedied)); ?></font></td>
+						<td style="width:25%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('M d, Y', strtotime($accounts[0]->date_died)); ?></font></td>
 						<td style="width:5%;"><font face="segoeui"><strong>Time:</strong></font></td>
-						<td style="width:10%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('h:i A', strtotime($accounts[0]->datedied)); ?></font></td>
+						<td style="width:10%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('h:i A', strtotime($accounts[0]->date_died)); ?></font></td>
 						<td style="width:15%; text-align:right;"><font face="segoeui"><strong>Place of Death:</strong></font></td>
 						<td style="width:35%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->deathPlace; ?></font></td>
 					</tr>

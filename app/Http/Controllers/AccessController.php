@@ -31,13 +31,11 @@ use Mpdf\Mpdf;
 use App\FisSalesTransaction;
 use App\FisPaymentType;
 use App\FisSCPayments;
-<<<<<<< HEAD
 use App\FisPackage;
-=======
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisCharging;
 
->>>>>>> f6dd12f64018f3c5abae822100e47e7e48f4e137
+
 
 
 
@@ -1568,7 +1566,7 @@ class AccessController extends Controller
 				inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 				inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
 								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
-								where profile_type='Decease')d on sc.deceased_id = d.id"));
+								where profile_type='Decease')d on sc.deceased_id = d.id where sc.status<>'CANCELLED'"));
 			
 			return $qry;
 			
