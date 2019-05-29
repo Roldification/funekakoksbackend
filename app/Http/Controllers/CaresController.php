@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\FisCaresPlan;
 
 class CaresController extends Controller
@@ -10,31 +11,103 @@ class CaresController extends Controller
     public function insertPlanProfile(Request $request) {
 		try {
 
-			$value2 = (array)json_decode($request->post()['signeedata']);
-			$signeeProfile = FisSignee::create([
-				'firstName'	=> $value2['firstName'],
-        		'middleName'	=> $value2['middleName'],
-		        'lastName'	=> $value2['lastName'],
-		        'address'	=> $value2['address'],
-		       	'contact_number' => $value2['contact_number'],
-		        'b_firstName'	=> $value2['b_firstName'],
-		        'b_middleName' => $value2['b_middleName'],
-		       	'b_lastName' => $value2['b_lastName'],
-				'b_relationship' => $value2['b_relationship'],
-				'b_contact_number' => $value2['b_contact_number'],
-				'dateIssue' => $value2['dateIssue'],
-				'payingPeriod' => $value2['payingPeriod'],
-				'modePayment' => $value2['modePayment'],
-				'contractPrice' => $value2['contractPrice'],
-				'amountInstalment' => $value2['amountInstalment'],
-				'firstPayment' => $value2['firstPayment'],
-				'dueDate' => $value2['dueDate']);
+			$value = (array)json_decode($request->post()['plandata']);
+			$value['dateIssue'] = date('Y-m-d', strtotime($value['dateIssue']));
+			$value['dueDate'] = date('Y-m-d', strtotime($value['dueDate']));
+			$planProfile = FisCaresPlan::create([
+				'membership_id'	=> $value['membership_id'],
+				'firstName'	=> $value['firstName'],
+        		'middleName'	=> $value['middleName'],
+		        'lastName'	=> $value['lastName'],
+		        'address'	=> $value['address'],
+		       	'contact_number' => '+63'.$value['contact_number'],
+		        'b_firstName'	=> $value['b_firstName'],
+		        'b_middleName' => $value['b_middleName'],
+		       	'b_lastName' => $value['b_lastName'],
+				'b_relationship' => $value['b_relationship'],
+				'b_contact_number' => '+63'.$value['b_contact_number'],
+				'dateIssue' => $value['dateIssue'],
+				'payingPeriod' => $value['payingPeriod'],
+				'modePayment' => $value['modePayment'],
+				'contractPrice' => $value['contractPrice'],
+				'amountInstalment' => $value['amountInstalment'],
+				'firstPayment' => $value['firstPayment'],
+				'dueDate' => $value['dueDate'],
+				'date_created' => date('Y-m-d')
+			]);
 			return [
 				'status'=>'saved',
-				'message'=>$signeeProfile
+				'message'=>$planProfile
 			];
 			
 		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function getMemberPlanInfo(Request $request) {
+		$value = "";
+		try {
+		$info = DB::select(DB::raw("
+			SELECT P.membership_id, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
+			P.firstName, P.middleName, P.lastName,  P.address, P.contact_number, 
+			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name, 
+			P.b_firstName, P.b_middleName, P.b_lastName,
+			P.b_relationship, P.b_contact_number, P.dateIssue, P.payingPeriod, P.modePayment, P.contractPrice,
+			P.amountInstalment, P.firstPayment, P.dueDate
+			FROM _fis_cares_profile as P
+			"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function updatePlanInfo(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['infoupdate']);
+				$value['dateIssue'] = date('Y-m-d', strtotime($value['dateIssue']));
+				$value['dueDate'] = date('Y-m-d', strtotime($value['dueDate']));
+				$rtd = FisCaresPlan::find($value['membership_id']);
+	   			$rtd->update([
+	   				'membership_id'=>$value['membership_id'],
+	   				'firstName'=>$value['firstName'],
+	   				'middleName'=>$value['middleName'],
+	   				'address'=>$value['address'],
+	   				'contact_number'=>$value['contact_number'],
+	   				'b_firstName'=>$value['b_firstName'],
+	   				'b_middleName'=>$value['b_middleName'],
+	   				'b_lastName'=>$value['b_lastName'],
+	   				'b_relationship'=>$value['b_relationship'],
+	   				'b_contact_number'=>$value['b_contact_number'],
+	   				'dateIssue'=>$value['dateIssue'],
+	   				'payingPeriod'=>$value['payingPeriod'],
+	   				'modePayment'=>$value['modePayment'],
+	   				'contractPrice'=>$value['contractPrice'],
+	   				'amountInstalment'=>$value['amountInstalment'],
+	   				'firstPayment'=>$value['firstPayment'],
+	   				'dueDate'=>$value['dueDate']
+	   			]
+	   			);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$rtd
+			];
+			
+		} catch (\Exception $e) {
+			
 			return [
 				'status'=>'unsaved',
 				'message'=>$e->getMessage()
