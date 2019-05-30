@@ -37,7 +37,7 @@ class ServiceContractController extends Controller
 					'contract_id'=>$request->post()['contract_id']
 			])->firstOrFail();
 			
-			if(($service_contract->status=='ACTIVE' || $service_contract->status=='CLOSED') && $service_contract->isPosted==1)
+			if(($service_contract->status=='ACTIVE' || $service_contract->status=='CANCELLED' || $service_contract->status=='CLOSED') && $service_contract->isPosted==1)
 			{
 				$availments = DB::select(DB::raw("select product_id, (CAST(quantity as varchar(5)) + ' ' + unit_type) as totquantity, price, total_price, 'item' as inclusiontype, i.item_name as inclusionname from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
