@@ -38,6 +38,7 @@ use App\FisCharging;
 
 
 
+
 class AccessController extends Controller
 {
     //
@@ -1362,7 +1363,7 @@ class AccessController extends Controller
 				inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 				inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
 								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
-								where profile_type='Decease')d on sc.deceased_id = d.id"));
+								where profile_type='Decease')d on sc.deceased_id = d.id where sc.status<>'CANCELLED'"));
 			
 			return $qry;
 			

@@ -39,11 +39,11 @@ class ServiceContractController extends Controller
 			
 			if(($service_contract->status=='ACTIVE' || $service_contract->status=='CLOSED') && $service_contract->isPosted==1)
 			{
-				$availments = DB::select(DB::raw("select product_id, quantity, unit_type, price, total_price, 'item' as inclusiontype from _fis_item_sales sales
+				$availments = DB::select(DB::raw("select product_id, (CAST(quantity as varchar(5)) + ' ' + unit_type) as totquantity, price, total_price, 'item' as inclusiontype, i.item_name as inclusionname from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
 				where contract_id=".$request->post()['contract_id']."
 				UNION ALL
-				select CAST(fk_service_id as varchar(10)) as id, service_duration, duration_unit, total_amount, total_amount as totprice, 'service' as inclusiontype from _fis_service_sales ss
+				select CAST(fk_service_id as varchar(10)) as id, (CAST(service_duration as varchar(5)) + ' ' + duration_unit) as totquantity, total_amount, total_amount as totprice, 'service' as inclusiontype, s.service_name as inclusionname from _fis_service_sales ss
 				inner join _fis_services s on s.id = ss.fk_service_id
 				where fk_contract_id=".$request->post()['contract_id']));
 				
@@ -59,7 +59,7 @@ class ServiceContractController extends Controller
 					inner join ClientReligion cr on d.religion = cr.ReligionID
 					where contract_id=".$service_contract->contract_id));
 				
-				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type reference_no, payment_date, payment_mode, transactedBy, remarks from _fis_sc_payments sp inner join _fis_account a
+				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks from _fis_sc_payments sp inner join _fis_account a
 					on a.account_id = sp.accountType
 					where contract_id=".$service_contract->contract_id));
 				
@@ -422,20 +422,38 @@ class ServiceContractController extends Controller
 	public function unpostContract(Request $request)
 	{
 		try {
-
 			
-			$value = [];
+			
+			$value_api = (array)json_decode($request->post()['servicecontract']);
+			
+		
+			
+			try {
+				$user = SystemUser::where(
+						[
+								'Password'=>$value_api['password_input'],
+								'UserName'=>$value_api['username'],
+								
+						])->firstOrFail();
+				
+			} catch (\Exception $e) {
+				return [
+						'status'=>'unsaved',
+						'message'=>'Incorrect Password'
+				];
+			}
+			
 			
 			$value['item_inclusions'] = DB::select(DB::raw("select product_id as item_code, price, sales.id as sales_id, total_price as tot_price, quantity, discount, SLCode, income_SLCode, item_name from _fis_item_sales sales
 					inner join _fis_items i on sales.product_id = i.item_code
-					where contract_id=".$request->post()['contract_id']));
+					where contract_id=".$value_api['contract_id']));
 			
 			$contractDetails = DB::select(DB::raw("select contract_amount, contract_balance, grossPrice, sc.status, sc.isPosted, fun_branch, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)sc_deceased, discount as sc_discount, contract_id as sc_id, contract_no as sc_number,
 					(s.lname + ', ' + s.fname + ' ' + s.mname)sc_signee
 					from _fis_service_contract sc 
 					inner join _fis_deceased d on d.id = sc.deceased_id
 					inner join _fis_signee s on sc.signee = s.id
-					where contract_id=".$request->post()['contract_id']));
+					where contract_id=".$value_api['contract_id']));
 			
 			$value['sc_amount']	= $contractDetails[0]->contract_amount;
 			$value['sc_branch']	= $contractDetails[0]->fun_branch;
@@ -486,10 +504,10 @@ class ServiceContractController extends Controller
 			
 		 	$value['item_inventory'] = DB::select(DB::raw("select SLCode, p_sequence as id, item_code, item_name, inventory.item_price , inventory.serialNo from _fis_item_inventory inventory
 					inner join _fis_items i on inventory.product_id = i.item_code
-					where contract_id=".$request->post()['contract_id']));
+					where contract_id=".$value_api['contract_id']));
 		 	
 		 	$value['service_inclusions'] = DB::select(DB::raw("select ss.id as sales_id, SLCode, grossAmount as amount, service_duration as duration, s.id, discount as less, service_name, total_amount as tot_price, duration_unit as type_duration from _fis_service_sales ss
-					inner join _fis_services s on ss.fk_service_id = s.id where fk_contract_id=".$request->post()['contract_id']));
+					inner join _fis_services s on ss.fk_service_id = s.id where fk_contract_id=".$value_api['contract_id']));
 		 	
 			/*
 			 * here lies the posting of contract.
