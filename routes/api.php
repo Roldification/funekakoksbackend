@@ -43,6 +43,8 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('get-items', 'InventoryController@getItemList');
 	Route::post('get-service', 'InventoryController@getServiceList');
 	Route::post('get-package', 'InventoryController@getPackageListEdit');
+	Route::post('get-product-list', 'InventoryController@getProductList');
+	Route::post('get-rr-list', 'InventoryController@getRRList');
 
 	Route::post('update-items', 'InventoryController@updateItems');
 	Route::post('update-service', 'InventoryController@updateService');
@@ -130,7 +132,6 @@ Route::get('get-member-plan-info', 'CaresController@getMemberPlanInfo')->middlew
 Route::get('get-inventory-list', 'InventoryController@getInventoryList')->middleware('cors');
 Route::get('get-item-package', 'InventoryController@getItemPackage')->middleware('cors');
 Route::get('get-service-package', 'InventoryController@getServicePackage')->middleware('cors');
-Route::post('get-product-list', 'InventoryController@getProductList');
 Route::get('get-supplier', 'InventoryController@getSupplierList')->middleware('cors');
 Route::get('get-package-list', 'InventoryController@getPackageList')->middleware('cors');
 Route::get('get-package-inclusions', 'InventoryController@getPackageInclusions')->middleware('cors');
