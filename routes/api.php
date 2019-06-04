@@ -26,7 +26,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('insert-relation', 'AccessController@insertRelation');
-
+	Route::post('cancel-payment', 'ServiceContractController@cancelPayment');
 	Route::post('insert-branch', 'AccessController@insertBranch');
 	Route::post('insert-driver', 'AccessController@insertDriver');
 	Route::post('insert-embalmer', 'AccessController@insertEmbalmer');
@@ -44,6 +44,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('get-service', 'InventoryController@getServiceList');
 	Route::post('get-package', 'InventoryController@getPackageListEdit');
 	Route::post('get-product-list', 'InventoryController@getProductList');
+	Route::post('get-rr-list', 'InventoryController@getRRList');
 
 	Route::post('update-items', 'InventoryController@updateItems');
 	Route::post('update-service', 'InventoryController@updateService');

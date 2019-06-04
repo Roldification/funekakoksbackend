@@ -42,27 +42,41 @@ class InventoryController extends Controller
 			
 			$value['date_received'] = date('Y-m-d', strtotime($value['date_received']));
 					
+			
 			foreach ($value['rr_items'] as $row){
 			try {
 					$rr = FisRReport::create([
-					'supplier_id'	=> $value['supplier_id'],
+						'supplier_id'	=> $value['supplier_id'],
 						'rr_no'	=> $value['rr_no'],
 		        		'po_no'	=> $value['po_no'],
 				        'dr_no'	=> $value['dr_no'],
 				        'serialNo'	=> $value['serialNo'],
 				       	'date_received' => $value['date_received'],
 				        'remarks'	=> $value['remarks'],
-				        'quantity' => $value['quantity'],
 						'transactedBy' => 'hcalio',
-					'item_id'=> $row->item_code,
-					'item_name'=> $row->name,
-					'cost'=> $row->cost
+						'item_id'=> $row->item_code,
+						'item_name'=> $row->name,
+						'cost'=> $row->cost,
+						'total_amount'=> $value['total_amount']
+					]);
+					
+					$productList = FisProductList::create([
+						'fk_item_id' => $row->item_code,
+						'batch_no' =>$rr->id,
+						'serialNo'	=> $value['serialNo'],
+		        		'rr_no'	=> $value['rr_no'],
+				        'dr_no'	=> $value['dr_no'],
+				        'isEncumbered'	=> 1,
+				       	'price' => $row->cost,
+				        'date_entry' => date('Y-m-d')
 					]);		
+
+
 			} catch (\Exception $e) {
 			return [
 				'message'=>$e->getMessage()
-			]; }
-			}
+			]; } 
+			} 
 
 			return [
 				'status'=>'saved',
@@ -194,7 +208,7 @@ class InventoryController extends Controller
 			$packageData = FisPackage::create([
 			      'package_code' => $value['package_code'],
 			      'package_name' => $value['package_name'],
-			      'isActive' => $value['isActive'],
+			      'isActive' => 0,
 			      'date_expired' => $value['dateExpired'],
 			      'date_created' => date('Y-m-d')
 				]);
@@ -233,7 +247,9 @@ class InventoryController extends Controller
 		try {
 		$user_check = DB::select(DB::raw("SELECT item_name, selling_price, item_code,  isActive, 'Item' as type FROM _fis_items
 			UNION ALL
+
 			SELECT service_name, selling_price, cast(id as varchar(10))id, isActive, 'Service' as type FROM _fis_services
+
 			UNION ALL
 			SELECT package_name, salesPrice, cast(package_code as varchar(10))package_code, isActive, 'Package' as type FROM _fis_package
 			"));
@@ -268,7 +284,7 @@ class InventoryController extends Controller
 	public function getServicePackage(Request $request) {
 		$value = "";
 		try {
-		$user_check = DB::select(DB::raw("SELECT service_code as value, service_name as label, * FROM _fis_services"));
+		$user_check = DB::select(DB::raw("SELECT id as value, service_name as label, * FROM _fis_services"));
 
 			if($user_check)
 			return	$user_check;
@@ -340,7 +356,7 @@ class InventoryController extends Controller
 		$value = (array)json_decode($request->post()['itemList']);
 		try {
 			$user_check = DB::select(DB::raw("SELECT * FROM _fis_services 
-				WHERE service_code = '".$value['item_code']."'"));
+				WHERE id = '".$value['item_code']."'"));
 				
 			if($user_check)
 
@@ -413,7 +429,7 @@ class InventoryController extends Controller
 		$inclusions = DB::select(DB::raw("SELECT inc.item_id, inc.service_id, inc.quantity, inc.inclusionType, items.item_name, serv.service_name
 			FROM _fis_package_inclusions as inc
 			LEFT JOIN _fis_items as items ON inc.item_id = items.item_code
-			LEFT JOIN _fis_services as serv ON inc.service_id = serv.service_code"));
+			LEFT JOIN _fis_services as serv ON inc.service_id = serv.id"));
 			if($inclusions)
 				return	$inclusions;
 				else return [];
@@ -429,8 +445,27 @@ class InventoryController extends Controller
 	public function getSupplierValue(Request $request) {
 		$value = "";
 		try {
-		$supplier = DB::select(DB::raw("SELECT supplier_id as value, supplier_name as label, *   FROM _fis_supplier "));
+		$supplier = DB::select(DB::raw("SELECT supplier_id as value, supplier_name as label   FROM _fis_supplier "));
 
+			if($supplier)
+			return	$supplier;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getRRList(Request $request) {
+		$value = (array)json_decode($request->post()['supplierData']);
+		try {
+		$supplier = DB::select(DB::raw("SELECT S.supplier_id, S.supplier_name, RR.supplier_id, RR.rr_no, RR.po_no, RR.dr_no, 
+			RR.serialNo, RR.date_received, RR.item_name, RR.cost, RR.remarks
+			FROM _fis_receiving_report as RR
+			FULL OUTER JOIN _fis_supplier AS S on RR.supplier_id = S.supplier_id
+			WHERE RR.supplier_id = '".$value['supplier_id']."'"));
 			if($supplier)
 			return	$supplier;
 			else return [];
@@ -476,9 +511,9 @@ class InventoryController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['serviceupdate']);
 			
-			$inventory = FisServices::find($value['service_code']);
+			$inventory = FisServices::find($value['id']);
 	   		$inventory->update([
-			      'service_code' => $value['service_code'],
+			      'id' => $value['id'],
 			      'service_name' => $value['service_name'],
 			      'SL_Code' => $value['SL_Code'],
 			      'isActive' => $value['isActive'],
@@ -577,23 +612,28 @@ class InventoryController extends Controller
 				}
 
 				elseif(($value['type']) == 'Service') {
-					$value['service_code'] = $value['item_code'];
-					$inventory = FisServices::find($value['service_code']);
+					$value['id'] = $value['item_code'];
+					$inventory = FisServices::find($value['id']);
 	   				$inventory->delete();
 				}
 
 				elseif(($value['type']) == 'Package') {
 					$value['package_code'] = $value['item_code'];
 					$value['fk_package_id'] = $value['item_code'];
+					
+
 					$inventory = FisPackage::find($value['package_code']);
-					$inclusions = FisInclusions::find($value['fk_package_id']);
 	   				$inventory->delete();
-	   				$inclusions->delete();
+
+	   				$inventory = FisInclusions::find($value['fk_package_id']);
+	   				if ($inventory!=null) {
+						$inventory->delete();
+					}
 				}
 				
 			return [
 					'status'=>'saved',
-					'message'=>$inventory,$inclusions
+					'message'=>$inventory
 			];
 			
 		} catch (\Exception $e) {
