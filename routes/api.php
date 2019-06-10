@@ -53,6 +53,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	Route::post('delete-supplier', 'InventoryController@deleteSupplier');
 	Route::post('delete-inventory', 'InventoryController@deleteInventory');
+	Route::post('delete-inc', 'InventoryController@deleteInc');
 
 	// TC Cares
 	Route::post('insert-plan-profile', 'CaresController@insertPlanProfile');

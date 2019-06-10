@@ -33,6 +33,7 @@ use App\FisSCPayments;
 use App\FisPackage;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisCharging;
+use App\FisPackageInclusions;
 
 class InventoryController extends Controller
 {
@@ -101,7 +102,7 @@ class InventoryController extends Controller
 			      'BatchNo' => $value['BatchNo'],
 			      'SLCode' => $value['SLCode'],
 			      'income_SLCode' => $value['income_SLCode'],
-			      'isActive' => $value['isActive'],
+			      'isActive' => 1,
 			      'isInventoriable' => $value['isInventoriable'],
 			      'rr_no' => $value['rr_no'],
 			      'selling_price' => $value['selling_price'],
@@ -164,12 +165,14 @@ class InventoryController extends Controller
 	   		$packagePrice->update([
 	   					'discount'=>$value['discount'],
 	   					'standardPrice'=>$value['standardPrice'],
-	   					'salesPrice'=>$value['salesPrice']
+	   					'salesPrice'=>$value['salesPrice'],
+	   					'isActive' => 1
 	   				]);
 
 			foreach ($value['inclusions'] as $row){
 			try {
-					$inclusions = FisInclusions::create([
+					
+					$inclusions = FisInclusions::updateOrCreate([
 					'fk_package_id'=> $row->package_id,
 					'inclusion_id'=> $row->inventory_id,
 					'inclusion_name'=> $row ->name,
@@ -180,7 +183,7 @@ class InventoryController extends Controller
 					'total_amount'=> $row->total_price,
 					'transactedBy'=> 'hcalio',
 					'dateEncoded'=> date('Y-m-d')
-					]);		
+					]);
 			} catch (\Exception $e) {
 			return [
 				'message'=>$e->getMessage()
@@ -202,15 +205,18 @@ class InventoryController extends Controller
 
 	public function insertPackage(Request $request) {
 		try {
-	
 			$value = (array)json_decode($request->post()['packagetitledata']);
-			$value['dateExpired'] = date('Y-m-d H:i:s', strtotime($value['dateExpired']));
+			// $value['dateExpired'] = date('Y-m-d H:i:s', strtotime($value['dateExpired']));
 			$packageData = FisPackage::create([
 			      'package_code' => $value['package_code'],
 			      'package_name' => $value['package_name'],
 			      'isActive' => 0,
-			      'date_expired' => $value['dateExpired'],
-			      'date_created' => date('Y-m-d')
+			      'discount'=> 0,
+	   			  'standardPrice'=> 0,
+	   			  'salesPrice'=> 0,
+			      //'date_expired' => $value['dateExpired'],
+			      'date_created' => date('Y-m-d'),
+			      'createdBy' => 'hcalio'
 				]);
 			return [
 				'status'=>'saved',
@@ -317,7 +323,7 @@ class InventoryController extends Controller
 	public function getInclusionList(Request $request) {
 		$value = (array)json_decode($request->post()['incList']);
 		try {
-		$inclusions = DB::select(DB::raw("SELECT PN.fk_package_id, PN.inclusion_name, PN.quantity, PN.selling_price, PN.total_amount,
+		$inclusions = DB::select(DB::raw("SELECT PN.fk_package_id, PN.inclusion_id, PN.inclusion_name, PN.quantity, PN.selling_price, PN.total_amount,
 			PN.service_type, PN.inventory_type, P.package_code
 			FROM _fis_package_inclusions as PN
 			FULL OUTER JOIN _fis_package AS P on PN.fk_package_id = P.package_code
@@ -558,12 +564,11 @@ class InventoryController extends Controller
 	{
 		try {
 			$value = (array)json_decode($request->post()['packageupdate']);
-			$value['date_expired'] = date('Y-m-d H:i:s', strtotime($value['date_expired']));
+			//$value['date_expired'] = date('Y-m-d H:i:s', strtotime($value['date_expired']));
 			$package = FisPackage::find($value['package_code']);
 	   		$package->update([
 			      'package_code' => $value['package_code'],
-			      'package_name' => $value['package_name'],
-			      'date_expired' => $value['date_expired']
+			      'package_name' => $value['package_name']
 				]);
 			return [
 					'status'=>'saved',
@@ -589,6 +594,27 @@ class InventoryController extends Controller
 			return [
 					'status'=>'saved',
 					'message'=>$supplier
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function deleteInc(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['inventorydelete']);
+				$inc = FisPackageInclusions::find($value['inclusion_id']);
+	   			$inc->delete();
+			
+			return [
+					'status'=>'saved',
+					'message'=>$inc
 			];
 			
 		} catch (\Exception $e) {

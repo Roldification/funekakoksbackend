@@ -222,7 +222,7 @@ class AccessController extends Controller
 			      'middlename' => $value['middlename'],
 			      'lastname' => $value['lastname'],
 			      'address' => $value['address'],
-			      'contact_no' => '+63'.$value['contact_no'],
+			      'contact_no' => $value['contact_no'],
 			      'date_entry' => date('Y-m-d')
 				]);
 
