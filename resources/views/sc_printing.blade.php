@@ -18,8 +18,10 @@
     </head>
     <body>
     			
-    	 <img src="<?php echo public_path()?>/images/t1c.jpg" alt="Logo" style="height:300mm;"/>
-    	 
+   
+         <div style="height:90px;">
+         
+         </div>			    	 	  
     	 <div class="row" style="margin-top:5px;">
     	 	<table style="width:100%;">
     	 		<tr>

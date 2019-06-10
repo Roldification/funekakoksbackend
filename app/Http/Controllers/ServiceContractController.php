@@ -25,6 +25,8 @@ use App\FisBranch;
 use App\SystemUser;
 use App\FisMemberData;
 use App\FisCharging;
+use App\FisSCPayments;
+use App\FisPaymentType;
 
 class ServiceContractController extends Controller
 {
@@ -37,7 +39,7 @@ class ServiceContractController extends Controller
 					'contract_id'=>$request->post()['contract_id']
 			])->firstOrFail();
 			
-			if(($service_contract->status=='ACTIVE' || $service_contract->status=='CLOSED') && $service_contract->isPosted==1)
+			if(($service_contract->status=='ACTIVE' || $service_contract->status=='CANCELLED' || $service_contract->status=='CLOSED') && $service_contract->isPosted==1)
 			{
 				$availments = DB::select(DB::raw("select product_id, (CAST(quantity as varchar(5)) + ' ' + unit_type) as totquantity, price, total_price, 'item' as inclusiontype, i.item_name as inclusionname from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
@@ -59,7 +61,7 @@ class ServiceContractController extends Controller
 					inner join ClientReligion cr on d.religion = cr.ReligionID
 					where contract_id=".$service_contract->contract_id));
 				
-				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks from _fis_sc_payments sp inner join _fis_account a
+				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
 					on a.account_id = sp.accountType
 					where contract_id=".$service_contract->contract_id));
 				
@@ -419,6 +421,142 @@ class ServiceContractController extends Controller
 		
 	}
 	
+	public function cancelPayment(Request $request)
+	{
+		try {
+			$pay_id = $request->post()['payment_id'];
+			
+			DB::beginTransaction();
+			
+			$payment = FisSCPayments::where('payment_id', $pay_id)
+			->where('isCancelled', 0)
+			->where('payment_date', date('Y-m-d'))
+			->first();
+			//return $payment;	
+			if(!$payment)
+			{
+				return [
+						'status'=>'unsaved',
+						'message'=>'No payment found. Or payment is already cancelled',
+				];
+			}
+			
+			try {
+				$charging = FisCharging::where([
+						'fk_scID'=>$payment->contract_id,
+						'accountType'=>$payment->accountType,
+				])->firstOrFail();
+				$chargePayment = $charging->balance + $payment->AR_Credit;
+				
+			
+				
+				$charging->update([
+						'balance'=> $chargePayment
+				]);
+				
+				
+				
+			} catch (\Exception $e) {
+				DB::rollBack();
+				return [
+						'status'=>'unsaved',
+						'message'=>$e->getMessage(),
+				];
+			}
+			
+			
+			$contract = ServiceContract::where('contract_id', $payment->contract_id)
+			->whereNotIn('status', ['DRAFT', 'CANCELLED'])
+			->first();
+			
+			if(!$contract)
+			{
+				DB::rollBack();
+				return [
+						'status'=>'unsaved',
+						'message'=>'Payment cannot be cancelled.',
+				];
+				
+			}
+			
+			$remainingbalance = $contract->contract_balance + $payment->AR_Credit;
+			
+			$contract->update([
+					'contract_balance'=> $remainingbalance,
+					'status'=> 'ACTIVE'
+			]);
+			
+			$scpayment = FisSCPayments::create([
+					'contract_id'=>$contract->contract_id,
+					'accountType'=>$payment->accountType,
+					'AR_Debit'=>$payment->AR_Credit,
+					'AR_Credit'=>0,
+					'balance'=>$remainingbalance,
+					'reference_no'=>'('.$payment->reference_no.')',
+					'payment_date'=>date('Y-m-d'),
+					'payment_mode'=>$payment->payment_mode,
+					'transactedBy'=>'hcalio',
+					'isCancelled'=>0,
+					'isRemitted'=>0,
+					'remittedTo'=>'',
+					'isPosted'=>1,
+					'remarks'=>'Cancellation of',
+					'tran_type'=>$payment->tran_type == 'PAYPARTIAL' ? 'CANPAYPARTIAL' : 'CANPAYCLOSE',
+			]);
+			
+			$payment->update([
+					'isCancelled'=>1
+			]);
+			
+			$acctgHeader_pay = [];
+			$acctgDetails_pay = [];
+			$pushDetails_pay= [];
+			
+			$paytype = FisPaymentType::find($payment->payment_mode);
+			
+			$acctgHeader_pay['branch_code'] = $contract->fun_branch;
+			$acctgHeader_pay['transaction_date'] = date('Y-m-d');
+			$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
+			$acctgHeader_pay['username'] = 'hcalio';
+			$acctgHeader_pay['reference'] = "CSCPay".$contract->contract_no."-".$payment->reference_no;
+			$acctgHeader_pay['status'] = $paytype->trantype;
+			$acctgHeader_pay['particulars'] = "Posting of Cancellation of SC Payment w/ SC #".$contract->contract_no;
+			$acctgHeader_pay['customer'] = "";
+			$acctgHeader_pay['checkno'] = "";
+			
+			
+			
+			$pushDetails_pay['entry_type']="CR";
+			$pushDetails_pay['SLCode']=$paytype->sl_debit;
+			$pushDetails_pay['amount']=$payment->AR_Credit;
+			$pushDetails_pay['detail_particulars']="To record cancellation payment from SC Ref#".$payment->reference_no;
+			array_push($acctgDetails_pay, $pushDetails_pay);
+			
+			$pushDetails_pay['entry_type']="DR";
+			$pushDetails_pay['SLCode']=$paytype->sl_credit;
+			$pushDetails_pay['amount']=$payment->AR_Credit;
+			$pushDetails_pay['detail_particulars']="To record cancellation payment from SC Ref#".$payment->reference_no;
+			array_push($acctgDetails_pay, $pushDetails_pay);
+			
+			AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
+			
+			DB::commit();
+			
+			return [
+					'status'=>'saved',
+					'message'=>'Successfully Posted Payment',
+			];
+			
+			
+		} catch (\Exception $e) {
+			DB::rollBack();
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage(),
+			];
+		}
+	}
+	
 	public function unpostContract(Request $request)
 	{
 		try {
@@ -449,10 +587,12 @@ class ServiceContractController extends Controller
 					where contract_id=".$value_api['contract_id']));
 			
 			$contractDetails = DB::select(DB::raw("select contract_amount, contract_balance, grossPrice, sc.status, sc.isPosted, fun_branch, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)sc_deceased, discount as sc_discount, contract_id as sc_id, contract_no as sc_number,
-					(s.lname + ', ' + s.fname + ' ' + s.mname)sc_signee
+					(s.lastname + ', ' + s.firstname + ' ' + s.middlename)sc_signee
 					from _fis_service_contract sc 
-					inner join _fis_deceased d on d.id = sc.deceased_id
-					inner join _fis_signee s on sc.signee = s.id
+					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
+								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+								where profile_type='Decease')d on d.id = sc.deceased_id
+					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					where contract_id=".$value_api['contract_id']));
 			
 			$value['sc_amount']	= $contractDetails[0]->contract_amount;

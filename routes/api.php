@@ -26,7 +26,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('insert-relation', 'AccessController@insertRelation');
-
+	Route::post('cancel-payment', 'ServiceContractController@cancelPayment');
 	Route::post('insert-branch', 'AccessController@insertBranch');
 	Route::post('insert-driver', 'AccessController@insertDriver');
 	Route::post('insert-embalmer', 'AccessController@insertEmbalmer');

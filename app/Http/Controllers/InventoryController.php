@@ -253,9 +253,11 @@ class InventoryController extends Controller
 		try {
 		$user_check = DB::select(DB::raw("SELECT item_name, selling_price, item_code,  isActive, 'Item' as type FROM _fis_items
 			UNION ALL
-			SELECT service_name, selling_price, id, isActive, 'Service' as type FROM _fis_services
+
+			SELECT service_name, selling_price, cast(id as varchar(10))id, isActive, 'Service' as type FROM _fis_services
+
 			UNION ALL
-			SELECT package_name, salesPrice, package_code, isActive, 'Package' as type FROM _fis_package
+			SELECT package_name, salesPrice, cast(package_code as varchar(10))package_code, isActive, 'Package' as type FROM _fis_package
 			"));
 
 			if($user_check)
@@ -449,7 +451,7 @@ class InventoryController extends Controller
 	public function getSupplierValue(Request $request) {
 		$value = "";
 		try {
-		$supplier = DB::select(DB::raw("SELECT supplier_id as value, supplier_name as label, *   FROM _fis_supplier "));
+		$supplier = DB::select(DB::raw("SELECT supplier_id as value, supplier_name as label   FROM _fis_supplier "));
 
 			if($supplier)
 			return	$supplier;
