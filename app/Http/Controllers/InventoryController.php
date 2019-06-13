@@ -47,26 +47,27 @@ class InventoryController extends Controller
 			foreach ($value['rr_items'] as $row){
 			try {
 					$rr = FisRReport::create([
-						'supplier_id'	=> $value['supplier_id'],
+						'supplier_id' => $value['supplier_id'],
 						'rr_no'	=> $value['rr_no'],
 		        		'po_no'	=> $value['po_no'],
 				        'dr_no'	=> $value['dr_no'],
-				        'serialNo'	=> $value['serialNo'],
-				       	'date_received' => $value['date_received'],
-				        'remarks'	=> $value['remarks'],
+				        'serialNo'	=> $row->serialNo,
+				       	'date_received' => $row->date_received,
+				        'remarks'	=> $row->remarks,
 						'transactedBy' => 'hcalio',
 						'item_id'=> $row->item_code,
 						'item_name'=> $row->name,
 						'cost'=> $row->cost,
-						'total_amount'=> $value['total_amount']
+						'total_amount'=> $row->total_amount
 					]);
 					
 					$productList = FisProductList::create([
 						'fk_item_id' => $row->item_code,
 						'batch_no' =>$rr->id,
-						'serialNo'	=> $value['serialNo'],
-		        		'rr_no'	=> $value['rr_no'],
-				        'dr_no'	=> $value['dr_no'],
+						'serialNo'	=> $row->serialNo,
+						'branch' => '201',
+		        		'rr_no'	=> $row->rr_no,
+				        'dr_no'	=> $row->dr_no,
 				        'isEncumbered'	=> 1,
 				       	'price' => $row->cost,
 				        'date_entry' => date('Y-m-d')
@@ -168,31 +169,51 @@ class InventoryController extends Controller
 	   					'salesPrice'=>$value['salesPrice'],
 	   					'isActive' => 1
 	   				]);
-
 			foreach ($value['inclusions'] as $row){
 			try {
-					
-					$inclusions = FisInclusions::updateOrCreate([
+				if(($row->inventory_type) == 'ITEM'){
+					$inclusion = FisInclusions::updateOrCreate([
 					'fk_package_id'=> $row->package_id,
-					'inclusion_id'=> $row->inventory_id,
-					'inclusion_name'=> $row ->name,
+					'item_id'=> $row->inventory_id,
+					'service_id '=> ' ',
 					'quantity'=> $row->quantity,
-					'service_type'=> $row->service_type,
-					'inventory_type'=> $row->inventory_type,
-					'selling_price'=> $row->inventory_price,
+					'duration '=> ' ',
+					'type_duration '=> ' ',
+					'inclusionType'=> 'ITEM',
+					'service_price'=> $row->inventory_price,
 					'total_amount'=> $row->total_price,
 					'transactedBy'=> 'hcalio',
 					'dateEncoded'=> date('Y-m-d')
-					]);
+					]);	
+				}
+
+				else if(($row->inventory_type) == 'SERV'){
+					$inclusion = FisInclusions::updateOrCreate([
+					'fk_package_id'=> $row->package_id,
+					'item_id'=> ' ',
+					'service_id '=> $row->inventory_id,
+					'quantity'=> ' ',
+					'duration '=> $row->service_length,
+					'type_duration '=> $row->service_type,
+					'inclusionType'=> 'SERV',
+					'service_price'=> $row->inventory_price,
+					'total_amount'=> $row->total_price,
+					'transactedBy'=> 'hcalio',
+					'dateEncoded'=> date('Y-m-d')
+					]);	
+				}
+					
+					
 			} catch (\Exception $e) {
 			return [
 				'message'=>$e->getMessage()
 			]; }
 			}
 
+
 			return [
 				'status'=>'saved',
-				'message'=>$inclusions, $packagePrice
+				'message'=>$inclusion, $packagePrice
 			];
 			
 		} catch (\Exception $e) {
@@ -325,11 +346,24 @@ class InventoryController extends Controller
 	public function getInclusionList(Request $request) {
 		$value = (array)json_decode($request->post()['incList']);
 		try {
-		$inclusions = DB::select(DB::raw("SELECT PN.fk_package_id, PN.inclusion_id, PN.inclusion_name, PN.quantity, PN.selling_price, PN.total_amount,
-			PN.service_type, PN.inventory_type, P.package_code
+		$inclusions = DB::select(DB::raw("SELECT PN.fk_package_id, PN.item_id, 
+			I.item_name, PN.quantity, PN.service_price, PN.total_amount, 
+			PN.type_duration, PN.duration, PN.inclusionType, P.package_code,
+			PN.inclusionType
 			FROM _fis_package_inclusions as PN
+			FULL OUTER JOIN _fis_items AS I on PN.item_id = I.item_code
 			FULL OUTER JOIN _fis_package AS P on PN.fk_package_id = P.package_code
-			WHERE PN.fk_package_id = '".$value['item_code']."'"));
+			WHERE PN.inclusionType='ITEM' and  
+			PN.fk_package_id = '".$value['item_code']."'
+			union all
+			SELECT PN.fk_package_id, PN.service_id, S.service_name, 
+			PN.quantity, PN.service_price, 
+			PN.total_amount, PN.type_duration, PN.duration, PN.inclusionType, 
+			P.package_code, PN.inclusionType
+			FROM _fis_package_inclusions as PN
+			FULL OUTER JOIN _fis_services AS S on PN.service_id = S.id
+			FULL OUTER JOIN _fis_package AS P on PN.fk_package_id = P.package_code
+			WHERE inclusionType='SERV'  and  PN.fk_package_id = '".$value['item_code']."'"));
 			if($inclusions)
 			return	$inclusions;
 			else return [];
@@ -414,6 +448,22 @@ class InventoryController extends Controller
 	}
 
 	public function getPackageList(Request $request) {
+		$value="";
+		try {
+		$user_check = DB::select(DB::raw("SELECT package_code as value, package_name as label FROM _fis_package where isActive = '1'"));
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getAddPackageList(Request $request) {
 		$value="";
 		try {
 		$user_check = DB::select(DB::raw("SELECT package_code as value, package_name as label FROM _fis_package"));

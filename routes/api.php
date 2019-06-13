@@ -135,6 +135,7 @@ Route::get('get-item-package', 'InventoryController@getItemPackage')->middleware
 Route::get('get-service-package', 'InventoryController@getServicePackage')->middleware('cors');
 Route::get('get-supplier', 'InventoryController@getSupplierList')->middleware('cors');
 Route::get('get-package-list', 'InventoryController@getPackageList')->middleware('cors');
+Route::get('get-add-package-list', 'InventoryController@getAddPackageList')->middleware('cors');
 Route::get('get-package-inclusions', 'InventoryController@getPackageInclusions')->middleware('cors');
 Route::get('get-supplier-value', 'InventoryController@getSupplierValue')->middleware('cors');
 
