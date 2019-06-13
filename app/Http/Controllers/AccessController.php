@@ -801,9 +801,13 @@ class AccessController extends Controller
 						$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
 						array_push($acctgDetails_pay, $pushDetails_pay);
 						
-						AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
+						$saveacctg = AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
 						
-						
+						if($saveacctg['status']!='saved')
+						{
+							DB::rollback();
+							return $saveacctg;
+						}
 						
 						break;
 					case "ADDTL. PURCHASES":
@@ -888,8 +892,12 @@ class AccessController extends Controller
 						$pushDetails_pay['detail_particulars']="Payment from Merch Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
 						array_push($acctgDetails_pay, $pushDetails_pay);
 						
-						AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
-						
+						$saveacctg = AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
+						if($saveacctg['status']!='saved')
+						{
+							DB::rollback();
+							return $saveacctg;
+						}
 						
 						
 						break;
