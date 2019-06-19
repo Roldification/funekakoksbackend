@@ -27,6 +27,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('insert-relation', 'AccessController@insertRelation');
 	Route::post('cancel-payment', 'ServiceContractController@cancelPayment');
+	Route::post('cancel-purchase-payment', 'ServiceContractController@cancelPurchasePayment');
 	Route::post('insert-branch', 'AccessController@insertBranch');
 	Route::post('insert-driver', 'AccessController@insertDriver');
 	Route::post('insert-embalmer', 'AccessController@insertEmbalmer');
@@ -72,7 +73,6 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('delete-driver', 'AccessController@deleteDriver');
 	Route::post('delete-embalmer', 'AccessController@deleteEmbalmer');
 	
-
 	Route::post('post-purchase', 'AccessController@postPurchase');
 	Route::post('post-contract', 'AccessController@postContract');	
 
@@ -90,13 +90,13 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 });
 
 
-	//unpostContract
+	//getPurchaseDetails
 
 
 //though not suggested, you are welcome to just put GET requests here, request here does not need authentication.
 Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
 Route::get('get-informant', 'AccessController@getInformant')->middleware('cors');
-
+Route::get('get-purchase-details', 'ServiceContractController@getPurchaseDetails')->middleware('cors');
 Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->middleware('cors');
 Route::get('get-deceased', 'AccessController@getDeceased')->middleware('cors');
 Route::get('get-sc-locations', 'AccessController@getSCLocations')->middleware('cors');

@@ -27,6 +27,7 @@ use App\FisMemberData;
 use App\FisCharging;
 use App\FisSCPayments;
 use App\FisPaymentType;
+use App\FisSalesTransaction;
 
 class ServiceContractController extends Controller
 {
@@ -421,10 +422,132 @@ class ServiceContractController extends Controller
 		
 	}
 	
-	public function cancelPayment(Request $request)
+	public function cancelPurchasePayment(Request $request)
 	{
 		try {
 			$pay_id = $request->post()['payment_id'];
+			
+			DB::beginTransaction();
+			
+			$transaction = FisSalesTransaction::where('id', $pay_id)
+			->where('isCancelled', 0)
+			->where('payment_date', date('Y-m-d'))
+			->first();
+			
+			if($transaction)
+			{
+				$salesHead = FisItemsalesHeader::find($transaction->sales_id);
+				$remainingbalance_sales = $salesHead->balance + $transaction->AR_Credit;
+				$transaction_sale = FisSalesTransaction::create([
+						'sales_id'=>$salesHead->id,
+						'accountType'=>$transaction->charge_account, //2 is for peronal. see _fis_account table
+						'AR_Debit'=>$transaction->AR_Credit,
+						'AR_Credit'=>0,
+						'balance'=>$remainingbalance_sales,
+						'reference_no'=>"(".$transaction->reference_no.")",
+						'payment_date'=>date('Y-m-d'),
+						'transactedBy'=>'hcalio',
+						'payment_mode'=>$row->pay_type,
+						'isCancelled'=>0,
+						'isRemitted'=>0,
+						'remittedTo'=>'',
+						'isPosted'=>1,
+						'remarks'=>$value['bill_header']->remarks,
+						'tran_type'=>$transaction->tran_type == 'PAYPARTIAL' ? 'CANPAYPARTIAL' : 'CANPAYCLOSE',
+				]);
+				
+				$salesHead->update([
+						'balance'=>$remainingbalance_sales,
+						'status'=>'ACTIVE'
+				]);
+				
+				
+				$acctgHeader_pay = [];
+				$acctgDetails_pay = [];
+				$pushDetails_pay= [];
+				
+				$paytype = FisPaymentType::find($row->pay_type);
+				
+				$acctgHeader_pay['branch_code'] = $salesHead->fun_branch;
+				$acctgHeader_pay['transaction_date'] = date('Y-m-d');
+				$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
+				$acctgHeader_pay['username'] = 'hcalio';
+				$acctgHeader_pay['reference'] = "CNMercPay-".$transaction->reference_no;
+				$acctgHeader_pay['status'] = $paytype->trantype;
+				$acctgHeader_pay['particulars'] = "Cancellation of Merch Payment w/ Ref. #".$transaction->reference_no;
+				$acctgHeader_pay['customer'] = $salesHead->client;
+				$acctgHeader_pay['checkno'] = "";
+				
+				
+				
+				$pushDetails_pay['entry_type']="CR";
+				$pushDetails_pay['SLCode']=$paytype->sl_debit;
+				$pushDetails_pay['amount']=$transaction->AR_Credit;
+				$pushDetails_pay['detail_particulars']="Cancellation of Merch Payment w/ Ref. #".$transaction->reference_no;
+				array_push($acctgDetails_pay, $pushDetails_pay);
+				
+				$pushDetails_pay['entry_type']="DR";
+				$pushDetails_pay['SLCode']=$paytype->sl_credit;
+				$pushDetails_pay['amount']=$transaction->AR_Credit;
+				$pushDetails_pay['detail_particulars']="Cancellation of Merch Payment w/ Ref. #".$transaction->reference_no;
+				array_push($acctgDetails_pay, $pushDetails_pay);
+				
+				$saveacctg = AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
+				
+				if($saveacctg['status']=='saved')
+				{
+					DB::commit();
+					return [
+							'status'=>'saved',
+							'message'=>'Payment successfully cancelled.',
+					];
+				}
+				
+				else
+				{
+					DB::rollback();
+					return $saveacctg;
+				}
+				
+			}
+			
+			else
+			{
+				DB::rollBack();
+				return [
+						'status'=>'unsaved',
+						'message'=>'No payment found. Or payment is already cancelled',
+				];
+			}
+			
+			
+		} catch (\Exception $e) {
+		}
+		
+	}
+	
+	public function cancelPayment(Request $request)
+	{
+		try {
+			$paydetails = (array)json_decode($request->post()['payment_details']);
+			$pay_id	= $paydetails['payment_id'];
+		//	return $paydetails;
+			
+			try {
+				$user = SystemUser::where(
+						[
+								'Password'=>$paydetails['password_input'],
+								'UserName'=>$paydetails['username'],
+								
+						])->firstOrFail();
+						
+			} catch (\Exception $e) {
+				return [
+						'status'=>'unsaved',
+						'message'=>'Incorrect Password'
+				];
+			}
+			
 			
 			DB::beginTransaction();
 			
@@ -440,6 +563,8 @@ class ServiceContractController extends Controller
 						'message'=>'No payment found. Or payment is already cancelled',
 				];
 			}
+			
+
 			
 			try {
 				$charging = FisCharging::where([
@@ -538,15 +663,23 @@ class ServiceContractController extends Controller
 			$pushDetails_pay['detail_particulars']="To record cancellation payment from SC Ref#".$payment->reference_no;
 			array_push($acctgDetails_pay, $pushDetails_pay);
 			
-			AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
+			$saveacctg = AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
 			
-			DB::commit();
+			if($saveacctg['status']!='saved')
+			{
+				DB::rollback();
+				return $saveacctg;
+			}
 			
-			return [
-					'status'=>'saved',
-					'message'=>'Successfully Posted Payment',
-			];
-			
+			else {
+				DB::commit();
+				
+				return [
+						'status'=>'saved',
+						'message'=>'Successfully Posted Payment',
+				];
+				
+			}
 			
 		} catch (\Exception $e) {
 			DB::rollBack();
@@ -953,5 +1086,49 @@ class ServiceContractController extends Controller
 			];
 		}
 		
+	}
+	
+	public function getPurchaseDetails(Request $request)
+	{
+		try {
+			
+			$salesid = $request->post()['sales_id'];
+			
+			
+			$availments = DB::select(DB::raw("select product_id as code, (CAST(quantity as varchar(5)) + ' ' + unit_type) as quantity, price, total_price, 'item' as type, i.item_name as description from _fis_item_sales sales
+				inner join _fis_items i on sales.product_id = i.item_code
+				where sales_id=$salesid
+				UNION ALL
+				select CAST(fk_service_id as varchar(10)) as id, (CAST(service_duration as varchar(5)) + ' ' + duration_unit) as totquantity, total_amount, total_amount as totprice, 'service' as inclusiontype, s.service_name as inclusionname from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id
+				where sales_id=$salesid"));
+			
+			$sc_transaction = DB::select(DB::raw("select id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sales_transaction sp inner join _fis_account a
+					on a.account_id = sp.accountType
+					where sales_id=$salesid"));
+			
+			
+			/*$services = DB::select(DB::raw("select CAST(fk_service_id as varchar(10)) as id, service_duration, duration_unit, total_amount, total_amount as totprice, 'service' as inclusiontype from _fis_service_sales ss
+			 inner join _fis_services s on s.id = ss.fk_service_id
+			 where fk_contract_id=".$request->post()['contract_id'])); */
+			
+			
+			return [
+					'status'=>'success',
+					'message'=> [
+							'signee' => '',
+							'purchases' => $availments,
+							'transactions' => $sc_transaction
+					]
+			];
+			
+			
+		} catch (\Exception $e) {
+			
+			return [
+					'status'=>'failed',
+					'message'=> $e->getMessage()
+			];
+		}
 	}
 }
