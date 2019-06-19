@@ -34,6 +34,9 @@ use App\FisPackage;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisCharging;
 use App\FisPackageInclusions;
+use App\FisPackageServiceDelete;
+use App\FisPackageItemDelete;
+
 
 class InventoryController extends Controller
 {
@@ -51,26 +54,30 @@ class InventoryController extends Controller
 						'rr_no'	=> $value['rr_no'],
 		        		'po_no'	=> $value['po_no'],
 				        'dr_no'	=> $value['dr_no'],
-				        'serialNo'	=> $row->serialNo,
-				       	'date_received' => $row->date_received,
-				        'remarks'	=> $row->remarks,
-						'transactedBy' => 'hcalio',
+				        'serialNo'	=> $value['serialNo'],
+				       	'date_received' => $value['date_received'],
+				        'remarks'	=> $value['remarks'],
+						'transactedBy' => $value['transactedBy'],
 						'item_id'=> $row->item_code,
 						'item_name'=> $row->name,
 						'cost'=> $row->cost,
-						'total_amount'=> $row->total_amount
+						'total_amount'=> $value['total_amount'],
+						'branchCode'=> $value['branchCode'],
+						'date_entry' => date('Y-m-d'),
+						'isPosted' => 1
 					]);
 					
 					$productList = FisProductList::create([
 						'fk_item_id' => $row->item_code,
 						'batch_no' =>$rr->id,
-						'serialNo'	=> $row->serialNo,
-						'branch' => '201',
-		        		'rr_no'	=> $row->rr_no,
-				        'dr_no'	=> $row->dr_no,
+						'serialNo'	=> $value['serialNo'],
+						'branch'=> $value['branchCode'],
+		        		'rr_no'	=> $value['rr_no'],
+				        'dr_no'	=> $value['dr_no'],
 				        'isEncumbered'	=> 1,
 				       	'price' => $row->cost,
-				        'date_entry' => date('Y-m-d')
+				        'date_entry' => date('Y-m-d'),
+				        'transactedBy' => $value['transactedBy']
 					]);		
 
 
@@ -107,7 +114,8 @@ class InventoryController extends Controller
 			      'isInventoriable' => $value['isInventoriable'],
 			      'rr_no' => $value['rr_no'],
 			      'selling_price' => $value['selling_price'],
-			      'date_entry' => date('Y-m-d')
+			      'date_entry' => date('Y-m-d'),
+			      'transactedBy' => $value['transactedBy'],
 				]);
 			/*
 			foreach ($value as $row)
@@ -143,7 +151,15 @@ class InventoryController extends Controller
 	public function insertService(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['servicedata']);
-			$service = FisServices::create($value);
+			$service = FisServices::create([
+				'id' => $value['id'],
+				'service_name' => $value['service_name'],
+				'selling_price' => $value['selling_price'],
+				'SLCode' => $value['SLCode'],
+				'isActive' => 1,
+				'date_entry' => date('Y-m-d'),
+				'transactedBy' => $value['transactedBy']
+			]);
 			return [
 				'status'=>'saved',
 				'message'=>$service
@@ -167,7 +183,8 @@ class InventoryController extends Controller
 	   					'discount'=>$value['discount'],
 	   					'standardPrice'=>$value['standardPrice'],
 	   					'salesPrice'=>$value['salesPrice'],
-	   					'isActive' => 1
+	   					'isActive' => 1,
+	   					'createdBy'=>$value['transactedBy']
 	   				]);
 			foreach ($value['inclusions'] as $row){
 			try {
@@ -182,7 +199,7 @@ class InventoryController extends Controller
 					'inclusionType'=> 'ITEM',
 					'service_price'=> $row->inventory_price,
 					'total_amount'=> $row->total_price,
-					'transactedBy'=> 'hcalio',
+					'transactedBy'=> $value['transactedBy'],
 					'dateEncoded'=> date('Y-m-d')
 					]);	
 				}
@@ -198,7 +215,7 @@ class InventoryController extends Controller
 					'inclusionType'=> 'SERV',
 					'service_price'=> $row->inventory_price,
 					'total_amount'=> $row->total_price,
-					'transactedBy'=> 'hcalio',
+					'transactedBy'=> $value['transactedBy'],
 					'dateEncoded'=> date('Y-m-d')
 					]);	
 				}
@@ -227,7 +244,6 @@ class InventoryController extends Controller
 	public function insertPackage(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['packagetitledata']);
-			// $value['dateExpired'] = date('Y-m-d H:i:s', strtotime($value['dateExpired']));
 			$packageData = FisPackage::create([
 			      'package_code' => $value['package_code'],
 			      'package_name' => $value['package_name'],
@@ -235,9 +251,8 @@ class InventoryController extends Controller
 			      'discount'=> 0,
 	   			  'standardPrice'=> 0,
 	   			  'salesPrice'=> 0,
-			      //'date_expired' => $value['dateExpired'],
 			      'date_created' => date('Y-m-d'),
-			      'createdBy' => 'hcalio'
+			      'createdBy' => $value['transactedBy']
 				]);
 			return [
 				'status'=>'saved',
@@ -255,7 +270,13 @@ class InventoryController extends Controller
 	public function insertSupplier(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['supplierdata']);
-			$supplier = FisSupplier::create($value);
+			$supplier = FisSupplier::create([
+			      'supplier_name' => $value['supplier_name'],
+			      'address' => $value['address'],
+			      'contact_number' => $value['contact_number'],
+			      'transactedBy'=> $value['transactedBy'],
+			      'date_entry' => date('Y-m-d')
+				]);
 			return [
 				'status'=>'saved',
 				'message'=>$supplier
@@ -296,6 +317,22 @@ class InventoryController extends Controller
 		$value = "";
 		try {
 		$user_check = DB::select(DB::raw("SELECT item_code as value, item_name as label, *   FROM _fis_items "));
+
+			if($user_check)
+			return	$user_check;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getFunBranch(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("SELECT branchID as value , name as label from _fis_branch"));
 
 			if($user_check)
 			return	$user_check;
@@ -547,7 +584,9 @@ class InventoryController extends Controller
 			      'SLCode' => $value['SLCode'],
 			      'income_SLCode' => $value['income_SLCode'],
 			      'BatchNo' => $value['BatchNo'],
-			      'rr_no' => $value['rr_no']
+			      'rr_no' => $value['rr_no'],
+			      'transactedBy' => $value['transactedBy'],
+			      'date_updated' => date('Y-m-d')
 				]);
 			return [
 					'status'=>'saved',
@@ -571,9 +610,11 @@ class InventoryController extends Controller
 	   		$inventory->update([
 			      'id' => $value['id'],
 			      'service_name' => $value['service_name'],
-			      'SL_Code' => $value['SL_Code'],
+			      'SLCode' => $value['SLCode'],
 			      'isActive' => $value['isActive'],
-			      'selling_price' => $value['selling_price']
+			      'selling_price' => $value['selling_price'],
+			      'date_updated' => date('Y-m-d'),
+			      'transactedBy' =>  $value['transactedBy'],
 				]);
 			return [
 					'status'=>'saved',
@@ -597,7 +638,9 @@ class InventoryController extends Controller
 	   		$supplier->update([
 			      'supplier_name' => $value['supplier_name'],
 			      'contact_number' => $value['contact_number'],
-			      'address' => $value['address']
+			      'address' => $value['address'],
+			      'transactedBy' => $value['transactedBy'],
+			      'date_updated' => date('Y-m-d')
 				]);
 			return [
 					'status'=>'saved',
@@ -616,11 +659,11 @@ class InventoryController extends Controller
 	{
 		try {
 			$value = (array)json_decode($request->post()['packageupdate']);
-			//$value['date_expired'] = date('Y-m-d H:i:s', strtotime($value['date_expired']));
 			$package = FisPackage::find($value['package_code']);
 	   		$package->update([
 			      'package_code' => $value['package_code'],
-			      'package_name' => $value['package_name']
+			      'package_name' => $value['package_name'],
+			      'createdBy' => $value['transactedBy']
 				]);
 			return [
 					'status'=>'saved',
@@ -661,9 +704,17 @@ class InventoryController extends Controller
 	{
 		try {
 				$value = (array)json_decode($request->post()['inventorydelete']);
-				$inc = FisPackageInclusions::find($value['inclusion_id']);
-	   			$inc->delete();
-			
+
+				if ($value['inventory_type'] == 'ITEM') {
+					$value['item_id'] = $value['inclusion_id'];
+					$inc = FisPackageItemDelete::find($value['item_id']);
+		   			$inc->delete();
+				}
+				else if ($value['inventory_type'] == 'SERV') {
+					$value['service_id'] = $value['inclusion_id'];
+					$inc = FisPackageServiceDelete::find($value['service_id']);
+		   			$inc->delete();
+				}
 			return [
 					'status'=>'saved',
 					'message'=>$inc

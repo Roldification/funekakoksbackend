@@ -100,7 +100,7 @@ Route::get('get-informant', 'AccessController@getInformant')->middleware('cors')
 Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->middleware('cors');
 Route::get('get-deceased', 'AccessController@getDeceased')->middleware('cors');
 Route::get('get-sc-locations', 'AccessController@getSCLocations')->middleware('cors');
-Route::get('sample-pdf', 'AccessController@samplepdf')->middleware('cors');
+Route::get('service-contract', 'AccessController@samplepdf')->middleware('cors');
 Route::get('get-charging', 'ServiceContractController@getCharging')->middleware('cors');
 Route::get('get-minimal-probabilities', 'AccessController@getMinimalProbabilities')->middleware('cors');
 
@@ -128,6 +128,8 @@ Route::get('get-details-of-contract', 'ServiceContractController@getDetailsOfCon
 // TC Cares
 Route::get('get-member-plan-info', 'CaresController@getMemberPlanInfo')->middleware('cors');
 
+// Incentives
+Route::get('get-incentives', 'AccessController@getIncentives')->middleware('cors');
 
 // Inventory
 Route::get('get-inventory-list', 'InventoryController@getInventoryList')->middleware('cors');
@@ -138,6 +140,7 @@ Route::get('get-package-list', 'InventoryController@getPackageList')->middleware
 Route::get('get-add-package-list', 'InventoryController@getAddPackageList')->middleware('cors');
 Route::get('get-package-inclusions', 'InventoryController@getPackageInclusions')->middleware('cors');
 Route::get('get-supplier-value', 'InventoryController@getSupplierValue')->middleware('cors');
+Route::get('get-fun-branch', 'InventoryController@getFunBranch')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

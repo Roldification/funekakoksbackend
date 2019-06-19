@@ -15,6 +15,7 @@ class CaresController extends Controller
 			$value['dateIssue'] = date('Y-m-d', strtotime($value['dateIssue']));
 			$value['dueDate'] = date('Y-m-d', strtotime($value['dueDate']));
 			$planProfile = FisCaresPlan::create([
+				'is_member'	=> $value['is_member'],
 				'membership_id'	=> $value['membership_id'],
 				'firstName'	=> $value['firstName'],
         		'middleName'	=> $value['middleName'],
@@ -33,7 +34,8 @@ class CaresController extends Controller
 				'amountInstalment' => $value['amountInstalment'],
 				'firstPayment' => $value['firstPayment'],
 				'dueDate' => $value['dueDate'],
-				'date_created' => date('Y-m-d')
+				'date_created' => date('Y-m-d'),
+				'transactedBy' => $value['transactedBy']
 			]);
 			return [
 				'status'=>'saved',
@@ -52,7 +54,7 @@ class CaresController extends Controller
 		$value = "";
 		try {
 		$info = DB::select(DB::raw("
-			SELECT P.membership_id, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
+			SELECT P.membership_id, P.is_member, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
 			P.firstName, P.middleName, P.lastName,  P.address, P.contact_number, 
 			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name, 
 			P.b_firstName, P.b_middleName, P.b_lastName,
@@ -81,6 +83,7 @@ class CaresController extends Controller
 				$value['dueDate'] = date('Y-m-d', strtotime($value['dueDate']));
 				$rtd = FisCaresPlan::find($value['membership_id']);
 	   			$rtd->update([
+	   				'is_member'=>$value['is_member'],
 	   				'membership_id'=>$value['membership_id'],
 	   				'firstName'=>$value['firstName'],
 	   				'middleName'=>$value['middleName'],
@@ -97,9 +100,9 @@ class CaresController extends Controller
 	   				'contractPrice'=>$value['contractPrice'],
 	   				'amountInstalment'=>$value['amountInstalment'],
 	   				'firstPayment'=>$value['firstPayment'],
-	   				'dueDate'=>$value['dueDate']
-	   			]
-	   			);
+	   				'dueDate'=>$value['dueDate'],
+	   				'transactedBy'=>$value['transactedBy']
+	   			]);
 			
 			return [
 					'status'=>'saved',

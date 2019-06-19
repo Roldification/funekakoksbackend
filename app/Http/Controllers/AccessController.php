@@ -34,9 +34,7 @@ use App\FisSCPayments;
 use App\FisPackage;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisCharging;
-
-
-
+use App\FisIncentives;
 
 
 class AccessController extends Controller
@@ -222,8 +220,9 @@ class AccessController extends Controller
 			      'middlename' => $value['middlename'],
 			      'lastname' => $value['lastname'],
 			      'address' => $value['address'],
-			      'contact_no' => $value['contact_no'],
-			      'date_entry' => date('Y-m-d')
+			      'contact_no' => '+63'.$value['contact_no'],
+			      'date_entry' => date('Y-m-d'),
+			      'transactedBy' => $value['transactedBy']
 				]);
 
 			if(($value['profile_type']) == 'Decease'){
@@ -256,7 +255,13 @@ class AccessController extends Controller
 				$informantValue = (array)json_decode($request->post()['memberdata']);
 				$memberProfile = FisInformant::create([
 			      'incentives' => $informantValue['incentives'],
+			      'remarks' => $informantValue['remarks'],
 			      'fk_profile_id' => $memberProfile->id
+				]);
+
+				$memberProfile = FisIncentives::create([
+			      'status' => 'UNCLAIM',
+			      'fk_profile_id' => $memberProfile->fk_profile_id
 				]);
 			}
 			
@@ -1359,7 +1364,7 @@ class AccessController extends Controller
 		try {
 			//$request->post()['name']
 			
-			$qry = DB::select(DB::raw("SELECT contract_id, contract_no, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee, (d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date FROM _FIS_SERVICE_CONTRACT sc
+			$qry = DB::select(DB::raw("SELECT status, contract_id, contract_no, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee, (d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date FROM _FIS_SERVICE_CONTRACT sc
 				inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 				inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
 								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
@@ -1375,6 +1380,24 @@ class AccessController extends Controller
 			];
 		}
 		
+	}
+
+	public function getIncentives(Request $request) {
+		try {
+		$incentives = DB::select(DB::raw("SELECT inf.fk_profile_id, (prof.lastname + ', ' + prof.firstname + ' ' + prof.middlename) member_name, inf.incentives, inf.remarks, inc.status, inc.date_maturity
+			FROM _fis_informantInfo as inf
+			LEFT JOIN _fis_informant_incentives as inc ON inf.id = inc.fk_profile_id
+			LEFT JOIN _fis_ProfileHeader as prof ON inf.fk_profile_id = prof.id"));
+			if($incentives)
+				return	$incentives;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
 	}
 	
 	
@@ -1830,7 +1853,7 @@ class AccessController extends Controller
 		P.lastname, P.firstname, P.middlename, P.id, P.customer_id,  P.contact_no, P.address, P.is_member, P.profile_type, P.date_entry, 
 		D.fk_profile_id, D.birthday, D.date_died, D.causeOfDeath, D.religion, D.primary_branch, D.servicing_branch, D.deathPlace, D.relationToSignee,
 		S.fk_profile_id, S.fb_account, S.email_address,
-		I.fk_profile_id, I.incentives
+		I.fk_profile_id, I.incentives, I.remarks
 		from _fis_profileHeader as P
 		FULL OUTER JOIN _fis_deceaseInfo AS D on P.id = D.fk_profile_id
 		FULL OUTER JOIN _fis_informantInfo AS I  on P.id = I.fk_profile_id
@@ -1972,7 +1995,8 @@ class AccessController extends Controller
 			      'lastname' => $value['lastname'],
 			      'address' => $value['address'],
 			      'contact_no' => $value['contact_no'],
-			      'date_entry' => date('Y-m-d')
+			      'date_updated' => date('Y-m-d'),
+			      'transactedBy' => $value['transactedBy']
 				]);
 
 	   			if(($value['profile_type']) == 'Decease'){
@@ -2002,7 +2026,10 @@ class AccessController extends Controller
 				elseif (($value['profile_type']) == 'Informant') {
 				$value['fk_profile_id'] = $value['id'];
 				$memberProfile = FisInformant::find($value['fk_profile_id']);
-				$memberProfile->update(['incentives' => $value['incentives']]);
+				$memberProfile->update([
+					'incentives' => $value['incentives'],
+					'remarks' => $value['remarks']
+				]);
 				}
 			
 			return [
