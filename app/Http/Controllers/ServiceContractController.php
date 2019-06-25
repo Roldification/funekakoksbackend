@@ -152,6 +152,37 @@ class ServiceContractController extends Controller
 	}
 	
 	
+	public function removeCharging(Request $request)
+	{
+		$details = (array)json_decode($request->post()['payment_details']);
+		
+		try {
+			$accountType = FisCharging::where(['fk_scID'=>$details['contract_id'], 'accountType'=>$details['account_type']])->delete();
+			
+			if($accountType)
+			{
+				return [
+						'status'=>'saved',
+						'message'=>'Account Charging successfully removed.'
+				];
+			}
+			
+			else
+			{
+				return [
+						'status'=>'unsaved',
+						'message'=>'Account Charging cannot be found or cannot be removed.'
+				];
+			}
+		} catch (\Exception $e) {
+			
+			return [
+					'status'=>'unsaved',
+					'message'=> $e->getMessage()
+			];
+		}
+	}
+	
 	public function unpostSales(Request $request)
 	{
 		try {
@@ -672,11 +703,17 @@ class ServiceContractController extends Controller
 			}
 			
 			else {
+				
 				DB::commit();
+				
+				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
+					on a.account_id = sp.accountType
+					where contract_id=".$payment->contract_id));
 				
 				return [
 						'status'=>'saved',
 						'message'=>'Successfully Posted Payment',
+						'sc_transaction'=>$sc_transaction
 				];
 				
 			}

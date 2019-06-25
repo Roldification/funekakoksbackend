@@ -227,7 +227,7 @@ class AccessController extends Controller
 
 			if(($value['profile_type']) == 'Decease'){
 				$deceaseValue = (array)json_decode($request->post()['memberdata']);
-				$memberProfile = FisDeceased::create([
+				$memberProfileDeceased = FisDeceased::create([
 				  'birthday' => date('Y-m-d', strtotime($deceaseValue['birthday'])),
 				  'date_died' => date('Y-m-d', strtotime($deceaseValue['date_died'])),
 			      'causeOfDeath' => $deceaseValue['causeOfDeath'],
@@ -244,7 +244,7 @@ class AccessController extends Controller
 
 			if (($value['profile_type']) == 'Signee') {
 				$signeeValue = (array)json_decode($request->post()['memberdata']);
-				$memberProfile = FisSignee::create([
+				$memberProfileSignee= FisSignee::create([
 			      'fb_account' => $signeeValue['fb_account'],
 			      'email_address' => $signeeValue['email_address'],
 			      'fk_profile_id' => $memberProfile->id
@@ -253,13 +253,13 @@ class AccessController extends Controller
 			
 			if (($value['profile_type']) == 'Informant') {
 				$informantValue = (array)json_decode($request->post()['memberdata']);
-				$memberProfile = FisInformant::create([
+				$memberProfileInformant= FisInformant::create([
 			      'incentives' => $informantValue['incentives'],
 			      'remarks' => $informantValue['remarks'],
 			      'fk_profile_id' => $memberProfile->id
 				]);
 
-				$memberProfile = FisIncentives::create([
+				$memberProfileIncentives = FisIncentives::create([
 			      'status' => 'UNCLAIM',
 			      'fk_profile_id' => $memberProfile->fk_profile_id
 				]);
