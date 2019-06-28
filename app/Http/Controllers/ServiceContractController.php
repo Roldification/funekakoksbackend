@@ -188,8 +188,11 @@ class ServiceContractController extends Controller
 		try {
 			$value = [];
 			
+			$value_api = (array)json_decode($request->post()['servicecontract']);
+			
+			
 			$salesDetails = DB::select(DB::raw("select total_amount, balance, status, isPosted, fun_branch, '-' as sc_deceased, id, OR_no, client from _fis_itemsales_header
-					where id=".$request->post()['sales_id']));
+					where id=".$value_api['sales_id']));
 			
 			$value['total_amount']	= $salesDetails[0]->total_amount;
 			$value['balance']	= $salesDetails[0]->balance;
@@ -206,7 +209,7 @@ class ServiceContractController extends Controller
 			if($value['status']=="CANCELLED")
 			{
 				return [
-						'status'=>'saved',
+						'status'=>'unsaved',
 						'message'=>'Merchandise Purchase is already Cancelled.'
 				];
 			}
@@ -239,15 +242,15 @@ class ServiceContractController extends Controller
 			
 			$value['item_inclusions'] = DB::select(DB::raw("select product_id as item_code, price, sales.id as sales_id, total_price as tot_price, quantity, discount, SLCode, income_SLCode, item_name from _fis_item_sales sales
 					inner join _fis_items i on sales.product_id = i.item_code
-					where sales_id=".$request->post()['sales_id']));
+					where sales_id=".$value_api['sales_id']));
 			
 			
 			$value['item_inventory'] = DB::select(DB::raw("select SLCode, p_sequence as id, item_code, item_name, inventory.item_price , inventory.serialNo from _fis_item_inventory inventory
 					inner join _fis_items i on inventory.product_id = i.item_code
-					where fk_sales_id=".$request->post()['sales_id']));
+					where fk_sales_id=".$value_api['sales_id']));
 			
 			$value['service_inclusions'] = DB::select(DB::raw("select ss.id as sales_id, SLCode, grossAmount as amount, service_duration as duration, s.id, discount as less, service_name, total_amount as tot_price, duration_unit as type_duration from _fis_service_sales ss
-					inner join _fis_services s on ss.fk_service_id = s.id where sales_id=".$request->post()['sales_id']));
+					inner join _fis_services s on ss.fk_service_id = s.id where sales_id=".$value_api['sales_id']));
 			
 			
 			$acctgHeader = [];
@@ -456,7 +459,24 @@ class ServiceContractController extends Controller
 	public function cancelPurchasePayment(Request $request)
 	{
 		try {
-			$pay_id = $request->post()['payment_id'];
+			$paydetails = (array)json_decode($request->post()['payment_details']);
+			$pay_id	= $paydetails['payment_id'];
+
+			
+			try {
+				$user = SystemUser::where(
+						[
+								'Password'=>$paydetails['password_input'],
+								'UserName'=>$paydetails['username'],
+								
+						])->firstOrFail();
+						
+			} catch (\Exception $e) {
+				return [
+						'status'=>'unsaved',
+						'message'=>'Incorrect Password'
+				];
+			}
 			
 			DB::beginTransaction();
 			
@@ -468,22 +488,25 @@ class ServiceContractController extends Controller
 			if($transaction)
 			{
 				$salesHead = FisItemsalesHeader::find($transaction->sales_id);
+				$transaction->isCancelled = 1;
+				$transaction->update();
+				
 				$remainingbalance_sales = $salesHead->balance + $transaction->AR_Credit;
 				$transaction_sale = FisSalesTransaction::create([
 						'sales_id'=>$salesHead->id,
-						'accountType'=>$transaction->charge_account, //2 is for peronal. see _fis_account table
+						'accountType'=>$transaction->accountType, //2 is for peronal. see _fis_account table
 						'AR_Debit'=>$transaction->AR_Credit,
 						'AR_Credit'=>0,
 						'balance'=>$remainingbalance_sales,
 						'reference_no'=>"(".$transaction->reference_no.")",
 						'payment_date'=>date('Y-m-d'),
 						'transactedBy'=>'hcalio',
-						'payment_mode'=>$row->pay_type,
+						'payment_mode'=>$transaction->payment_mode,
 						'isCancelled'=>0,
 						'isRemitted'=>0,
 						'remittedTo'=>'',
 						'isPosted'=>1,
-						'remarks'=>$value['bill_header']->remarks,
+						'remarks'=>'Cancellation of Purchase Payment',
 						'tran_type'=>$transaction->tran_type == 'PAYPARTIAL' ? 'CANPAYPARTIAL' : 'CANPAYCLOSE',
 				]);
 				
@@ -497,7 +520,7 @@ class ServiceContractController extends Controller
 				$acctgDetails_pay = [];
 				$pushDetails_pay= [];
 				
-				$paytype = FisPaymentType::find($row->pay_type);
+				$paytype = FisPaymentType::find($transaction->payment_mode);
 				
 				$acctgHeader_pay['branch_code'] = $salesHead->fun_branch;
 				$acctgHeader_pay['transaction_date'] = date('Y-m-d');
@@ -528,9 +551,16 @@ class ServiceContractController extends Controller
 				if($saveacctg['status']=='saved')
 				{
 					DB::commit();
+					
+					$sc_transaction = DB::select(DB::raw("select id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sales_transaction sp inner join _fis_account a
+							on a.account_id = sp.accountType
+							where sales_id=$salesHead->id"));
+					
+					
 					return [
 							'status'=>'saved',
 							'message'=>'Payment successfully cancelled.',
+							'purchase_tran'=>$sc_transaction
 					];
 				}
 				
@@ -553,6 +583,10 @@ class ServiceContractController extends Controller
 			
 			
 		} catch (\Exception $e) {
+			return [
+					'status'=>'unsaved',
+					'message'=>$e->getMessage(),
+			];
 		}
 		
 	}
@@ -1132,6 +1166,7 @@ class ServiceContractController extends Controller
 			$salesid = $request->post()['sales_id'];
 			
 			
+			
 			$availments = DB::select(DB::raw("select product_id as code, (CAST(quantity as varchar(5)) + ' ' + unit_type) as quantity, price, total_price, 'item' as type, i.item_name as description from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
 				where sales_id=$salesid
@@ -1145,15 +1180,13 @@ class ServiceContractController extends Controller
 					where sales_id=$salesid"));
 			
 			
-			/*$services = DB::select(DB::raw("select CAST(fk_service_id as varchar(10)) as id, service_duration, duration_unit, total_amount, total_amount as totprice, 'service' as inclusiontype from _fis_service_sales ss
-			 inner join _fis_services s on s.id = ss.fk_service_id
-			 where fk_contract_id=".$request->post()['contract_id'])); */
+			$header = FisItemsalesHeader::find($salesid); 
 			
 			
 			return [
 					'status'=>'success',
 					'message'=> [
-							'signee' => '',
+							'signee' => $header,
 							'purchases' => $availments,
 							'transactions' => $sc_transaction
 					]
