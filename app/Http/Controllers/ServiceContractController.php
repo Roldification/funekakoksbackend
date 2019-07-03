@@ -100,7 +100,7 @@ class ServiceContractController extends Controller
 						"));
 					
 					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					s.address as signeeaddress,  sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
@@ -874,7 +874,7 @@ class ServiceContractController extends Controller
 			$acctgHeader['branch_code'] = '201';
 			$acctgHeader['transaction_date'] = date('Y-m-d');
 			$acctgHeader['transaction_code'] = "JNLVOUCHER";
-			$acctgHeader['username'] = "hcalio";
+			$acctgHeader['username'] = $value_api['username'];
 			$acctgHeader['reference'] = "CSC".$value['sc_number'];
 			$acctgHeader['status'] = 1;
 			$acctgHeader['particulars'] = "Cancellation of SC #".$value['sc_number'];
@@ -883,7 +883,7 @@ class ServiceContractController extends Controller
 			
 			
 			$currentBranch = FisBranch::where([
-					'branchID'=>'201'
+					'branchID'=>$value['sc_branch']
 			])->firstOrFail();
 			
 			
@@ -1200,5 +1200,169 @@ class ServiceContractController extends Controller
 					'message'=> $e->getMessage()
 			];
 		}
+	}
+	
+	public function updateContract(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['servicecontract']);
+			$value['burial_time'] = date_format(date_create($value['burial_time']), 'Y-m-d H:i:s');
+			$value['date_updated'] = date('Y-m-d');
+			//return $value;
+			$serviceContract= ServiceContract::find($value['contract_id']); //FisRelation::find($value['rtd_id']);
+			$isUpdateSuccessful = $serviceContract->update($value);
+			
+			if(!$isUpdateSuccessful)
+			{
+				return [
+						'status'=>'unsaved',
+						'message'=>'Update failed.'
+				];
+			}
+			/*
+			 * Selection of Updated Contract (for return)
+			 */
+			
+			if(($value['status']=='ACTIVE' || $value['status']=='CANCELLED' || $value['status']=='CLOSED') && $value['isPosted']==1)
+			{
+				$availments = DB::select(DB::raw("select product_id, (CAST(quantity as varchar(5)) + ' ' + unit_type) as totquantity, price, total_price, 'item' as inclusiontype, i.item_name as inclusionname from _fis_item_sales sales
+				inner join _fis_items i on sales.product_id = i.item_code
+				where contract_id=".$value['contract_id']."
+				UNION ALL
+				select CAST(fk_service_id as varchar(10)) as id, (CAST(service_duration as varchar(5)) + ' ' + duration_unit) as totquantity, total_amount, total_amount as totprice, 'service' as inclusiontype, s.service_name as inclusionname from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id
+				where fk_contract_id=".$value['contract_id']));
+				
+				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					from _fis_service_contract sc
+					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
+								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.package_code
+					inner join ClientReligion cr on d.religion = cr.ReligionID
+					where contract_id=".$value['contract_id']));
+				
+				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
+					on a.account_id = sp.accountType
+					where contract_id=".$value['contract_id']));
+
+				
+				
+				return [
+						'status'=>'success_posted',
+						'message'=> [
+								'service_contract' => $sc_details,
+								'inclusions' => $availments,
+								'transactions' => $sc_transaction
+						]
+				];
+				
+			}
+			
+			else
+			{
+				try {
+					$user_check = DB::select(DB::raw("select item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode from
+						(
+						SELECT item_code, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi
+						left join
+						(
+						select * from _fis_package_inclusions
+						where fk_package_id='".$value['package_class_id']."'
+						and inclusionType='ITEM'
+						)b on fi.item_code = b.item_id
+						)sdf
+						order by quantity desc,  item_code asc
+						"));
+					
+					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					from _fis_service_contract sc
+					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
+								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.package_code
+					inner join ClientReligion cr on d.religion = cr.ReligionID
+					where contract_id=".$value['contract_id']));
+					
+					
+					$services = DB::select(DB::raw("select * from
+						(
+						SELECT fs.id, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
+						left join
+						(
+						select * from _fis_package_inclusions where fk_package_id='".$value['package_class_id']."' and inclusionType='SERV'
+						)a on fs.id = a.service_id and fs.isActive=1
+						)sdfa
+						order by duration desc"));
+					
+					return [
+							'status'=>'success_unposted',
+							'message'=> [
+									'service_contract' => $sc_details,
+									'item_inclusions' => $user_check,
+									'service_inclusions' => $services
+							]
+					];
+					
+				} catch (\Exception $e) {
+					return [
+							'status'=>'unsaved',
+							'message'=>'Update was successful. but we have error '.$e->getMessage()
+					];
+				}
+				
+			}
+			/*
+			 * End of Selection of Updated Contract
+			 */
+		} catch (\Exception $e) {
+			$preMessage = $isUpdateSuccessful ? 'Update was successful. but we have error ' : '';
+			return [
+					'status'=>'unsaved',
+					'message'=>$preMessage.''.$e->getMessage()
+			];
+		}
+		
+	}
+	
+	public function getContractInfo(Request $request)
+	{
+		try {
+			
+			$contract = $request->post()['contract_id'];
+			
+			$sc_details = DB::select(DB::raw("select * from _fis_service_contract
+					where contract_id=$contract"));
+			
+			
+			$signee_info = DB::select(DB::raw("SELECT id, (lastname + ', ' + firstname + ' ' + middlename) as name
+			    FROM dbo._fis_ProfileHeader WHERE (profile_type = 'Signee') and id=".$sc_details[0]->signee));
+			
+			$deceased_info = DB::select(DB::raw("SELECT id, (lastname + ', ' + firstname + ' ' + middlename) as name
+				FROM dbo._fis_ProfileHeader WHERE (profile_type = 'Decease') and id=".$sc_details[0]->deceased_id));
+			
+			return [
+					'status'=>'success',
+					'message'=> [
+							'sc_details' => $sc_details,
+							'signee_info' => $signee_info,
+							'deceased_info' => $deceased_info
+					]
+			];
+			
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'failed',
+					'message'=> $e->getMessage()
+			];
+		}
+		
 	}
 }

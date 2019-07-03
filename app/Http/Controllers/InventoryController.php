@@ -584,7 +584,7 @@ class InventoryController extends Controller
 			      'SLCode' => $value['SLCode'],
 			      'income_SLCode' => $value['income_SLCode'],
 			      'BatchNo' => $value['BatchNo'],
-			      'rr_no' => $value['rr_no'],
+			     // 'rr_no' => $value['rr_no'],
 			      'transactedBy' => $value['transactedBy'],
 			      'date_updated' => date('Y-m-d')
 				]);

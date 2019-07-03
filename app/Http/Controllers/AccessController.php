@@ -290,15 +290,14 @@ class AccessController extends Controller
 		
 		$accounts = DB::select(DB::raw("select *, dbo._computeAge(birthday, getdate())as deceased_age from _SERVICE_CONTRACT_VIEW where contract_id=$id"));
 		
-		$inclusions = DB::select(DB::raw("select item_name as inclusionname from _fis_item_sales sales
+		$inclusions = DB::select(DB::raw("select * from 
+			(select i.item_code, item_name as inclusionname from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
 				where contract_id=$id
-				
-				union all
-				
-				select service_name as inclusionname from _fis_service_sales ss
-				inner join _fis_services s on s.id = ss.fk_service_id
-				where fk_contract_id=$id"));
+						union all
+			 select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=$id
+			)dfa order by item_code"));
 		
 		
 		$mpdf = new \Mpdf\Mpdf();
@@ -371,10 +370,10 @@ class AccessController extends Controller
 	   	DB::beginTransaction();
 	   	
 	   		$acctgHeader = [];
-	   		$acctgHeader['branch_code'] = '201';
+	   		$acctgHeader['branch_code'] = $value['sc_branch'];
 	   		$acctgHeader['transaction_date'] = date('Y-m-d');
 	   		$acctgHeader['transaction_code'] = "JNLVOUCHER";
-	   		$acctgHeader['username'] = "hcalio";
+	   		$acctgHeader['username'] = $value['sc_transactedBy'];
 	   		$acctgHeader['reference'] = "SC".$value['sc_number'];
 	   		$acctgHeader['status'] = 1;
 	   		$acctgHeader['particulars'] = "Funecare Service Contract #".$value['sc_number'];
@@ -383,7 +382,7 @@ class AccessController extends Controller
 	   		
 	   		
 	   		$currentBranch = FisBranch::where([
-	   				'branchID'=>'201'
+	   				'branchID'=>$value['sc_branch']
 	   		])->firstOrFail();
 	   		
 	   		
@@ -427,8 +426,8 @@ class AccessController extends Controller
 	   					'reference_no'=>'RELEASE_'.$sc->contract_no,
 	   					'payment_date'=>date('Y-m-d'),
 	   					'payment_mode'=>3, //3 sa for the meantime
-	   					'transactedBy'=>'hcalio',
-	   					'isCancelled'=>0,
+	   					'transactedBy'=>$value['sc_transactedBy'],
+	   					'isCancelled'=>0,	
 	   					'isRemitted'=>0,
 	   					'remittedTo'=>'',
 	   					'isPosted'=>1,
@@ -490,7 +489,7 @@ class AccessController extends Controller
 	   									'client'=>'',
 	   									'signee_id'=>$sc->signee,
 	   									'isPosted'=>1,
-	   									'TransactedBy'=>'hcalio',
+	   									'TransactedBy'=>$value['sc_transactedBy'],
 	   									'isRemitted'=>0,
 	   									'remittedTo'=>'',
 	   									'OR_no'=>'-',
@@ -611,7 +610,7 @@ class AccessController extends Controller
 	   							'duration_unit'=>$row->type_duration,
 	   							'reference'=>'-',
 	   							'isPosted'=>1,
-	   							'transactedBy'=>'hcalio',
+	   							'transactedBy'=>$value['sc_transactedBy'],
 	   							'isRemitted'=>0,
 	   							'dateRemitted'=>'1/1/1900',
 	   							'RemittedTo'=>'',
@@ -649,9 +648,43 @@ class AccessController extends Controller
 	   			if($saveAccounting['status']=='saved')
 	   			{
 	   				DB::commit();
+	   				
+	   				
+	   				
+	   				$availments = DB::select(DB::raw("select product_id, (CAST(quantity as varchar(5)) + ' ' + unit_type) as totquantity, price, total_price, 'item' as inclusiontype, i.item_name as inclusionname from _fis_item_sales sales
+				inner join _fis_items i on sales.product_id = i.item_code
+				where contract_id=".$value['sc_id']."
+				UNION ALL
+				select CAST(fk_service_id as varchar(10)) as id, (CAST(service_duration as varchar(5)) + ' ' + duration_unit) as totquantity, total_amount, total_amount as totprice, 'service' as inclusiontype, s.service_name as inclusionname from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id
+				where fk_contract_id=".$value['sc_id']));
+	   				
+	   				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					from _fis_service_contract sc
+					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
+								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_package p on sc.package_class_id = p.package_code
+					inner join ClientReligion cr on d.religion = cr.ReligionID
+					where contract_id=".$value['sc_id']));
+	   				
+	   				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
+					on a.account_id = sp.accountType
+					where contract_id=".$value['sc_id']));
+	   				
+	   				
+	   				
+	   				
 	   				return [
 	   						'status'=>'saved',
-	   						'message'=>''
+	   						'message'=>[
+	   								'service_contract' => $sc_details,
+	   								'inclusions' => $availments,
+	   								'transactions' => $sc_transaction
+	   						]
 	   				];
 	   			}
 	   			
@@ -766,7 +799,7 @@ class AccessController extends Controller
 						 'reference_no'=>$value['bill_header']->reference,
 						 'payment_date'=>date('Y-m-d'),
 						 'payment_mode'=>$row->pay_type,
-						 'transactedBy'=>'hcalio',
+						 'transactedBy'=>$value['bill_header']->transactedBy,
 						 'isCancelled'=>0,
 						 'isRemitted'=>0,
 						 'remittedTo'=>'',
@@ -785,7 +818,7 @@ class AccessController extends Controller
 						$acctgHeader_pay['branch_code'] = $contract->fun_branch;
 						$acctgHeader_pay['transaction_date'] = date('Y-m-d');
 						$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
-						$acctgHeader_pay['username'] = 'hcalio';
+						$acctgHeader_pay['username'] = $value['bill_header']->transactedBy;
 						$acctgHeader_pay['reference'] = "SCPay".$contract->contract_no."-".$value['bill_header']->reference;
 						$acctgHeader_pay['status'] = $paytype->trantype;
 						$acctgHeader_pay['particulars'] = "Posting of SC Payment w/ SC #".$contract->contract_no;
@@ -857,7 +890,7 @@ class AccessController extends Controller
 								'balance'=>$remainingbalance_sales,
 								'reference_no'=>$value['bill_header']->reference,
 								'payment_date'=>date('Y-m-d'),
-								'transactedBy'=>'hcalio',
+								'transactedBy'=>$value['bill_header']->transactedBy,
 								'payment_mode'=>$row->pay_type,
 								'isCancelled'=>0,
 								'isRemitted'=>0,
@@ -876,7 +909,7 @@ class AccessController extends Controller
 						$acctgHeader_pay['branch_code'] = $salesheader->fun_branch;
 						$acctgHeader_pay['transaction_date'] = date('Y-m-d');
 						$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
-						$acctgHeader_pay['username'] = 'hcalio';
+						$acctgHeader_pay['username'] = $value['bill_header']->transactedBy;
 						$acctgHeader_pay['reference'] = "MerchPay".$salesheader->OR_no."-".$value['bill_header']->reference;
 						$acctgHeader_pay['status'] = $paytype->trantype;
 						$acctgHeader_pay['particulars'] = "Posting of Merch Payment w/ Ref. #".$salesheader->OR_no;
@@ -1125,7 +1158,7 @@ class AccessController extends Controller
 										'client'=>$value['sales_header']->client,
 										'signee_id'=>$value['sales_header']->signee_id,
 										'isPosted'=>1,
-										'TransactedBy'=>'hcalio',
+										'TransactedBy'=>$salesHead->transactedBy,
 										'isRemitted'=>0,
 										'remittedTo'=>'',
 										'OR_no'=>$value['sales_header']->reference,
@@ -1240,7 +1273,7 @@ class AccessController extends Controller
 								'duration_unit'=>$row->type_duration,
 								'reference'=>$value['sales_header']->reference,
 								'isPosted'=>1,
-								'transactedBy'=>'hcalio',
+								'transactedBy'=>$salesHead->transactedBy,
 								'isRemitted'=>0,
 								'dateRemitted'=>'1/1/1900',
 								'RemittedTo'=>'',
@@ -1376,7 +1409,7 @@ class AccessController extends Controller
 				inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 				inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
 								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
-								where profile_type='Decease')d on sc.deceased_id = d.id where sc.status<>'CANCELLED'"));
+								where profile_type='Decease')d on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$request->post()['branch']."'"));
 			
 			return $qry;
 			
@@ -1467,7 +1500,7 @@ class AccessController extends Controller
 			$value['contract_no'] = date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
 			$value['contract_balance'] = $value['contract_amount'];
 			$value['contract_date'] = date('Y-m-d');
-			$value['burial_time'] = date('Y-m-d H:i:s', strtotime($value['burial_time']));
+			$value['burial_time'] = date_format(date_create($value['burial_time']), 'Y-m-d H:i:s');
 			$serviceContract = ServiceContract::create($value);
 			
 			$user_check = DB::select(DB::raw("select item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode from

@@ -145,7 +145,7 @@
 	    	 			<td><font face="segoeui" style="font-size:14px;"><?php echo number_format((double)$accounts[0]->contract_amount, 2, '.', ','); ?></font></td>
 	    	 		</tr>
 	    	 		<tr>
-	    	 			<td><font face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Package Inclusions: Nova</font></td>
+	    	 			<td><font face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Package Inclusions: <?php echo $accounts[0]->package_name ?></font></td>
 	    	 		</tr>
 	    	 		
 	    	 		
