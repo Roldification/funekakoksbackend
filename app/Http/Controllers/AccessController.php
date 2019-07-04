@@ -1482,7 +1482,7 @@ class AccessController extends Controller
 				"));
 			
 			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
@@ -1666,7 +1666,7 @@ class AccessController extends Controller
 			$value = (array)json_decode($request->post()['userdata']);
 			
 			
-			$user_check = DB::select(DB::raw("SELECT * from SystemUser where username='".$value['username']."' and password='".$value['password']."'"));
+			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where username='".$value['username']."' and password='".$value['password']."'"));
 			
 			if($user_check)
 			{

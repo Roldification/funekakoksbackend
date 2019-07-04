@@ -51,7 +51,7 @@ class ServiceContractController extends Controller
 				where fk_contract_id=".$request->post()['contract_id']));
 				
 				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
@@ -100,7 +100,7 @@ class ServiceContractController extends Controller
 						"));
 					
 					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress,  sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid,  sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
@@ -181,6 +181,41 @@ class ServiceContractController extends Controller
 					'message'=> $e->getMessage()
 			];
 		}
+	}
+	
+	
+	public function getMemberBranch(Request $request)
+	{
+		try {
+			$customerid = $request->post()['customer_id'];
+			
+			$accounts = DB::connection('main')->select("select top 1 accountnumber, scproductname, accountstatus, openingdate, openedby, balance  from shareaccount sa
+													inner join shareproduct sp on sa.fkscproductidaccount = sp.SCProductID
+													where fkcustomeridaccount='".$customerid."' and accountstatus='Active'
+													union all
+													select accountnumber, saproductname, accountstatus, openingdate, openedby, balance  from savingsaccount sa
+													inner join savingsproduct sp on sa.fksaproductidaccount = sp.saproductid
+													where fkcustomeridaccount='".$customerid."' and accountstatus='Active'");
+			
+			
+			$loans = DB::connection('main')->select("select accountnumber, loanproductname, principal, principalbalance, disburseddate, numberofterm, maturitydate, 0 as del_age from loanaccount la
+													inner join loanproduct lp on la.fkloanproductidacct = lp.loanproductid
+													where fkcustomeridloan='".$customerid."' and left(accountstatus,3) in ('CUR', 'PAS')");
+			return [
+					'status'=>'success',
+					'message'=>[
+							'accounts'=>$accounts,
+							'loans'=>$loans
+					]
+			];
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=> $e->getMessage()
+			];
+		}
+		
 	}
 	
 	public function unpostSales(Request $request)
@@ -1234,7 +1269,7 @@ class ServiceContractController extends Controller
 				where fk_contract_id=".$value['contract_id']));
 				
 				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id

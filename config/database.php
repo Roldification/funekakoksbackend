@@ -84,6 +84,19 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
         ],
+    		
+    		
+    	'main' => [
+    				'driver' => 'sqlsrv',
+    				'host' => '192.168.161.2',
+    				'port' => '1433',
+    				'database' => 'TESTDB',
+    				'username' => 'sa',
+    				'password' => 'r8d/1ct5041',
+    				'charset' => 'utf8',
+    				'prefix' => '',
+    				'prefix_indexes' => true,
+    	],
 
     ],
 
