@@ -78,7 +78,22 @@ class InventoryController extends Controller
 				       	'price' => $row->cost,
 				        'date_entry' => date('Y-m-d'),
 				        'transactedBy' => $value['transactedBy']
-					]);		
+					]);	
+
+					$inventory = FisItemInventory::create([
+						'transaction_date' => date('Y-m-d'),
+						'particulars ' => 'From Receiving Report',
+						'dr_no'	=> $value['dr_no'],
+						'rr_no'	=> $value['rr_no'],
+						'process' => 'IN',
+						'product_id' => $row->item_code,
+						'item_price' =>$row->cost,
+						'remarks' => $value['remarks'],
+						'serialNo'	=> $value['serialNo'],
+						'p_sequence'=> $productList->id,
+						'quantity'=> 1,
+				        'transactedBy' => $value['transactedBy']
+					]);	
 
 
 			} catch (\Exception $e) {
@@ -152,7 +167,6 @@ class InventoryController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['servicedata']);
 			$service = FisServices::create([
-				'id' => $value['id'],
 				'service_name' => $value['service_name'],
 				'selling_price' => $value['selling_price'],
 				'SLCode' => $value['SLCode'],
