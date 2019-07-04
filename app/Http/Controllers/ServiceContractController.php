@@ -92,7 +92,7 @@ class ServiceContractController extends Controller
 						left join
 						(
 						select * from _fis_package_inclusions
-						where fk_package_id=".$service_contract->package_class_id."
+						where fk_package_id='".$service_contract->package_class_id."'
 						and inclusionType='ITEM'
 						)b on fi.item_code = b.item_id
 						)sdf
@@ -117,7 +117,7 @@ class ServiceContractController extends Controller
 						SELECT fs.id, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
 						left join
 						(
-						select * from _fis_package_inclusions where fk_package_id=".$service_contract->package_class_id." and inclusionType='SERV'
+						select * from _fis_package_inclusions where fk_package_id='".$service_contract->package_class_id."' and inclusionType='SERV'
 						)a on fs.id = a.service_id and fs.isActive=1
 						)sdfa
 						order by duration desc"));

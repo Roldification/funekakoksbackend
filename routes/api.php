@@ -64,17 +64,18 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-plan-info', 'CaresController@updatePlanInfo');
 	//
 
+	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
 	Route::post('update-info', 'AccessController@updateInfo');
 	Route::post('update-branch', 'AccessController@updateBranch');
 	Route::post('update-driver', 'AccessController@updateDriver');
-	Route::post('update-embalmer', 'AccessController@updateEmbalmer');
 	
+	Route::post('update-incentives', 'AccessController@updateIncentives');
 
 	Route::post('delete-relation', 'AccessController@deleteRelation');
 	Route::post('delete-branch', 'AccessController@deleteBranch');
 	Route::post('delete-driver', 'AccessController@deleteDriver');
-	Route::post('delete-embalmer', 'AccessController@deleteEmbalmer');
+
 	
 	Route::post('post-purchase', 'AccessController@postPurchase');
 	Route::post('post-contract', 'AccessController@postContract');	
@@ -122,11 +123,8 @@ Route::get('get-branch', 'AccessController@getBranch')->middleware('cors');
 Route::get('get-branch-value', 'AccessController@getBranchValue')->middleware('cors');
 Route::get('get-driver', 'AccessController@getDriver')->middleware('cors');
 Route::get('get-driver-value', 'AccessController@getDriverValue')->middleware('cors');
-Route::get('get-embalmer', 'AccessController@getEmbalmer')->middleware('cors');
-Route::get('get-embalmer-value', 'AccessController@getEmbalmerValue')->middleware('cors');
 Route::get('get-billing-of-client', 'AccessController@getBillingOfClient')->middleware('cors');
 Route::get('get-accounts', 'AccessController@getAccounts')->middleware('cors');
-
 Route::get('get-details-of-contract', 'ServiceContractController@getDetailsOfContract')->middleware('cors');
 
 // TC Cares

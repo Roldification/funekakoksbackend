@@ -18,8 +18,6 @@ use App\FisProductList;
 use App\FisServiceSales;
 use App\FisItemsalesHeader;
 use App\FisBranches;
-use App\FisDriver;
-use App\FisEmbalmer;
 use App\FisMemberData;
 use App\FisServices;
 use App\FisSupplier;
@@ -35,6 +33,7 @@ use App\FisPackage;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisCharging;
 use App\FisIncentives;
+use App\FisPassword;
 
 
 class AccessController extends Controller
@@ -134,41 +133,7 @@ class AccessController extends Controller
 		}
 	}
 
-	public function insertDriver(Request $request) {
-		try {
-	
-			$value = (array)json_decode($request->post()['driverdata']);
-			$driverData = FisDriver::create($value);
-			return [
-				'status'=>'saved',
-				'message'=>$driverData
-			];
-			
-		} catch (\Exception $e) {
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
 
-	public function insertEmbalmer(Request $request) {
-		try {
-			$value = (array)json_decode($request->post()['embalmerdata']);
-			$embalmerData = FisEmbalmer::create($value);
-			return [
-				'status'=>'saved',
-				'message'=>$embalmerData
-			];
-			
-		} catch (\Exception $e) {
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
-	
 	public function insertAccess(Request $request) {
 		try {
 			
@@ -212,6 +177,7 @@ class AccessController extends Controller
 	public function insertMemberProfile(Request $request){
 		try {
 			$value = (array)json_decode($request->post()['memberdata']);
+			
 			$memberProfile = FisMemberData::create([
 				  'profile_type' => $value['profile_type'],
 			      'customer_id' => $value['customer_id'],
@@ -253,16 +219,15 @@ class AccessController extends Controller
 			
 			if (($value['profile_type']) == 'Informant') {
 				$informantValue = (array)json_decode($request->post()['memberdata']);
-				$memberProfileInformant= FisInformant::create([
+
+				$informantValue['date_inform'] = date('Y-m-d', strtotime($informantValue['date_inform']));
+				$memberProfile = FisInformant::create([
 			      'incentives' => $informantValue['incentives'],
 			      'remarks' => $informantValue['remarks'],
+			      'date_inform' => $informantValue['date_inform'],
 			      'fk_profile_id' => $memberProfile->id
-				]);
+			  	]);
 
-				$memberProfileIncentives = FisIncentives::create([
-			      'status' => 'UNCLAIM',
-			      'fk_profile_id' => $memberProfile->fk_profile_id
-				]);
 			}
 			
 			return [
@@ -1425,9 +1390,8 @@ class AccessController extends Controller
 
 	public function getIncentives(Request $request) {
 		try {
-		$incentives = DB::select(DB::raw("SELECT inf.fk_profile_id, (prof.lastname + ', ' + prof.firstname + ' ' + prof.middlename) member_name, inf.incentives, inf.remarks, inc.status, inc.date_maturity
+		$incentives = DB::select(DB::raw("SELECT (prof.lastname + ', ' + prof.firstname + ' ' + prof.middlename) member_name, inf.incentives, inf.remarks, inf.status, inf.date_claim, inf.date_inform, inf.fk_profile_id
 			FROM _fis_informantInfo as inf
-			LEFT JOIN _fis_informant_incentives as inc ON inf.id = inc.fk_profile_id
 			LEFT JOIN _fis_ProfileHeader as prof ON inf.fk_profile_id = prof.id"));
 			if($incentives)
 				return	$incentives;
@@ -1509,7 +1473,7 @@ class AccessController extends Controller
 				left join 
 				(
 				select * from _fis_package_inclusions
-				where fk_package_id=".$serviceContract->package_class_id."
+				where fk_package_id='".$serviceContract->package_class_id."'
 				and inclusionType='ITEM'
 				)b on fi.item_code = b.item_id
 				)sdf
@@ -1534,7 +1498,7 @@ class AccessController extends Controller
 					SELECT fs.id, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
 					left join
 					(
-					select * from _fis_package_inclusions where fk_package_id=".$serviceContract->package_class_id." and inclusionType='SERV'
+					select * from _fis_package_inclusions where fk_package_id='".$serviceContract->package_class_id."' and inclusionType='SERV'
 					)a on fs.id = a.service_id and fs.isActive=1
 					)sdfa
 					order by duration desc"));
@@ -1802,72 +1766,7 @@ class AccessController extends Controller
 		}
 	}
 
-	public function getDriver(Request $request) {
-		$value = "";
-		try {
-		$user_check = DB::select(DB::raw("SELECT * from _fis_settings_driver"));
-			if($user_check)
-			return	$user_check;
-			else return [];
-				
-		} catch (\Exception $e) {
-			return [
-			'status'=>'error',
-			'message'=>$e->getMessage()
-			];
-		}
-	}
-
-	public function getDriverValue(Request $request) {
-		$value = "";
-		try {
-		$user_check = DB::select(DB::raw("SELECT driver_id as value, driver_name as label from _fis_settings_driver"));
-
-		if($user_check)
-			return	$user_check;
-			else return [];		
-		} catch (\Exception $e) {
-			return [
-			'status'=>'error',
-			'message'=>$e->getMessage()
-			];
-		}
-	}
-
-	public function getEmbalmer(Request $request) {
-		$value = "";
-		try {
-		$user_check = DB::select(DB::raw("SELECT * from _fis_settings_embalmer"));
-			if($user_check)
-			return	$user_check;
-			else return [];
-				
-		} catch (\Exception $e) {
-			return [
-			'status'=>'error',
-			'message'=>$e->getMessage()
-			];
-		}
-	}
-
-	public function getEmbalmerValue(Request $request) {
-		$value = "";
-		try {
-		$user_check = DB::select(DB::raw("SELECT embalmer_id as value, embalmer_name as label from _fis_settings_embalmer"));
-
-		if($user_check)
-			return	$user_check;
-			else return [];		
-		} catch (\Exception $e) {
-			return [
-			'status'=>'error',
-			'message'=>$e->getMessage()
-			];
-		}
-	}
-
 	
-
 	public function getInformant(Request $request)
 	{
 		$value = "";
@@ -1894,7 +1793,7 @@ class AccessController extends Controller
 		P.lastname, P.firstname, P.middlename, P.id, P.customer_id,  P.contact_no, P.address, P.is_member, P.profile_type, P.date_entry, 
 		D.fk_profile_id, D.birthday, D.date_died, D.causeOfDeath, D.religion, D.primary_branch, D.servicing_branch, D.deathPlace, D.relationToSignee,
 		S.fk_profile_id, S.fb_account, S.email_address,
-		I.fk_profile_id, I.incentives, I.remarks
+		I.fk_profile_id, I.incentives, I.remarks, I.date_inform
 		from _fis_profileHeader as P
 		FULL OUTER JOIN _fis_deceaseInfo AS D on P.id = D.fk_profile_id
 		FULL OUTER JOIN _fis_informantInfo AS I  on P.id = I.fk_profile_id
@@ -1952,6 +1851,38 @@ class AccessController extends Controller
 		}
 	}
 
+	public function updatePassword(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['passswordUpdate']);
+				$password = FisPassword::find($value['UserName']);
+				if ($value['old_password'] == $password->Password) {
+					$password->update(
+	   					['Password'=>$value['new_password']]
+	   				);
+
+					return [
+						'status'=>'saved',
+						'message'=>$password
+					];
+				}
+	   			else{
+	   				return [
+						'status'=>'unsaved'
+					];
+	   			}
+			
+				
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
 	public function updateBranch(Request $request)
 	{
 		try {
@@ -1975,51 +1906,7 @@ class AccessController extends Controller
 		}
 	}
 
-	public function updateDriver(Request $request)
-	{
-		try {
-				$value = (array)json_decode($request->post()['driverdataupdate']);
-			
-				$driver = FisDriver::find($value['driver_id']);
-	   			$driver->update(
-	   					['driver_name'=>$value['driver_name']]);
-			
-			return [
-					'status'=>'saved',
-					'message'=>$driver
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
 
-	public function updateEmbalmer(Request $request)
-	{
-		try {
-				$value = (array)json_decode($request->post()['embalmerdataupdate']);
-			
-				$embalmer = FisEmbalmer::find($value['embalmer_id']);
-	   			$embalmer->update(
-	   					['embalmer_name'=>$value['embalmer_name']]);
-			
-			return [
-					'status'=>'saved',
-					'message'=>$embalmer
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
 
 	public function updateInfo(Request $request)
 	{
@@ -2068,6 +1955,7 @@ class AccessController extends Controller
 				$value['fk_profile_id'] = $value['id'];
 				$memberProfile = FisInformant::find($value['fk_profile_id']);
 				$memberProfile->update([
+					'date_inform' => date('Y-m-d', strtotime($value['date_inform'])),
 					'incentives' => $value['incentives'],
 					'remarks' => $value['remarks']
 				]);
@@ -2087,6 +1975,43 @@ class AccessController extends Controller
 		}
 	} 
 
+
+	public function updateIncentives(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['incentivesData']);
+			
+				$incentives = FisIncentives::find($value['fk_profile_id']);
+				if ($value['status'] == "UNCLAIM") {
+					$incentives->update(
+	   					['status'=> 'CLAIMED',
+	   					'incentives'=> $value['incentives'],
+	   					'remarks'=> $value['remarks'],
+	   					'date_claim'=> date('Y-m-d')
+	   				]);
+				}
+				elseif ($value['status'] == "CLAIMED") {
+					$incentives->update(
+	   					['status'=> 'CLAIMED',
+	   					'incentives'=> $value['incentives'],
+	   					'remarks'=> $value['remarks'],
+	   				]);
+				}
+	   				
+			
+			return [
+					'status'=>'saved',
+					'message'=>$incentives
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
 
 
 	// CLOSE OF UPDATE
@@ -2136,49 +2061,6 @@ class AccessController extends Controller
 		}
 	}
 
-	public function deleteDriver(Request $request)
-	{
-		try {
-				$value = (array)json_decode($request->post()['driverdatadelete']);
-			
-				$driver = FisDriver::find($value['driver_id']);
-	   			$driver->delete();
-			
-			return [
-					'status'=>'saved',
-					'message'=>$driver
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
-
-	public function deleteEmbalmer(Request $request)
-	{
-		try {
-				$value = (array)json_decode($request->post()['embalmerdatadelete']);
-			
-				$embalmer = FisEmbalmer::find($value['embalmer_id']);
-	   			$embalmer->delete();
-			
-			return [
-					'status'=>'saved',
-					'message'=>$embalmer
-			];
-			
-		} catch (\Exception $e) {
-			
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
 
 
 }
