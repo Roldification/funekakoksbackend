@@ -75,7 +75,7 @@ return [
 
         'sqlsrv' => [
             'driver' => 'sqlsrv',
-            'host' => '192.168.161.15',
+            'host' => '.',
             'port' => '1433',
             'database' => 'FUN1',
             'username' => 'sa',

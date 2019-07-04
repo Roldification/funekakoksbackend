@@ -225,6 +225,7 @@ class AccessController extends Controller
 			      'incentives' => $informantValue['incentives'],
 			      'remarks' => $informantValue['remarks'],
 			      'date_inform' => $informantValue['date_inform'],
+			      'status' => 'UNCLAIM',
 			      'fk_profile_id' => $memberProfile->id
 			  	]);
 
@@ -1689,7 +1690,7 @@ class AccessController extends Controller
 			
 			else return [
 					'status'=>'error',
-					'message'=>'Invalid Username/Password.'
+					'message'=>'Invalid Username/Passwordx.'
 			]; 
 			
 		} catch (\Exception $e) {
