@@ -21,12 +21,14 @@ use Illuminate\Http\Request;
 Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-user', 'AccessController@insertAccess');
 	Route::post('get-accounts-of-client', 'ServiceContractController@getAccountsOfClient');
+	Route::post('update-contract', 'ServiceContractController@updateContract');
 	Route::post('login-user', 'AccessController@loginUser');
 	Route::post('insert-contract', 'AccessController@insertContract');
 	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('insert-relation', 'AccessController@insertRelation');
 	Route::post('cancel-payment', 'ServiceContractController@cancelPayment');
+	Route::post('remove-charging', 'ServiceContractController@removeCharging');
 	Route::post('cancel-purchase-payment', 'ServiceContractController@cancelPurchasePayment');
 	Route::post('insert-branch', 'AccessController@insertBranch');
 	Route::post('insert-driver', 'AccessController@insertDriver');
@@ -97,6 +99,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 //though not suggested, you are welcome to just put GET requests here, request here does not need authentication.
 Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
 Route::get('get-informant', 'AccessController@getInformant')->middleware('cors');
+Route::get('get-contract-info', 'ServiceContractController@getContractInfo')->middleware('cors');
 Route::get('get-purchase-details', 'ServiceContractController@getPurchaseDetails')->middleware('cors');
 Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->middleware('cors');
 Route::get('get-deceased', 'AccessController@getDeceased')->middleware('cors');
