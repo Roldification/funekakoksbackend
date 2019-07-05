@@ -861,22 +861,7 @@ class ServiceContractController extends Controller
 				];
 			}
 			
-			if($value['isPosted']=="0")
-			{
-				$sc = ServiceContract::find($value['sc_id']);
-				$sc->update(
-						[
-								'status'=>'CANCELLED',
-								'isPosted'=>2
-						]
-						);
-				DB::commit();
-				return [
-						'status'=>'saved',
-						'message'=>'Unposted Contract Successfully Cancelled.'
-				];
-				
-			}
+			
 			
 			$value['item_inclusions'] = DB::select(DB::raw("select product_id as item_code, price, sales.id as sales_id, total_price as tot_price, quantity, discount, SLCode, income_SLCode, item_name from _fis_item_sales sales
 					inner join _fis_items i on sales.product_id = i.item_code
@@ -919,6 +904,25 @@ class ServiceContractController extends Controller
 						'message'=>'Please make sure Contract is not closed or no payment has been made.'
 				];
 			}
+			
+			
+			if($value['isPosted']=="0")
+			{
+				$sc = ServiceContract::find($value['sc_id']);
+				$sc->update(
+						[
+								'status'=>'CANCELLED',
+								'isPosted'=>2
+						]
+						);
+				DB::commit();
+				return [
+						'status'=>'saved',
+						'message'=>'Unposted Contract Successfully Cancelled.'
+				];
+				
+			}
+			
 			
 			
 			
