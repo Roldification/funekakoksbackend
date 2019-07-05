@@ -189,7 +189,40 @@ class ServiceContractController extends Controller
 		try {
 			$customerid = $request->post()['customer_id'];
 			
-			$accounts = DB::connection('main')->select("select top 1 accountnumber, scproductname, accountstatus, openingdate, openedby, balance  from shareaccount sa
+			switch (substr($customerid, 0, 3)){
+				case '001':
+					$dbranch = DB::connection('main');
+					break;
+				case '002':
+					$dbranch = DB::connection('nabun');
+					break;
+				case '003':
+					$dbranch = DB::connection('carmen');
+					break;
+				case '004':
+					$dbranch = DB::connection('bajada');
+					break;
+				case '005':
+					$dbranch = DB::connection('matina');
+					break;
+				case '006':
+					$dbranch = DB::connection('mintal');
+					break;
+				case '007':
+					$dbranch = DB::connection('panabo');
+					break;
+				case '008':
+					$dbranch = DB::connection('market');
+					break;
+				
+				default:
+					$dbranch = DB::connection('main');
+			}
+			
+			
+			
+			
+			$accounts = $dbranch->select("select top 1 accountnumber, scproductname, accountstatus, openingdate, openedby, balance  from shareaccount sa
 													inner join shareproduct sp on sa.fkscproductidaccount = sp.SCProductID
 													where fkcustomeridaccount='".$customerid."' and accountstatus='Active'
 													union all
@@ -198,14 +231,22 @@ class ServiceContractController extends Controller
 													where fkcustomeridaccount='".$customerid."' and accountstatus='Active'");
 			
 			
-			$loans = DB::connection('main')->select("select accountnumber, loanproductname, principal, principalbalance, disburseddate, numberofterm, maturitydate, 0 as del_age from loanaccount la
+			$loans = $dbranch->select("select accountnumber, loanproductname, principal, principalbalance, disburseddate, numberofterm, maturitydate, 0 as del_age from loanaccount la
 													inner join loanproduct lp on la.fkloanproductidacct = lp.loanproductid
 													where fkcustomeridloan='".$customerid."' and left(accountstatus,3) in ('CUR', 'PAS')");
+			
+			$insurances = $dbranch->select("Execute _CACInfo '".$customerid."', '".date('m/d/Y')."'");
+			$dependents = $dbranch->select("select (deplastname + ', ' + depfirstname + ' ' + depmiddlename)fullname, relationship, case gender
+													when '0' then 'MALE'
+													when '1' then 'FEMALE'
+													else '-' end as gender, birthdate, IsBeneficiary from _clientdependents where fkcustomeriddep='".$customerid."'");
 			return [
 					'status'=>'success',
 					'message'=>[
 							'accounts'=>$accounts,
-							'loans'=>$loans
+							'loans'=>$loans,
+							'insurances'=>$insurances,
+							'dependents'=>$dependents
 					]
 			];
 			
@@ -820,6 +861,22 @@ class ServiceContractController extends Controller
 				];
 			}
 			
+			if($value['isPosted']=="0")
+			{
+				$sc = ServiceContract::find($value['sc_id']);
+				$sc->update(
+						[
+								'status'=>'CANCELLED',
+								'isPosted'=>2
+						]
+						);
+				DB::commit();
+				return [
+						'status'=>'saved',
+						'message'=>'Unposted Contract Successfully Cancelled.'
+				];
+				
+			}
 			
 			$value['item_inclusions'] = DB::select(DB::raw("select product_id as item_code, price, sales.id as sales_id, total_price as tot_price, quantity, discount, SLCode, income_SLCode, item_name from _fis_item_sales sales
 					inner join _fis_items i on sales.product_id = i.item_code
@@ -863,22 +920,7 @@ class ServiceContractController extends Controller
 				];
 			}
 			
-			if($value['isPosted']=="0")
-			{
-				$sc = ServiceContract::find($value['sc_id']);
-				$sc->update(
-						[
-								'status'=>'CANCELLED',
-								'isPosted'=>2
-						]
-						);
-				DB::commit();
-				return [
-						'status'=>'saved',
-						'message'=>'Unposted Contract Successfully Cancelled.'
-				];
-				
-			}
+			
 			
 			
 		 	$value['item_inventory'] = DB::select(DB::raw("select SLCode, p_sequence as id, item_code, item_name, inventory.item_price , inventory.serialNo from _fis_item_inventory inventory
