@@ -26,16 +26,14 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-contract', 'AccessController@insertContract');
 	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
-	Route::post('insert-relation', 'AccessController@insertRelation');
 	Route::post('cancel-payment', 'ServiceContractController@cancelPayment');
 	Route::post('get-member-branch', 'ServiceContractController@getMemberBranch');
 	Route::post('remove-charging', 'ServiceContractController@removeCharging');
 	Route::post('cancel-purchase-payment', 'ServiceContractController@cancelPurchasePayment');
 	Route::post('insert-branch', 'AccessController@insertBranch');
-	Route::post('insert-driver', 'AccessController@insertDriver');
-	Route::post('insert-embalmer', 'AccessController@insertEmbalmer');
-	
-	
+		Route::post('insert-relation', 'AccessController@insertRelation');
+	Route::post('insert-location', 'AccessController@insertLocation');
+
 	// Inventory
 	Route::post('insert-rr', 'InventoryController@insertRR');
 	Route::post('insert-inventory', 'InventoryController@insertInventory');
@@ -68,13 +66,13 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-relation', 'AccessController@updateRelation');
 	Route::post('update-info', 'AccessController@updateInfo');
 	Route::post('update-branch', 'AccessController@updateBranch');
-	Route::post('update-driver', 'AccessController@updateDriver');
+	Route::post('update-location', 'AccessController@updateLocation');
 	
 	Route::post('update-incentives', 'AccessController@updateIncentives');
 
 	Route::post('delete-relation', 'AccessController@deleteRelation');
 	Route::post('delete-branch', 'AccessController@deleteBranch');
-	Route::post('delete-driver', 'AccessController@deleteDriver');
+	Route::post('delete-location', 'AccessController@deleteLocation');
 
 	
 	Route::post('post-purchase', 'AccessController@postPurchase');
@@ -108,6 +106,8 @@ Route::get('get-sc-locations', 'AccessController@getSCLocations')->middleware('c
 Route::get('service-contract', 'AccessController@samplepdf')->middleware('cors');
 Route::get('get-charging', 'ServiceContractController@getCharging')->middleware('cors');
 Route::get('get-minimal-probabilities', 'AccessController@getMinimalProbabilities')->middleware('cors');
+Route::get('get-cc-locations', 'AccessController@getCCLocations')->middleware('cors');
+
 
 Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');
 Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');

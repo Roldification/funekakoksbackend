@@ -34,7 +34,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisCharging;
 use App\FisIncentives;
 use App\FisPassword;
-
+use App\FisLocation;
 
 class AccessController extends Controller
 {
@@ -53,6 +53,28 @@ class AccessController extends Controller
 			return [
 				'status'=>'saved',
 				'message'=>$relationData
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertLocation(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['locationdata']);
+			$locationData = FisLocation::create([
+					'label'=>$value['location'],
+					'value'=>$value['location'],
+					'type'=>$value['type'],
+					'transactedBy'=>$value['transactedBy']
+			]);
+			return [
+				'status'=>'saved',
+				'message'=>$locationData
 			];
 			
 		} catch (\Exception $e) {
@@ -225,6 +247,7 @@ class AccessController extends Controller
 			      'incentives' => $informantValue['incentives'],
 			      'remarks' => $informantValue['remarks'],
 			      'date_inform' => $informantValue['date_inform'],
+			      'status' => 'UNCLAIM',
 			      'fk_profile_id' => $memberProfile->id
 			  	]);
 
@@ -1671,7 +1694,28 @@ class AccessController extends Controller
 					'message'=>$e->getMessage()
 			];
 		}
-		
+	
+	}
+
+	public function getCCLocations(Request $request)
+	{
+		try {
+	
+			$CC = DB::select(DB::raw("SELECT * FROM _fis_locations"));
+			
+			if($CC)
+				return	$CC;
+				else return [];
+			
+			
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	
 	}
 
 		
@@ -1705,7 +1749,7 @@ class AccessController extends Controller
 			
 			else return [
 					'status'=>'error',
-					'message'=>'Invalid Username/Password.'
+					'message'=>'Invalid Username/Passwordx.'
 			]; 
 			
 		} catch (\Exception $e) {
@@ -1867,6 +1911,33 @@ class AccessController extends Controller
 		}
 	}
 
+	public function updateLocation(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['locationUpdate']);
+			
+				$cc = FisLocation::find($value['id']);
+	   			$cc->update([
+	   					'label'=>$value['location'],
+	   					'value'=>$value['location'],
+	   					'type'=>$value['type']
+	   				]);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$cc
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+	
+
 	public function updatePassword(Request $request)
 	{
 		try {
@@ -1998,21 +2069,14 @@ class AccessController extends Controller
 				$value = (array)json_decode($request->post()['incentivesData']);
 			
 				$incentives = FisIncentives::find($value['fk_profile_id']);
-				if ($value['status'] == "UNCLAIM") {
+			
 					$incentives->update(
 	   					['status'=> 'CLAIMED',
 	   					'incentives'=> $value['incentives'],
 	   					'remarks'=> $value['remarks'],
 	   					'date_claim'=> date('Y-m-d')
 	   				]);
-				}
-				elseif ($value['status'] == "CLAIMED") {
-					$incentives->update(
-	   					['status'=> 'CLAIMED',
-	   					'incentives'=> $value['incentives'],
-	   					'remarks'=> $value['remarks'],
-	   				]);
-				}
+				
 	   				
 			
 			return [
@@ -2044,6 +2108,28 @@ class AccessController extends Controller
 			return [
 					'status'=>'saved',
 					'message'=>$rtd
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function deleteLocation(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['locationDelete']);
+			
+				$cc = FisLocation::find($value['id']);
+	   			$cc->delete();
+			
+			return [
+					'status'=>'saved',
+					'message'=>$cc
 			];
 			
 		} catch (\Exception $e) {

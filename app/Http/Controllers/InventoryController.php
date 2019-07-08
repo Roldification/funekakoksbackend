@@ -40,6 +40,32 @@ use App\FisPackageItemDelete;
 
 class InventoryController extends Controller
 {
+
+
+	public function generateItemSales(Request $request) {
+		$id = json_decode($request->post()['id']);
+		//return $myid;
+		
+		$accounts = DB::select(DB::raw("select *, dbo._computeAge(birthday, getdate())as deceased_age from _SERVICE_CONTRACT_VIEW where contract_id=$id"));
+		
+		$inclusions = DB::select(DB::raw("select * from 
+			(select i.item_code, item_name as inclusionname from _fis_item_sales sales
+				inner join _fis_items i on sales.product_id = i.item_code
+				where contract_id=$id
+						union all
+			 select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=$id
+			)dfa order by item_code"));
+		
+		
+		$mpdf = new \Mpdf\Mpdf();
+	
+		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
+		$mpdf->WriteHTML(view('sc_printing', ['accounts'=>$accounts, 'inclusions'=>$inclusions]));
+		$mpdf->showImageErrors = true;
+		$mpdf->Output();
+	}
+
    public function insertRR(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['rrData']);	
