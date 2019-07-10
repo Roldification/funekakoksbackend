@@ -1733,7 +1733,7 @@ class AccessController extends Controller
 			
 			else return [
 					'status'=>'error',
-					'message'=>'Invalid Username/Passwordx.'
+					'message'=>'Invalid Username/Password.'
 			]; 
 			
 		} catch (\Exception $e) {

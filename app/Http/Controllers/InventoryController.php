@@ -313,7 +313,7 @@ class InventoryController extends Controller
 			$supplier = FisSupplier::create([
 			      'supplier_name' => $value['supplier_name'],
 			      'address' => $value['address'],
-			      'contact_number' => $value['contact_number'],
+			      'contact_number' => '+63'.$value['contact_number'],
 			      'transactedBy'=> $value['transactedBy'],
 			      'date_entry' => date('Y-m-d')
 				]);
@@ -677,7 +677,7 @@ class InventoryController extends Controller
 			$supplier = FisSupplier::find($value['supplier_id']);
 	   		$supplier->update([
 			      'supplier_name' => $value['supplier_name'],
-			      'contact_number' => $value['contact_number'],
+			      'contact_number' => '+63'.$value['contact_number'],
 			      'address' => $value['address'],
 			      'transactedBy' => $value['transactedBy'],
 			      'date_updated' => date('Y-m-d')
