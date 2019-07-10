@@ -130,7 +130,7 @@
     	 	<font face="segoeui" style="text-decoration: underline;">SCOPE OF SERVICES</font>
     	 </div>
     	 
-    	 <div class="row" style="border:1px solid black; padding:5px 15px 5px 15px; height:300px;">
+    	 <div class="row" style="border:1px solid black; height:295px;">
     	 		<table style="width:100%;">
 	    	 		<tr>
 	    	 			<td style="width:70%;"><font face="segoeui"><strong>Particulars</strong></font></td>
@@ -140,9 +140,9 @@
 	    	 		</tr>
 	    	 		<tr>
 	    	 			<td><font face="segoeui" style="font-size:14px;">Casket Including Services</font></td>
-	    	 			<td><font face="segoeui" style="font-size:14px;"><?php echo number_format((double)$accounts[0]->grossPrice, 2, '.', ','); ?></font></td>
-	    	 			<td><font face="segoeui" style="font-size:14px;"><?php echo number_format((double)$accounts[0]->discount, 2, '.', ','); ?></font></td>
-	    	 			<td><font face="segoeui" style="font-size:14px;"><?php echo number_format((double)$accounts[0]->contract_amount, 2, '.', ','); ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:12px;"><?php echo number_format((double)$accounts[0]->grossPrice - $totalAdditionalAmount, 2, '.', ','); ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:12px;"><?php echo number_format((double)$accounts[0]->discount, 2, '.', ','); ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:12px;"><?php echo number_format((double)$accounts[0]->contract_amount - $totalAdditionalAmount, 2, '.', ','); ?></font></td>
 	    	 		</tr>
 	    	 		<tr>
 	    	 			<td><font face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Package Inclusions: <?php echo $accounts[0]->package_name ?></font></td>
@@ -152,16 +152,147 @@
 	    	 		<?php 
 	    	 		foreach ($inclusions as $row)
 	    	 		{
+	    	 			if($row->ispackage)
+	    	 			{
 	    	 			?>
 	    	 			
 	    	 		 <tr>
-	    	 			<td><font face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
 	    	 		 </tr>
 	    	 			
 	    	 			<?php 
+	    	 			}
+	    	 		}
+	    	 		?>
+	    	 		<tr>
+	    	 			<td><font face="segoeui" style="font-size:14px;">Additional Service</font></td>
+	    	 			<td></td>
+	    	 			<td></td>
+	    	 			<td></td>
+	    	 		</tr>
+	    	 		<?php 
+	    	 		foreach ($inclusions as $row)
+	    	 		{
+	    	 			if(!$row->ispackage)
+	    	 			{
+	    	 			?>
+	    	 			
+	    	 		 <tr>
+	    	 			<td><font face="segoeui" style="font-size:10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)$row->total_price, 2, '.', ','); ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)0, 2, '.', ','); ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)$row->total_price, 2, '.', ','); ?></font></td>
+	    	 		 </tr>
+	    	 			
+	    	 			<?php 
+	    	 			}
 	    	 		}
 	    	 		?>
     	 		</table>
+    	 </div>
+    	 <div class="row" style="border:1px solid black; height:15px;">
+    	 	<table style="width:100%;">
+    	 		<tr>
+    	 			<td style="text-align: left;"><font face="segoeui" style="font-size:9px;">Total Net Payable:</font></td>
+    	 			<td style="text-align: right"><font face="segoeui" style="font-size:14px; font-weight:bold;"><?php echo number_format((double)$accounts[0]->contract_amount, 2, '.', ','); ?></font></td>
+    	 		</tr>
+    	 	</table>
+    	 </div>
+    	 <div class="row">
+    	 	<table style="width:100%;">
+	    	 		<tr>
+	    	 			<td style="width:10%;"><font face="segoeui"><strong>Remarks:</strong></font></td>
+	    	 			<td style="width:90%; border-bottom:1px solid black;" ><font face="segoeui"><?php echo $accounts[0]->remarks; ?></font></td>
+	
+	    	 			
+	    	 		</tr>
+    	 		</table>
+    	 </div>
+    	 
+    	 <div style="height:150px; width:360px; position:absolute; left:25px; padding-top:10px;">
+    	 		<table style="width:100%;">
+	    	 		<tr>
+	    	 			<td><font face="segoeui"><strong>Prepared by:</strong></font></td>
+	    	 			   	 			
+	    	 		</tr>
+	    	 		<tr>
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;"><?php echo $accounts[0]->created_by; ?></font></td> 
+	    	 		</tr>
+    	 		</table>
+    	 		
+    	 		<table style="width:100%; margin-top:10px;">
+	    	 		<tr>
+	    	 			<td><font face="segoeui"><strong>Noted by:</strong></font></td>
+	    	 			   	 			
+	    	 		</tr>
+	    	 		<tr>
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">Ms. Maria April Villanueva</font></td> 
+	    	 		</tr>
+	    	 		<tr>
+	    	 			<td><font face="segoeui" style="font-size: 9px;">FuneCare Service Manager</font></td> 
+	    	 		</tr>
+    	 		</table>
+    	 		
+    	 		<table style="width:100%; margin-top:10px;">
+	    	 		<tr>
+	    	 			<td><font face="segoeui"><strong>Approved by:</strong></font></td>
+	    	 			   	 			
+	    	 		</tr>
+	    	 		<tr>
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">Ms. Juris D. Perez, CPA, MBA</font></td> 
+	    	 		</tr>
+	    	 		<tr>
+	    	 			<td><font face="segoeui" style="font-size: 9px;">Chief Executive Officer</font></td> 
+	    	 		</tr>
+    	 		</table>
+    	 </div>
+    	 
+    	 <div style="height:305px; width:370px; padding-top:10px; position:absolute; left:395px;">
+    	 	<div>
+    	 		<font face="segoeui" ><strong>TERMS</strong></font>
+    	 		<p align="justify" style="margin-top:-4px;">
+    	 			<font face="segoeui" style="font-size: 9px;">For the Burial and funeral services rendered to the aforementioned deceased and to our full satisfaction,
+    	 			The undersigned agree to pay the balance of stated service on or before the interment schedule. <i><b>NO PAYMENT NO INTERMENT.</b></i>
+    	 			</font>
+    	 		</p>
+    	 		
+    	 		<p align="justify" style="margin-top:20px;">
+    	 			<font face="segoeui" style="font-size: 9px;">That any damages to the facilities and equipment used during the term of this contract shall be accounted by the contracting party.
+    	 			</font>
+    	 		</p>
+    	 		
+    	 		<p align="justify" style="margin-top:20px;">
+    	 			<font face="segoeui" style="font-size: 9px;">For complaint/s regarding the services rendere by TAGUM COOPERATIVE FUNECARE the contracting party may contact immediately the office for appropriate action.
+    	 			</font>
+    	 		</p>
+    	 	</div>
+			
+			<div>
+				<font face="segoeui" style="margin-top:5px;"><strong>In Conformity</strong></font>
+				
+				<table style="width:100%; margin-top:10px;">
+	    	 		
+	    	 		<tr>
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;"><?php echo $accounts[0]->fname." ".$accounts[0]->mname." ".$accounts[0]->lname; ?></font></td> 
+	    	 		</tr>
+	    	 		<tr>
+	    	 			<td style="text-align:center;"><font face="segoeui"><strong>Contracting Party</strong></font></td>   	 			
+	    	 		</tr>
+	    	 		<tr>
+	    	 			<td style="text-align:center;"><font face="segoeui"><strong>and</strong></font></td>   	 			
+	    	 		</tr>
+    	 		</table>
+    	 		
+    	 		<table style="width:100%; margin-top:10px;">
+	    	 		<tr>
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;"><?php echo $accounts[0]->guarantor_name; ?></font></td> 
+	    	 		</tr>
+	    	 		<tr>
+	    	 			<td style="text-align:center;"><font face="segoeui"><strong>Guarantor</strong></font></td>   	 			
+	    	 		</tr>
+
+    	 		</table>
+			</div>
     	 </div>
     </body>
 </html>

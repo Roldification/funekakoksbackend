@@ -31,7 +31,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('remove-charging', 'ServiceContractController@removeCharging');
 	Route::post('cancel-purchase-payment', 'ServiceContractController@cancelPurchasePayment');
 	Route::post('insert-branch', 'AccessController@insertBranch');
-		Route::post('insert-relation', 'AccessController@insertRelation');
+	Route::post('insert-relation', 'AccessController@insertRelation');
 	Route::post('insert-location', 'AccessController@insertLocation');
 
 	// Inventory
@@ -107,7 +107,7 @@ Route::get('service-contract', 'AccessController@samplepdf')->middleware('cors')
 Route::get('get-charging', 'ServiceContractController@getCharging')->middleware('cors');
 Route::get('get-minimal-probabilities', 'AccessController@getMinimalProbabilities')->middleware('cors');
 Route::get('get-cc-locations', 'AccessController@getCCLocations')->middleware('cors');
-
+Route::get('statement-print', 'AccessController@statementPrint');
 
 Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');
 Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');
