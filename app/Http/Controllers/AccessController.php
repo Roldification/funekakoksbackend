@@ -36,6 +36,7 @@ use App\FisIncentives;
 use App\FisPassword;
 use App\FisLocation;
 
+
 class AccessController extends Controller
 {
     //
@@ -271,7 +272,6 @@ class AccessController extends Controller
 
 
 	public function samplepdf(Request $request)
-
 	{
 		$id = json_decode($request->post()['id']);
 		//return $myid;
@@ -309,6 +309,84 @@ class AccessController extends Controller
 		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
 		$mpdf->WriteHTML(view('sc_printing', ['accounts'=>$accounts, 'inclusions'=>$inclusions, 'totalAdditionalAmount'=>$totalAdditionalAmount]));
 		$mpdf->showImageErrors = true;
+		$mpdf->Output();
+	}
+	
+	public function statementPrint(Request $request)
+	{
+		$id = $request->post()['id'];
+		//return $myid;
+		
+		$accounts = DB::select(DB::raw("select *, dbo._computeAge(birthday, getdate())as deceased_age,
+			isnull((
+			select sum(total_price) as packagePrice from
+			(
+			select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
+							case when left(i.item_code, 2)='01' then 1
+							else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=scv.package_class_id and item_id = i.item_code)
+							end as ispackage
+							from _fis_item_sales sales
+							inner join _fis_items i on sales.product_id = i.item_code
+							where contract_id=scv.contract_id
+							union all
+							select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname, CAST(service_duration as varchar(3)) + ' ' + duration_unit as quantity, total_amount,
+							(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id=scv.package_class_id and service_id = s.id)ispackage
+							from _fis_service_sales ss
+							inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=scv.contract_id
+			)ff where ispackage=1),0) as packagePrice
+			from _SERVICE_CONTRACT_VIEW scv where signee=$id
+			AND status='ACTIVE'"));
+		
+		$additionalServices = [];
+		
+		foreach ($accounts as $row)
+		{
+			$extra = DB::select(DB::raw("select '".$row->contract_no."' as contract_no, * from
+				(select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
+				case when left(i.item_code, 2)='01' then 1
+				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=".$row->package_class_id." and item_id = i.item_code)
+				end as ispackage
+				from _fis_item_sales sales
+				inner join _fis_items i on sales.product_id = i.item_code
+				where contract_id=".$row->contract_id."
+				union all
+				select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname, CAST(service_duration as varchar(3)) + ' ' + duration_unit as quantity, total_amount,
+				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id=".$row->package_class_id." and service_id = s.id)ispackage
+				from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=".$row->contract_id."
+				)dfa  where ispackage=0 order by item_code"));
+			
+				foreach ($extra as $rows)
+				{
+					array_push($additionalServices, $rows);
+				}
+			
+			
+			
+		}
+		
+		$accountcharging = DB::select(DB::raw("select sum(balance)totalamt, account_type from _fis_sc_charging
+				inner join _fis_account on accountType = account_id
+				where fk_scID in
+				(
+				select contract_id from _fis_service_contract where signee=$id and status='ACTIVE'
+				) and isCancelled=0
+				group by account_type"));
+		
+		$transactions = DB::select(DB::raw("select AR_Credit, reference_no, typename from _fis_sc_payments
+				inner join _fis_paymenttype on payment_mode = typeid
+				where contract_id in
+				(
+				select contract_id from _fis_service_contract where signee=$id and status='ACTIVE'
+				)
+				and left(tran_type,3)='PAY' and isCancelled=0"));
+		
+		$mpdf = new \Mpdf\Mpdf();
+		
+		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
+		$mpdf->WriteHTML(view('statement_printing', ['client'=>$request->post()['client'],'user'=>$request->post()['user'], 'accounts'=>$accounts, 'addservices'=>$additionalServices, 'accountcharging'=>$accountcharging, 'transactions'=>$transactions]));
+		$mpdf->showImageErrors = true;
+	
 		$mpdf->Output();
 	}
 	
