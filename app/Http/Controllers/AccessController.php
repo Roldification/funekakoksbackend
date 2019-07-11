@@ -344,14 +344,14 @@ class AccessController extends Controller
 			$extra = DB::select(DB::raw("select '".$row->contract_no."' as contract_no, * from
 				(select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
 				case when left(i.item_code, 2)='01' then 1
-				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=".$row->package_class_id." and item_id = i.item_code)
+				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id='".$row->package_class_id."' and item_id = i.item_code)
 				end as ispackage
 				from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
 				where contract_id=".$row->contract_id."
 				union all
 				select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname, CAST(service_duration as varchar(3)) + ' ' + duration_unit as quantity, total_amount,
-				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id=".$row->package_class_id." and service_id = s.id)ispackage
+				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id='".$row->package_class_id."' and service_id = s.id)ispackage
 				from _fis_service_sales ss
 				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=".$row->contract_id."
 				)dfa  where ispackage=0 order by item_code"));
@@ -1085,7 +1085,7 @@ class AccessController extends Controller
 						'branchID'=>$value['sales_header']->branch
 				])->firstOrFail();
 				
-				if($value['sales_header']->reference == '' || $value['sales_header']->client=='')
+				if($value['sales_header']->client=='')
 				{
 					DB::rollBack();
 					return [
@@ -1095,8 +1095,12 @@ class AccessController extends Controller
 					
 				}
 				
+				$sc_count = FisItemsalesHeader::where('fun_branch', $value['sales_header']->branch)->count();
+				
+				$value['merchandise_no'] = "M".date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
+				
 				$salesHead = FisItemsalesHeader::create([
-					'OR_no'=>$value['sales_header']->reference,
+					'OR_no'=>$value['merchandise_no'],
 					'date'=>date('Y-m-d H:i:s'),
 					'transactedBy'=>$value['sales_header']->transactedBy,
 					'client'=>$value['sales_header']->client,
@@ -1136,6 +1140,25 @@ class AccessController extends Controller
 				array_push($acctgDetails, $pushDetails);
 				
 				
+				$transactionsale = FisSalesTransaction::create([
+						'sales_id'=>$salesHead->id,
+						'accountType'=>2, //2 is for peronal. see _fis_account table
+						'AR_Debit'=>$salesHead->total_amount,
+						'AR_Credit'=>0,
+						'balance'=>$salesHead->total_amount,
+						'reference_no'=>$salesHead->OR_no,
+						'payment_date'=>date('Y-m-d'),
+						'transactedBy'=>$salesHead->transactedBy,
+						'payment_mode'=>$value['sales_header']->PayType,
+						'isCancelled'=>0,
+						'isRemitted'=>0,
+						'remittedTo'=>'',
+						'isPosted'=>1,
+						'remarks'=>'merchandise purchase posting',
+						'tran_type'=>'RELEASE',
+				]);
+				
+				
 				if(is_numeric($value['sales_header']->amount_pay) && $value['sales_header']->amount_pay>0)
 				{
 					if($value['sales_header']->amount_pay>$salesHead->balance)
@@ -1144,6 +1167,16 @@ class AccessController extends Controller
 						return [
 								'status'=>'unsaved',
 								'message'=>'Amount paid is greater than the balance'
+						];
+					}
+					
+					
+					if($value['sales_header']->reference=="")
+					{
+						DB::rollBack();
+						return [
+								'status'=>'unsaved',
+								'message'=>'Reference must not be blank.'
 						];
 					}
 					
