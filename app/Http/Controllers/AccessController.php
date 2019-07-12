@@ -281,14 +281,14 @@ class AccessController extends Controller
 		$inclusions = DB::select(DB::raw("select * from
 		(select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
 				case when left(i.item_code, 2)='01' then 1
-				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=".$accounts[0]->package_class_id." and item_id = i.item_code)
+				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id='".$accounts[0]->package_class_id."' and item_id = i.item_code)
 				end as ispackage
 				from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
 				where contract_id=$id
 				union all
 				select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname, CAST(service_duration as varchar(3)) + ' ' + duration_unit as quantity, total_amount,
-				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id=".$accounts[0]->package_class_id." and service_id = s.id)ispackage
+				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id='".$accounts[0]->package_class_id."' and service_id = s.id)ispackage
 				from _fis_service_sales ss
 				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=$id
 				)dfa order by item_code"));
@@ -344,14 +344,14 @@ class AccessController extends Controller
 			$extra = DB::select(DB::raw("select '".$row->contract_no."' as contract_no, * from
 				(select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
 				case when left(i.item_code, 2)='01' then 1
-				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=".$row->package_class_id." and item_id = i.item_code)
+				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id='".$row->package_class_id."' and item_id = i.item_code)
 				end as ispackage
 				from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
 				where contract_id=".$row->contract_id."
 				union all
 				select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname, CAST(service_duration as varchar(3)) + ' ' + duration_unit as quantity, total_amount,
-				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id=".$row->package_class_id." and service_id = s.id)ispackage
+				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id='".$row->package_class_id."' and service_id = s.id)ispackage
 				from _fis_service_sales ss
 				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=".$row->contract_id."
 				)dfa  where ispackage=0 order by item_code"));

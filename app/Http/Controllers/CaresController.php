@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\FisCaresPlan;
+use App\FisPlanPackage;
 
 class CaresController extends Controller
 {
@@ -115,6 +116,49 @@ class CaresController extends Controller
 				'status'=>'unsaved',
 				'message'=>$e->getMessage()
 			];	
+		}
+	}
+
+
+	public function insertPlanPackage(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['packagetitledata']);
+			$packageData = FisPlanPackage::create([
+			      'package_code' => $value['package_code'],
+			      'package_name' => $value['package_name'],
+			      'isActive' => 0,
+			      'discount'=> 0,
+	   			  'standardPrice'=> 0,
+	   			  'salesPrice'=> 0,
+			      'date_created' => date('Y-m-d'),
+			      'createdBy' => $value['transactedBy']
+				]);
+			return [
+				'status'=>'saved',
+				'message'=>$packageData
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function getPlanPackage(Request $request) {
+		$value="";
+		try {
+		$package = DB::select(DB::raw("SELECT package_code as value, package_name as label FROM _fis_cares_package"));
+			if($package)
+				return	$package;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
 		}
 	}
 

@@ -60,6 +60,9 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	// TC Cares
 	Route::post('insert-plan-profile', 'CaresController@insertPlanProfile');
 	Route::post('update-plan-info', 'CaresController@updatePlanInfo');
+
+	Route::post('insert-plan-package', 'CaresController@insertPlanPackage');
+	
 	//
 
 	Route::post('update-password', 'AccessController@updatePassword');
@@ -129,6 +132,7 @@ Route::get('get-details-of-contract', 'ServiceContractController@getDetailsOfCon
 
 // TC Cares
 Route::get('get-member-plan-info', 'CaresController@getMemberPlanInfo')->middleware('cors');
+Route::get('get-plan-package', 'CaresController@getPlanPackage')->middleware('cors');
 
 // Incentives
 Route::get('get-incentives', 'AccessController@getIncentives')->middleware('cors');
