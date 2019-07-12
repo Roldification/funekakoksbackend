@@ -1085,7 +1085,7 @@ class AccessController extends Controller
 						'branchID'=>$value['sales_header']->branch
 				])->firstOrFail();
 				
-				if($value['sales_header']->reference == '' || $value['sales_header']->client=='')
+				if($value['sales_header']->client=='')
 				{
 					DB::rollBack();
 					return [
@@ -1095,8 +1095,12 @@ class AccessController extends Controller
 					
 				}
 				
+				$sc_count = FisItemsalesHeader::where('fun_branch', $value['sales_header']->branch)->count();
+				
+				$value['merchandise_no'] = "M".date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
+				
 				$salesHead = FisItemsalesHeader::create([
-					'OR_no'=>$value['sales_header']->reference,
+					'OR_no'=>$value['merchandise_no'],
 					'date'=>date('Y-m-d H:i:s'),
 					'transactedBy'=>$value['sales_header']->transactedBy,
 					'client'=>$value['sales_header']->client,
@@ -1136,6 +1140,25 @@ class AccessController extends Controller
 				array_push($acctgDetails, $pushDetails);
 				
 				
+				$transactionsale = FisSalesTransaction::create([
+						'sales_id'=>$salesHead->id,
+						'accountType'=>2, //2 is for peronal. see _fis_account table
+						'AR_Debit'=>$salesHead->total_amount,
+						'AR_Credit'=>0,
+						'balance'=>$salesHead->total_amount,
+						'reference_no'=>$salesHead->OR_no,
+						'payment_date'=>date('Y-m-d'),
+						'transactedBy'=>$salesHead->transactedBy,
+						'payment_mode'=>$value['sales_header']->PayType,
+						'isCancelled'=>0,
+						'isRemitted'=>0,
+						'remittedTo'=>'',
+						'isPosted'=>1,
+						'remarks'=>'merchandise purchase posting',
+						'tran_type'=>'RELEASE',
+				]);
+				
+				
 				if(is_numeric($value['sales_header']->amount_pay) && $value['sales_header']->amount_pay>0)
 				{
 					if($value['sales_header']->amount_pay>$salesHead->balance)
@@ -1144,6 +1167,16 @@ class AccessController extends Controller
 						return [
 								'status'=>'unsaved',
 								'message'=>'Amount paid is greater than the balance'
+						];
+					}
+					
+					
+					if($value['sales_header']->reference=="")
+					{
+						DB::rollBack();
+						return [
+								'status'=>'unsaved',
+								'message'=>'Reference must not be blank.'
 						];
 					}
 					
