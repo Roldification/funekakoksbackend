@@ -86,16 +86,16 @@ class ServiceContractController extends Controller
 			else
 			{
 				try {
-					$user_check = DB::select(DB::raw("select item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode from
+					$user_check = DB::select(DB::raw("SELECT item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode FROM
 						(
-						SELECT item_code, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi
-						left join
+						SELECT item_code, isActive, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi
+						LEFT JOIN
 						(
-						select * from _fis_package_inclusions
-						where fk_package_id='".$service_contract->package_class_id."'
-						and inclusionType='ITEM'
-						)b on fi.item_code = b.item_id
-						)sdf
+						SELECT * FROM _fis_package_inclusions
+						WHERE fk_package_id='".$service_contract->package_class_id."'
+						AND inclusionType='ITEM'
+						)b on fi.item_code = b.item_id where isActive = 1
+						)sdf 
 						order by quantity desc,  item_code asc
 						"));
 					
@@ -112,15 +112,14 @@ class ServiceContractController extends Controller
 					where contract_id=".$service_contract->contract_id));
 					
 					
-					$services = DB::select(DB::raw("select * from
-						(
-						SELECT fs.id, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
-						left join
-						(
-						select * from _fis_package_inclusions where fk_package_id='".$service_contract->package_class_id."' and inclusionType='SERV'
-						)a on fs.id = a.service_id and fs.isActive=1
-						)sdfa
-						order by duration desc"));
+					$services = DB::select(DB::raw("SELECT * FROM
+					(
+					SELECT fs.id, isActive, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
+					LEFT JOIN
+					(
+					SELECT * FROM _fis_package_inclusions WHERE fk_package_id='".$service_contract->package_class_id."' and inclusionType='SERV'
+					)a on fs.id = a.service_id WHERE fs.isActive=1)sdfa
+					ORDER BY duration desc"));
 						
 						return [
 								'status'=>'success_unposted',

@@ -115,7 +115,6 @@ Route::get('statement-print', 'AccessController@statementPrint');
 Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');
 Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');
 Route::get('get-slcode', 'AccessController@getSLCode')->middleware('cors');
-Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');
 Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');
 Route::get('get-inventory-search', 'AccessController@getInventorySearch')->middleware('cors');
 Route::get('get-contract-list', 'AccessController@getContractList')->middleware('cors');

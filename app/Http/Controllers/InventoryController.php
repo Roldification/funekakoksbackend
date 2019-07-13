@@ -333,14 +333,12 @@ class InventoryController extends Controller
 	public function getInventoryList(Request $request) {
 		$value = "";
 		try {
-		$user_check = DB::select(DB::raw("SELECT item_name, selling_price, item_code,  isActive, 'Item' as type FROM _fis_items
-			UNION ALL
-
-			SELECT service_name, selling_price, cast(id as varchar(10))id, isActive, 'Service' as type FROM _fis_services
-
-			UNION ALL
-			SELECT package_name, salesPrice, cast(package_code as varchar(10))package_code, isActive, 'Package' as type FROM _fis_package
-			"));
+		$user_check = DB::select(DB::raw("SELECT item_name, selling_price, item_code, '-' as discount, '-' as standardPrice,  isActive, 'Item' as type FROM _fis_items
+		UNION ALL
+		SELECT service_name, selling_price, cast(id as varchar(10))id, '-' as discount, '-' as standardPrice, isActive, 'Service' as type FROM _fis_services
+		UNION ALL
+		SELECT package_name, salesPrice, cast(package_code as varchar(10))package_code, cast(discount as varchar(10))discount, cast(standardPrice as varchar(10))standardPrice, isActive, 'Package' as type FROM _fis_package
+		"));
 
 			if($user_check)
 			return	$user_check;
@@ -356,7 +354,7 @@ class InventoryController extends Controller
 	public function getItemPackage(Request $request) {
 		$value = "";
 		try {
-		$user_check = DB::select(DB::raw("SELECT item_code as value, item_name as label, *   FROM _fis_items "));
+		$user_check = DB::select(DB::raw("SELECT item_code as value, item_name as label, *  FROM _fis_items WHERE isActive = '1'"));
 
 			if($user_check)
 			return	$user_check;
@@ -388,7 +386,7 @@ class InventoryController extends Controller
 	public function getServicePackage(Request $request) {
 		$value = "";
 		try {
-		$user_check = DB::select(DB::raw("SELECT id as value, service_name as label, * FROM _fis_services"));
+		$user_check = DB::select(DB::raw("SELECT id as value, service_name as label, * FROM _fis_services WHERE isActive = '1'"));
 
 			if($user_check)
 			return	$user_check;
@@ -543,7 +541,7 @@ class InventoryController extends Controller
 	public function getAddPackageList(Request $request) {
 		$value="";
 		try {
-		$user_check = DB::select(DB::raw("SELECT package_code as value, package_name as label FROM _fis_package"));
+		$user_check = DB::select(DB::raw("SELECT package_code as value, package_name as label FROM _fis_package WHERE isActive = '1'"));
 			if($user_check)
 				return	$user_check;
 				else return [];
@@ -774,27 +772,50 @@ class InventoryController extends Controller
 		try {
 				$value = (array)json_decode($request->post()['inventorydelete']);
 				if(($value['type']) == 'Item'){
-					$inventory = FisItems::find($value['item_code']);
-	   				$inventory->delete();
+					if ($value['isActive'] == 1) {
+						$inventory = FisItems::find($value['item_code']);
+						$inventory->update([
+		   					'isActive' => 0
+		   				]);
+					}
+					elseif ($value['isActive'] == 0) {
+						$inventory = FisItems::find($value['item_code']);
+						$inventory->update([
+		   					'isActive' => 1
+		   				]);
+					}
+					
 				}
 
 				elseif(($value['type']) == 'Service') {
 					$value['id'] = $value['item_code'];
-					$inventory = FisServices::find($value['id']);
-	   				$inventory->delete();
+	   				if ($value['isActive'] == 1) {
+						$inventory = FisServices::find($value['id']);
+						$inventory->update([
+		   					'isActive' => 0
+		   				]);
+					}
+					elseif ($value['isActive'] == 0) {
+						$inventory = FisServices::find($value['id']);
+						$inventory->update([
+		   					'isActive' => 1
+		   				]);
+					}
 				}
 
 				elseif(($value['type']) == 'Package') {
 					$value['package_code'] = $value['item_code'];
-					$value['fk_package_id'] = $value['item_code'];
-					
-
-					$inventory = FisPackage::find($value['package_code']);
-	   				$inventory->delete();
-
-	   				$inventory = FisInclusions::find($value['fk_package_id']);
-	   				if ($inventory!=null) {
-						$inventory->delete();
+					if ($value['isActive'] == 1) {
+						$inventory = FisPackage::find($value['package_code']);
+						$inventory->update([
+		   					'isActive' => 0
+		   				]);
+					}
+					elseif ($value['isActive'] == 0) {
+						$inventory = FisPackage::find($value['package_code']);
+						$inventory->update([
+		   					'isActive' => 1
+		   				]);
 					}
 				}
 				
