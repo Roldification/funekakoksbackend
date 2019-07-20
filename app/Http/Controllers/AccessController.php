@@ -201,7 +201,20 @@ class AccessController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['memberdata']);
 			
-			$memberProfile = FisMemberData::create([
+			if ($value['customer_id']!="") {
+			$memcount = FisMemberData::where(['customer_id'=>$value['customer_id']])->first();
+
+				if($memcount)
+				{
+					return [
+						'status'=>'unsaved',
+						'message'=>'Member Already Exists.'
+					];	
+				}
+			}
+
+			else{
+				$memberProfile = FisMemberData::create([
 				  'profile_type' => $value['profile_type'],
 			      'customer_id' => $value['customer_id'],
 			      'is_member' => $value['is_member'],
@@ -248,7 +261,7 @@ class AccessController extends Controller
 			      'incentives' => $informantValue['incentives'],
 			      'remarks' => $informantValue['remarks'],
 			      'date_inform' => $informantValue['date_inform'],
-			      'status' => 'UNCLAIM',
+			      'status' => 'UNCLAIMED',
 			      'fk_profile_id' => $memberProfile->id
 			  	]);
 
@@ -258,7 +271,7 @@ class AccessController extends Controller
 				'status'=>'saved',
 				'message'=>$memberProfile
 			];
-
+			} //else close
 
 		} catch (\Exception $e) {
 			return [

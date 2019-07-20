@@ -77,18 +77,18 @@ class InventoryController extends Controller
 			try {
 					$rr = FisRReport::create([
 						'supplier_id' => $value['supplier_id'],
-						'rr_no'	=> $value['rr_no'],
-		        		'po_no'	=> $value['po_no'],
-				        'dr_no'	=> $value['dr_no'],
-				        'serialNo'	=> $value['serialNo'],
-				       	'date_received' => $value['date_received'],
-				        'remarks'	=> $value['remarks'],
+						'date_received' => $value['date_received'],
 						'transactedBy' => $value['transactedBy'],
+						'total_amount'=> $value['total_amount'],
+						'branchCode'=> $value['branchCode'],
+						'rr_no'	=> $row->rr_no,
+		        		'po_no'	=> $row->po_no,
+				        'dr_no'	=> $row->dr_no,
+				        'serialNo' => $row->serialNo,
+				        'remarks'	=> $row->remarks,
 						'item_id'=> $row->item_code,
 						'item_name'=> $row->name,
 						'cost'=> $row->cost,
-						'total_amount'=> $value['total_amount'],
-						'branchCode'=> $value['branchCode'],
 						'date_entry' => date('Y-m-d'),
 						'isPosted' => 1
 					]);
@@ -96,10 +96,10 @@ class InventoryController extends Controller
 					$productList = FisProductList::create([
 						'fk_item_id' => $row->item_code,
 						'batch_no' =>$rr->id,
-						'serialNo'	=> $value['serialNo'],
+						'serialNo'	=> $row->serialNo,
 						'branch'=> $value['branchCode'],
-		        		'rr_no'	=> $value['rr_no'],
-				        'dr_no'	=> $value['dr_no'],
+		        		'rr_no'	=> $row->rr_no,
+				        'dr_no'	=> $row->dr_no,
 				        'isEncumbered'	=> 1,
 				       	'price' => $row->cost,
 				        'date_entry' => date('Y-m-d'),
@@ -109,13 +109,13 @@ class InventoryController extends Controller
 					$inventory = FisItemInventory::create([
 						'transaction_date' => date('Y-m-d'),
 						'particulars ' => 'From Receiving Report',
-						'dr_no'	=> $value['dr_no'],
-						'rr_no'	=> $value['rr_no'],
+						'dr_no'	=> $row->dr_no,
+						'rr_no'	=> $row->rr_no,
 						'process' => 'IN',
 						'product_id' => $row->item_code,
 						'item_price' =>$row->cost,
-						'remarks' => $value['remarks'],
-						'serialNo'	=> $value['serialNo'],
+						'remarks' => $row->remarks,
+						'serialNo'	=> $row->serialNo,
 						'p_sequence'=> $productList->id,
 						'quantity'=> 1,
 				        'transactedBy' => $value['transactedBy']
@@ -232,10 +232,10 @@ class InventoryController extends Controller
 					$inclusion = FisInclusions::updateOrCreate([
 					'fk_package_id'=> $row->package_id,
 					'item_id'=> $row->inventory_id,
-					'service_id '=> ' ',
+					'service_id '=> '-',
 					'quantity'=> $row->quantity,
-					'duration '=> ' ',
-					'type_duration '=> ' ',
+					'duration '=> '0',
+					'type_duration '=> '-',
 					'inclusionType'=> 'ITEM',
 					'service_price'=> $row->inventory_price,
 					'total_amount'=> $row->total_price,
@@ -247,9 +247,9 @@ class InventoryController extends Controller
 				else if(($row->inventory_type) == 'SERV'){
 					$inclusion = FisInclusions::updateOrCreate([
 					'fk_package_id'=> $row->package_id,
-					'item_id'=> ' ',
+					'item_id'=> '-',
 					'service_id '=> $row->inventory_id,
-					'quantity'=> ' ',
+					'quantity'=> '0',
 					'duration '=> $row->service_length,
 					'type_duration '=> $row->service_type,
 					'inclusionType'=> 'SERV',
@@ -402,9 +402,10 @@ class InventoryController extends Controller
 	public function getProductList(Request $request) {
 		$value = (array)json_decode($request->post()['prodList']);
 		try {
-		$user_check = DB::select(DB::raw("SELECT I.item_name, P.fk_item_id, P.batch_no, P.branch, P.serialNo, P.rr_no, P.dr_no, P.isEncumbered, P.price
+		$user_check = DB::select(DB::raw("SELECT I.item_name, B.name as branchname, P.fk_item_id, P.batch_no, P.branch, P.serialNo, P.rr_no, P.dr_no, P.isEncumbered, P.price
 			FROM _fis_productList as P
 			FULL OUTER JOIN _fis_items AS I on P.fk_item_id = I.item_code 
+			LEFT JOIN _fis_branch AS B on P.branch = B.branchID
 			WHERE p.fk_item_id = '".$value['item_code']."'"));
 			if($user_check)
 
@@ -541,7 +542,7 @@ class InventoryController extends Controller
 	public function getAddPackageList(Request $request) {
 		$value="";
 		try {
-		$user_check = DB::select(DB::raw("SELECT package_code as value, package_name as label FROM _fis_package WHERE isActive = '1'"));
+		$user_check = DB::select(DB::raw("SELECT package_code as value, package_name as label FROM _fis_package"));
 			if($user_check)
 				return	$user_check;
 				else return [];
@@ -675,7 +676,7 @@ class InventoryController extends Controller
 			$supplier = FisSupplier::find($value['supplier_id']);
 	   		$supplier->update([
 			      'supplier_name' => $value['supplier_name'],
-			      'contact_number' => '+63'.$value['contact_number'],
+			      'contact_number' => $value['contact_number'],
 			      'address' => $value['address'],
 			      'transactedBy' => $value['transactedBy'],
 			      'date_updated' => date('Y-m-d')
