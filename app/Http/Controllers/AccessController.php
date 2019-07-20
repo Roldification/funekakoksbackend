@@ -323,7 +323,8 @@ class AccessController extends Controller
 			(
 			select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
 							case when left(i.item_code, 2)='01' then 1
-							else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=scv.package_class_id and item_id = i.item_code)
+							when (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=scv.package_class_id and item_id = i.item_code) >=1 then 1
+							else 0
 							end as ispackage
 							from _fis_item_sales sales
 							inner join _fis_items i on sales.product_id = i.item_code
