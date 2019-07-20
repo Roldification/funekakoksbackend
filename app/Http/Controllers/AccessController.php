@@ -201,7 +201,20 @@ class AccessController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['memberdata']);
 			
-			$memberProfile = FisMemberData::create([
+			if ($value['customer_id']!="") {
+			$memcount = FisMemberData::where(['customer_id'=>$value['customer_id']])->first();
+
+				if($memcount)
+				{
+					return [
+						'status'=>'unsaved',
+						'message'=>'Member Already Exists.'
+					];	
+				}
+			}
+
+			else{
+				$memberProfile = FisMemberData::create([
 				  'profile_type' => $value['profile_type'],
 			      'customer_id' => $value['customer_id'],
 			      'is_member' => $value['is_member'],
@@ -248,7 +261,7 @@ class AccessController extends Controller
 			      'incentives' => $informantValue['incentives'],
 			      'remarks' => $informantValue['remarks'],
 			      'date_inform' => $informantValue['date_inform'],
-			      'status' => 'UNCLAIM',
+			      'status' => 'UNCLAIMED',
 			      'fk_profile_id' => $memberProfile->id
 			  	]);
 
@@ -258,7 +271,7 @@ class AccessController extends Controller
 				'status'=>'saved',
 				'message'=>$memberProfile
 			];
-
+			} //else close
 
 		} catch (\Exception $e) {
 			return [
@@ -281,14 +294,14 @@ class AccessController extends Controller
 		$inclusions = DB::select(DB::raw("select * from
 		(select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
 				case when left(i.item_code, 2)='01' then 1
-				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=".$accounts[0]->package_class_id." and item_id = i.item_code)
+				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id='".$accounts[0]->package_class_id."' and item_id = i.item_code)
 				end as ispackage
 				from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
 				where contract_id=$id
 				union all
 				select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname, CAST(service_duration as varchar(3)) + ' ' + duration_unit as quantity, total_amount,
-				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id=".$accounts[0]->package_class_id." and service_id = s.id)ispackage
+				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id='".$accounts[0]->package_class_id."' and service_id = s.id)ispackage
 				from _fis_service_sales ss
 				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=$id
 				)dfa order by item_code"));
@@ -1576,12 +1589,14 @@ class AccessController extends Controller
 		try {
 			$user_check = DB::select(DB::raw("SELECT item_code, item_name, 0 as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM
 				_fis_items fi
+				WHERE isActive = '1' 
 				order by item_code asc
 				"));
 			
 			$services = DB::select(DB::raw("SELECT fs.id, service_name, 0 as amount, 0 as less,
 				0 as duration, '' as type_duration, 0 as tot_price, SLCode
-				FROM _fis_services fs"));
+				FROM _fis_services fs
+				WHERE isActive = '1'"));
 			
 			return [
 				'status'=>'ok',
@@ -1618,18 +1633,12 @@ class AccessController extends Controller
 			$value['burial_time'] = date_format(date_create($value['burial_time']), 'Y-m-d H:i:s');
 			$serviceContract = ServiceContract::create($value);
 			
-			$user_check = DB::select(DB::raw("select item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode from
-				(
-				SELECT item_code, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi
-				left join 
-				(
-				select * from _fis_package_inclusions
-				where fk_package_id='".$serviceContract->package_class_id."'
-				and inclusionType='ITEM'
-				)b on fi.item_code = b.item_id
-				)sdf
-				order by quantity desc,  item_code asc
-				"));
+			$user_check = DB::select(DB::raw("SELECT item_code, item_name, isActive, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode FROM
+				(SELECT item_code, isActive, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi 
+				LEFT JOIN (SELECT * FROM _fis_package_inclusions
+				WHERE fk_package_id='".$serviceContract->package_class_id."'
+				AND inclusionType='Item')b ON fi.item_code = b.item_id WHERE isActive='1')sdf 
+				ORDER BY quantity desc, item_code asc"));
 			
 			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,

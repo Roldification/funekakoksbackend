@@ -60,8 +60,14 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	// TC Cares
 	Route::post('insert-plan-profile', 'CaresController@insertPlanProfile');
 	Route::post('update-plan-info', 'CaresController@updatePlanInfo');
-	//
 
+	Route::post('insert-plan-package', 'CaresController@insertPlanPackage');
+	Route::post('insert-plan-inclusions', 'CaresController@insertPlanInclusions');
+	Route::post('get-inclusion-cares', 'CaresController@getInclusionCares');
+	Route::post('delete-cares-inc', 'CaresController@deleteCaresInc');
+	Route::post('plan-activation', 'CaresController@planActivation');
+	
+	//
 	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
 	Route::post('update-info', 'AccessController@updateInfo');
@@ -112,7 +118,6 @@ Route::get('statement-print', 'AccessController@statementPrint');
 Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');
 Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');
 Route::get('get-slcode', 'AccessController@getSLCode')->middleware('cors');
-Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');
 Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');
 Route::get('get-inventory-search', 'AccessController@getInventorySearch')->middleware('cors');
 Route::get('get-contract-list', 'AccessController@getContractList')->middleware('cors');
@@ -129,6 +134,8 @@ Route::get('get-details-of-contract', 'ServiceContractController@getDetailsOfCon
 
 // TC Cares
 Route::get('get-member-plan-info', 'CaresController@getMemberPlanInfo')->middleware('cors');
+Route::get('get-plan-package', 'CaresController@getPlanPackage')->middleware('cors');
+Route::get('get-cares-package', 'CaresController@getCaresPackage')->middleware('cors');
 
 // Incentives
 Route::get('get-incentives', 'AccessController@getIncentives')->middleware('cors');
