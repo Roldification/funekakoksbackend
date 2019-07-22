@@ -59,14 +59,16 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	// TC Cares
 	Route::post('insert-plan-profile', 'CaresController@insertPlanProfile');
-	Route::post('update-plan-info', 'CaresController@updatePlanInfo');
-
+	Route::post('update-plan', 'CaresController@updatePlan');
 	Route::post('insert-plan-package', 'CaresController@insertPlanPackage');
 	Route::post('insert-plan-inclusions', 'CaresController@insertPlanInclusions');
 	Route::post('get-inclusion-cares', 'CaresController@getInclusionCares');
 	Route::post('delete-cares-inc', 'CaresController@deleteCaresInc');
 	Route::post('plan-activation', 'CaresController@planActivation');
-	
+	Route::post('get-packages', 'CaresController@getPackages');
+	Route::post('get-plan-inclusions', 'CaresController@getPlanInclusions');
+	Route::post('get-active-package-data', 'CaresController@getActivePackageData');
+
 	//
 	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
@@ -136,6 +138,7 @@ Route::get('get-details-of-contract', 'ServiceContractController@getDetailsOfCon
 Route::get('get-member-plan-info', 'CaresController@getMemberPlanInfo')->middleware('cors');
 Route::get('get-plan-package', 'CaresController@getPlanPackage')->middleware('cors');
 Route::get('get-cares-package', 'CaresController@getCaresPackage')->middleware('cors');
+Route::get('get-plan-package-active', 'CaresController@getPlanPackageActive')->middleware('cors');
 
 // Incentives
 Route::get('get-incentives', 'AccessController@getIncentives')->middleware('cors');
