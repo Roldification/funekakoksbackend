@@ -52,7 +52,7 @@ class ServiceContractController extends Controller
 				
 				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee,
 					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.status, sc.signee as signee_id
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -264,6 +264,21 @@ class ServiceContractController extends Controller
 			$value = [];
 			
 			$value_api = (array)json_decode($request->post()['servicecontract']);
+			
+			try {
+				$user = SystemUser::where(
+						[
+								'Password'=>$value_api['password_input'],
+								'UserName'=>$value_api['username'],
+								
+						])->firstOrFail();
+						
+			} catch (\Exception $e) {
+				return [
+						'status'=>'unsaved',
+						'message'=>'Incorrect Password'
+				];
+			}
 			
 			
 			$salesDetails = DB::select(DB::raw("select total_amount, balance, status, isPosted, fun_branch, '-' as sc_deceased, id, OR_no, client from _fis_itemsales_header
@@ -575,7 +590,7 @@ class ServiceContractController extends Controller
 						'balance'=>$remainingbalance_sales,
 						'reference_no'=>"(".$transaction->reference_no.")",
 						'payment_date'=>date('Y-m-d'),
-						'transactedBy'=>'hcalio',
+						'transactedBy'=>$paydetails['username'],
 						'payment_mode'=>$transaction->payment_mode,
 						'isCancelled'=>0,
 						'isRemitted'=>0,
@@ -600,7 +615,7 @@ class ServiceContractController extends Controller
 				$acctgHeader_pay['branch_code'] = $salesHead->fun_branch;
 				$acctgHeader_pay['transaction_date'] = date('Y-m-d');
 				$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
-				$acctgHeader_pay['username'] = 'hcalio';
+				$acctgHeader_pay['username'] = $paydetails['username'];
 				$acctgHeader_pay['reference'] = "CNMercPay-".$transaction->reference_no;
 				$acctgHeader_pay['status'] = $paytype->trantype;
 				$acctgHeader_pay['particulars'] = "Cancellation of Merch Payment w/ Ref. #".$transaction->reference_no;
@@ -760,7 +775,7 @@ class ServiceContractController extends Controller
 					'reference_no'=>'('.$payment->reference_no.')',
 					'payment_date'=>date('Y-m-d'),
 					'payment_mode'=>$payment->payment_mode,
-					'transactedBy'=>'hcalio',
+					'transactedBy'=>$paydetails['username'],
 					'isCancelled'=>0,
 					'isRemitted'=>0,
 					'remittedTo'=>'',
@@ -782,7 +797,7 @@ class ServiceContractController extends Controller
 			$acctgHeader_pay['branch_code'] = $contract->fun_branch;
 			$acctgHeader_pay['transaction_date'] = date('Y-m-d');
 			$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
-			$acctgHeader_pay['username'] = 'hcalio';
+			$acctgHeader_pay['username'] = $paydetails['username'];
 			$acctgHeader_pay['reference'] = "CSCPay".$contract->contract_no."-".$payment->reference_no;
 			$acctgHeader_pay['status'] = $paytype->trantype;
 			$acctgHeader_pay['particulars'] = "Posting of Cancellation of SC Payment w/ SC #".$contract->contract_no;

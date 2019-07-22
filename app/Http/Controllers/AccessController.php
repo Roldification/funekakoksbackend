@@ -336,7 +336,8 @@ class AccessController extends Controller
 			(
 			select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
 							case when left(i.item_code, 2)='01' then 1
-							else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=scv.package_class_id and item_id = i.item_code)
+							when (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id=scv.package_class_id and item_id = i.item_code) >=1 then 1
+							else 0
 							end as ispackage
 							from _fis_item_sales sales
 							inner join _fis_items i on sales.product_id = i.item_code
@@ -756,7 +757,7 @@ class AccessController extends Controller
 	   				
 	   				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.status, sc.signee as signee_id
 					from _fis_service_contract sc
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
