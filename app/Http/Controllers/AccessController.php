@@ -236,8 +236,8 @@ class AccessController extends Controller
 			      'deathPlace' => $deceaseValue['deathPlace'],
 			      'religion' => $deceaseValue['religion'],
 			      'primary_branch' => $deceaseValue['primary_branch'],
-			      'servicing_branch' => $deceaseValue['relationToSignee'],
-			      'relationToSignee' => $deceaseValue['servicing_branch'],
+			      'servicing_branch' => $deceaseValue['servicing_branch'],
+			      'relationToSignee' => $deceaseValue['relationToSignee'],
 			      'fk_profile_id' => $memberProfile->id
 				]);
 

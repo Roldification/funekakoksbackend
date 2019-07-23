@@ -80,7 +80,7 @@ class InventoryController extends Controller
 						'date_received' => $value['date_received'],
 						'transactedBy' => $value['transactedBy'],
 						'total_amount'=> $value['total_amount'],
-						'branchCode'=> $value['branchCode'],
+						'branchCode'=> $row->branch_id,
 						'rr_no'	=> $row->rr_no,
 		        		'po_no'	=> $row->po_no,
 				        'dr_no'	=> $row->dr_no,
@@ -97,7 +97,7 @@ class InventoryController extends Controller
 						'fk_item_id' => $row->item_code,
 						'batch_no' =>$rr->id,
 						'serialNo'	=> $row->serialNo,
-						'branch'=> $value['branchCode'],
+						'branch'=> $row->branch_id,
 		        		'rr_no'	=> $row->rr_no,
 				        'dr_no'	=> $row->dr_no,
 				        'isEncumbered'	=> 1,
@@ -594,9 +594,10 @@ class InventoryController extends Controller
 		$value = (array)json_decode($request->post()['supplierData']);
 		try {
 		$supplier = DB::select(DB::raw("SELECT S.supplier_id, S.supplier_name, RR.supplier_id, RR.rr_no, RR.po_no, RR.dr_no, 
-			RR.serialNo, RR.date_received, RR.item_name, RR.cost, RR.remarks
-			FROM _fis_receiving_report as RR
-			FULL OUTER JOIN _fis_supplier AS S on RR.supplier_id = S.supplier_id
+			RR.serialNo, RR.date_received, RR.item_name, RR.cost, RR.remarks, B.name
+			FROM _fis_receiving_report AS RR
+			FULL OUTER JOIN _fis_supplier AS S ON RR.supplier_id = S.supplier_id
+			left JOIN _fis_branch AS B ON RR.branchCode = B.branchID
 			WHERE RR.supplier_id = '".$value['supplier_id']."'"));
 			if($supplier)
 			return	$supplier;

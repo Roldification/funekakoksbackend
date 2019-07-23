@@ -9,6 +9,7 @@ use App\FisPlanPackage;
 use App\FisCaresInclusion;
 use App\FisCaresPackage;
 use App\FisCreateContract;
+use App\FisContractProf;
 
 class CaresController extends Controller
 {
@@ -31,13 +32,26 @@ class CaresController extends Controller
 		       	'b_lastName' => $value['b_lastName'],
 				'b_relationship' => $value['b_relationship'],
 				'b_contact_number' => '+63'.$value['b_contact_number'],
-
 				'date_created' => date('Y-m-d'),
 				'transactedBy' => $value['transactedBy']
 			]);
+
+			$contract = FisContractProf::create([
+					'fk_profile_id'=> $planProfile->id,
+		   			'package_code'=>' ',
+		   			'dateIssue'=>' ',
+		   			'payingPeriod'=>' ',
+		   			'modePayment'=>' ',
+		   			'contractPrice'=>0,
+		   			'amountInstalment'=>0,
+		   			'firstPayment'=>0,
+		   			'dueDate'=>' ',
+		   			'isActive' => 0,
+		   			'balance' => 0,
+			]);
 			return [
 				'status'=>'saved',
-				'message'=>$planProfile
+				'message'=>$planProfile, $contract
 			];
 			
 		} catch (\Exception $e) {
@@ -58,9 +72,9 @@ class CaresController extends Controller
 			P.b_firstName, P.b_middleName, P.b_lastName,
 			P.b_relationship, P.b_contact_number,
 			C.package_code, C.fk_profile_id, C.dateIssue, C.payingPeriod, C.modePayment, 
-			C.contractPrice, C.amountInstalment, C.firstPayment, C.dueDate
+			C.contractPrice, C.amountInstalment, C.firstPayment, C.dueDate, C.isActive, C.balance
 			FROM _fis_cares_profile AS P
-			INNER JOIN _fis_cares_contract AS C ON C.FK_PROFILE_ID = P.ID
+			LEFT JOIN _fis_cares_contract AS C ON C.FK_PROFILE_ID = P.ID
 			"));	
 
 			if($info)
@@ -82,37 +96,9 @@ class CaresController extends Controller
 				$value['dateIssue'] = date('Y-m-d', strtotime($value['dateIssue']));
 				$value['dueDate'] = date('Y-m-d', strtotime($value['dueDate']));
 				
-				if ($value['id']!="") {
-					$memcount = FisCreateContract::where(['fk_profile_id'=>$value['id']])->first();
-				if($memcount)
-				{
-					return [
-						'status'=>'unsaved',
-						'message'=>'Contract Already Exists.'
-					];	
-				}
-				}
-
-				else{
-					$contract_info = FisCaresPlan::find($value['membership_id']);
-		   			$contract_info->update([
-		   				'membership_id'=>$value['membership_id'],
-		   				'firstName'=>$value['firstName'],
-		   				'middleName'=>$value['middleName'],
-		   				'address'=>$value['address'],
-		   				'contact_number'=>$value['contact_number'],
-		   				'b_firstName'=>$value['b_firstName'],
-		   				'b_middleName'=>$value['b_middleName'],
-		   				'b_lastName'=>$value['b_lastName'],
-		   				'b_relationship'=>$value['b_relationship'],
-		   				'b_contact_number'=>$value['b_contact_number'],
-		   				'transactedBy'=>$value['transactedBy'],
-		   				'date_created' => date('Y-m-d'),
-
-		   			]);
-
-		   			$contract = FisCreateContract::create([
-		   				'fk_profile_id'=>$value['id'],
+				$contract = FisCreateContract::find($value['fk_profile_id']);
+	   			$contract->update([
+		   				'fk_profile_id'=>$value['fk_profile_id'],
 		   				'package_code'=>$value['package_code'],
 		   				'dateIssue'=>$value['dateIssue'],
 		   				'payingPeriod'=>$value['payingPeriod'],
@@ -123,16 +109,16 @@ class CaresController extends Controller
 		   				'dueDate'=>$value['dueDate'],
 		   				'transactedBy'=>$value['transactedBy'],
 		   				'date_created' => date('Y-m-d'),
-
-		   			]);
-			
-					return [
+		   				'isActive' => 1,
+		   				'balance' => $value['balance']
+			   	]);
+				
+				return [
 						'status'=>'saved',
-						'message'=>$contract, $contract_info
+							'message'=> $contract
 					];
-				}
+				
 
-			
 		} catch (\Exception $e) {
 			
 			return [
@@ -141,6 +127,8 @@ class CaresController extends Controller
 			];	
 		}
 	}
+
+	
 
 
 	public function insertPlanPackage(Request $request) {
