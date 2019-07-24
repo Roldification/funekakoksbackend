@@ -213,7 +213,7 @@ class AccessController extends Controller
 				}
 			}
 
-			else{
+
 				$memberProfile = FisMemberData::create([
 				  'profile_type' => $value['profile_type'],
 			      'customer_id' => $value['customer_id'],
@@ -227,7 +227,7 @@ class AccessController extends Controller
 			      'transactedBy' => $value['transactedBy']
 				]);
 
-			if(($value['profile_type']) == 'Decease'){
+				if(($value['profile_type']) == 'Decease'){
 				$deceaseValue = (array)json_decode($request->post()['memberdata']);
 				$memberProfileDeceased = FisDeceased::create([
 				  'birthday' => date('Y-m-d', strtotime($deceaseValue['birthday'])),
@@ -236,42 +236,42 @@ class AccessController extends Controller
 			      'deathPlace' => $deceaseValue['deathPlace'],
 			      'religion' => $deceaseValue['religion'],
 			      'primary_branch' => $deceaseValue['primary_branch'],
-			      'servicing_branch' => $deceaseValue['relationToSignee'],
-			      'relationToSignee' => $deceaseValue['servicing_branch'],
+			      'servicing_branch' => $deceaseValue['servicing_branch'],
+			      'relationToSignee' => $deceaseValue['relationToSignee'],
 			      'fk_profile_id' => $memberProfile->id
 				]);
 
 
-			}
+				}
 
-			if (($value['profile_type']) == 'Signee') {
-				$signeeValue = (array)json_decode($request->post()['memberdata']);
-				$memberProfileSignee= FisSignee::create([
-			      'fb_account' => $signeeValue['fb_account'],
-			      'email_address' => $signeeValue['email_address'],
-			      'fk_profile_id' => $memberProfile->id
-				]);
-			}
+				if (($value['profile_type']) == 'Signee') {
+					$signeeValue = (array)json_decode($request->post()['memberdata']);
+					$memberProfileSignee= FisSignee::create([
+				      'fb_account' => $signeeValue['fb_account'],
+				      'email_address' => $signeeValue['email_address'],
+				      'fk_profile_id' => $memberProfile->id
+					]);
+				}
 			
-			if (($value['profile_type']) == 'Informant') {
-				$informantValue = (array)json_decode($request->post()['memberdata']);
+				if (($value['profile_type']) == 'Informant') {
+					$informantValue = (array)json_decode($request->post()['memberdata']);
 
-				$informantValue['date_inform'] = date('Y-m-d', strtotime($informantValue['date_inform']));
-				$memberProfile = FisInformant::create([
-			      'incentives' => $informantValue['incentives'],
-			      'remarks' => $informantValue['remarks'],
-			      'date_inform' => $informantValue['date_inform'],
-			      'status' => 'UNCLAIMED',
-			      'fk_profile_id' => $memberProfile->id
-			  	]);
+					$informantValue['date_inform'] = date('Y-m-d', strtotime($informantValue['date_inform']));
+					$memberProfile = FisInformant::create([
+				      'incentives' => $informantValue['incentives'],
+				      'remarks' => $informantValue['remarks'],
+				      'date_inform' => $informantValue['date_inform'],
+				      'status' => 'UNCLAIMED',
+				      'fk_profile_id' => $memberProfile->id
+				  	]);
 
-			}
+				}
 			
-			return [
-				'status'=>'saved',
-				'message'=>$memberProfile
-			];
-			} //else close
+				return [
+					'status'=>'saved',
+					'message'=>$memberProfile
+				];
+		
 
 		} catch (\Exception $e) {
 			return [
