@@ -258,6 +258,229 @@ class ServiceContractController extends Controller
 		
 	}
 	
+	
+	public function transferItemDetails(Request $request)
+	{
+		try {
+			$value = [];
+			$fromBranch = $request->post()['branch'];
+			
+			$branches = FisBranch::select('branchID as value', 'name as label')->where('branchID', '<>', $fromBranch)->get();
+			
+			$items = DB::select(DB::raw("select item_code as value, item_name as label from _fis_items where isActive=1"));
+			
+			return [
+					'status'=>'success',
+					'message'=> [
+							'branches'=>$branches,
+							'items'=>$items
+					]
+			];
+			
+			
+		} catch (\Exception $e) {
+			
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
+	public function processTransfer(Request $request)
+	{
+		$value = (array)json_decode($request->post()['transfer_details']);
+		
+		try {
+			DB::beginTransaction();
+			$dbDestinationBranch = DB::connection('sqlsrv');
+			$dbDestinationBranch->beginTransaction();
+			
+			$valarr = array_count_values(array_column($value['itemList'], 'id'));
+			$equivalence = array_sum($valarr) / count($valarr);
+			
+			if($equivalence!=1)
+				return [
+						'status' => 'unsaved',
+						'message' => 'Serial No. repitition found. Make sure we do not repeat serial no.',
+				];
+		    
+			
+			foreach ($value['itemList'] as $row)
+			{
+				/*
+				 * 1. out sa source branch
+				 * 2. entry sa source branch
+				 * 3. in sa destination branch
+				 * 4. entry sa destination branch
+				 */
+				 
+				try {
+					$productList = FisProductList::where([
+							'id'=>$row->id,
+							'isEncumbered'=>1,
+					])->firstOrFail();
+					
+					
+					
+					if(!$productList)
+						return [
+								'status'=>'unsaved',
+								'message'=>'No item available for '.$row->item_name.'.'
+						];
+						
+					
+						FisItemInventory::create(
+								[
+										'transaction_date'=>date('Y-m-d'),
+										'particulars'=>'Transferred to '.$value['transferTo'],
+										'contract_id'=>'-',
+										'dr_no'=>'-',
+										'rr_no'=>'-',
+										'process'=>'TRAN-OUT',
+										'remaining_balance'=>0,
+										'product_id'=>$row->item_code,
+										'quantity'=>1,
+										'item_price'=>$row->sell_price,
+										'remarks'=>'-',
+										'serialNo'=>'-',
+										'p_sequence'=>$row->id,
+										'fk_sales_id'=>0,
+										'fk_ORNo'=>'',
+										'transactedBy'=>$value['transactedBy']
+								]);
+
+						$productList->update([
+								'isEncumbered'=>0
+						]);
+						
+						
+						/*
+						 * part 2
+						 */
+
+						$productListSource = new FisProductList;
+						$productListSource->setConnection('sqlsrv');
+						
+						$productNew = $productListSource::create([
+								'fk_item_id' => $row->item_code,
+								'batch_no' =>$productList->batch_no,
+								'serialNo'	=> $row->serialno,
+								'branch'=> $value['transferTo'],
+								'rr_no'	=> $productList->rr_no,
+								'dr_no'	=> $productList->dr_no,
+								'isEncumbered'	=> 1,
+								'price' => $row->sell_price,
+								'date_entry' => date('Y-m-d'),
+								'transactedBy' => $value['transactedBy']
+						]);	
+						
+						$inventoryitem = new FisItemInventory;
+						$inventoryitem->setConnection('sqlsrv');
+						$newInventory = $inventoryitem::create(
+								[
+										'transaction_date'=>date('Y-m-d'),
+										'particulars'=>'Transferred from '.$value['transferFrom'],
+										'contract_id'=>'-',
+										'dr_no'=>'-',
+										'rr_no'=>'-',
+										'process'=>'IN',
+										'remaining_balance'=>0,
+										'product_id'=>$row->item_code,
+										'quantity'=>1,
+										'item_price'=>$row->sell_price,
+										'remarks'=>'-',
+										'serialNo'=>'-',
+										'p_sequence'=>$productNew->id,
+										'fk_sales_id'=>0,
+										'fk_ORNo'=>'',
+										'transactedBy'=>$value['transactedBy']
+								]);
+						
+					
+				}
+				catch(\Exception $e)
+				{
+					DB::rollback();
+					$dbDestinationBranch->rollBack();
+					
+					return [
+							'status'=>'unsaved',
+							'message'=>$e->getMessage()
+					];
+					break;
+				}
+
+			}
+			
+			DB::commit();
+			$dbDestinationBranch->commit();
+			
+			return [
+					'status'=>'saved',
+					'message'=>'Successfully Transferred Items.'
+					];
+			
+			
+		} catch (\Exception $e) {
+			DB::rollback();
+			$dbDestinationBranch->rollBack();
+			
+			return [
+					'status'=>'unsaved',
+					'message'=> $e->getMessage()
+			];
+		}
+		
+	}
+	
+	
+	public function getTheItems(Request $request)
+	{
+		try {
+			$item_code = $request->post()['fk_item_code'];
+			$branch = $request->post()['branch'];
+			$quantity = $request->post()['quantity'];
+			$itemSelection = [];
+			$itemPresentation = [];
+			
+			$itemSelection = DB::select(DB::raw("SELECT fk_item_id, id as value, serialno as label, price as sublabel from
+						_fis_productlist where isEncumbered=1 and branch='".$branch."'
+						and fk_item_id='".$item_code."'"));
+			
+		
+			
+			
+			$itemPresentation = DB::select(DB::raw("select top ".$quantity." item_code, item_name, pl.id, serialno, pl.price as sell_price, SLCode from _fis_productlist pl
+					inner join _fis_items i on pl.fk_item_id = i.item_code
+					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$item_code."'
+					order by id"));
+			
+			if(count($itemPresentation)!=$quantity)
+				return [
+						'status'=>'error',
+						'message'=>'Insufficient count for selected item. Only '.count($itemPresentation).' left.'
+				];
+				
+		
+			return [
+					'status'=>'success',
+					'selection' => $itemSelection,
+					'presentation' => $itemPresentation,
+					
+			];
+			
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+	
 	public function unpostSales(Request $request)
 	{
 		try {
@@ -1182,7 +1405,10 @@ class ServiceContractController extends Controller
 	
 	public function getAccountsOfClient(Request $request)
 	{
-		$clientid = $request->post()['client'];
+		$client =  (array)json_decode($request->post()['client']);
+		
+		$clientid = $client['client'];
+		$branch = $client['branch'];
 		
 		try {
 			$signee = FisMemberData::find($clientid);
@@ -1190,8 +1416,8 @@ class ServiceContractController extends Controller
 			if($signee->profile_type=='Signee')
 			{
 				
-				$contracts = DB::select(DB::raw("select contract_id, contract_no, contract_date, contract_amount, contract_balance, status from _fis_service_contract where signee=$clientid"));
-				$merchandises = DB::select(DB::raw("select id, OR_no as reference_no, date as posting_date, total_amount as amount, balance, status from _fis_itemsales_header where signee_id=$clientid"));
+				$contracts = DB::select(DB::raw("select contract_id, contract_no, contract_date, contract_amount, contract_balance, status from _fis_service_contract where signee=$clientid and fun_branch='".$branch."'"));
+				$merchandises = DB::select(DB::raw("select id, OR_no as reference_no, date as posting_date, total_amount as amount, balance, status from _fis_itemsales_header where signee_id=$clientid and fun_branch='".$branch."'"));
 				
 				return [
 						'status'=>'success',

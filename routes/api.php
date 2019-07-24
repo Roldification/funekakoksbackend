@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-user', 'AccessController@insertAccess');
 	Route::post('get-accounts-of-client', 'ServiceContractController@getAccountsOfClient');
+	Route::post('process-transfer', 'ServiceContractController@processTransfer');
 	Route::post('update-contract', 'ServiceContractController@updateContract');
 	Route::post('login-user', 'AccessController@loginUser');
 	Route::post('insert-contract', 'AccessController@insertContract');
@@ -106,6 +107,8 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 //though not suggested, you are welcome to just put GET requests here, request here does not need authentication.
 Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
 Route::get('get-informant', 'AccessController@getInformant')->middleware('cors');
+Route::get('transfer-item-details', 'ServiceContractController@transferItemDetails')->middleware('cors');
+Route::get('get-the-items', 'ServiceContractController@getTheItems')->middleware('cors');
 Route::get('get-contract-info', 'ServiceContractController@getContractInfo')->middleware('cors');
 Route::get('get-purchase-details', 'ServiceContractController@getPurchaseDetails')->middleware('cors');
 Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->middleware('cors');
