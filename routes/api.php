@@ -139,6 +139,7 @@ Route::get('get-member-plan-info', 'CaresController@getMemberPlanInfo')->middlew
 Route::get('get-plan-package', 'CaresController@getPlanPackage')->middleware('cors');
 Route::get('get-cares-package', 'CaresController@getCaresPackage')->middleware('cors');
 Route::get('get-plan-package-active', 'CaresController@getPlanPackageActive')->middleware('cors');
+Route::get('get-plan-contract-details', 'CaresController@getPlanContractDetails')->middleware('cors');
 
 // Incentives
 Route::get('get-incentives', 'AccessController@getIncentives')->middleware('cors');

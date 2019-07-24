@@ -259,7 +259,7 @@ class CaresController extends Controller
 	public function getCaresPackage(Request $request) {
 		$value="";
 		try {
-		$package = DB::select(DB::raw("SELECT package_code, isActive, standardPrice, discount, salesPrice FROM _fis_cares_package"));
+		$package = DB::select(DB::raw("SELECT package_code, package_name, isActive, standardPrice, discount, salesPrice FROM _fis_cares_package"));
 			if($package)
 				return	$package;
 				else return [];
@@ -359,6 +359,22 @@ class CaresController extends Controller
 		$value = (array)json_decode($request->post()['package_code']);
 		try {
 		$package = DB::select(DB::raw("SELECT package_code, package_name, salesPrice FROM _fis_cares_package where package_code = '".$value['package_code']."'"));
+			if($package)
+				return	$package;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getPlanContractDetails(Request $request) {
+		$value="";
+		try {
+		$package = DB::select(DB::raw("SELECT package_code as value, package_name as label from _fis_cares_package where isActive = '1'"));
 			if($package)
 				return	$package;
 				else return [];
