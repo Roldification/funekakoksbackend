@@ -28,6 +28,7 @@ use App\FisCharging;
 use App\FisSCPayments;
 use App\FisPaymentType;
 use App\FisSalesTransaction;
+use App\FisItemTransfer;
 
 class ServiceContractController extends Controller
 {
@@ -330,6 +331,13 @@ class ServiceContractController extends Controller
 								'message'=>'No item available for '.$row->item_name.'.'
 						];
 						
+						
+					/*	FisItemTransfer::create([
+								'transferFrom'=>$value['']
+						]); */
+						
+						
+						
 					
 						FisItemInventory::create(
 								[
@@ -354,6 +362,49 @@ class ServiceContractController extends Controller
 						$productList->update([
 								'isEncumbered'=>0
 						]);
+						
+						if(strlen($row->SLCode)>1)
+						{
+							$acctgHeader = [];
+							$acctgHeader['branch_code'] = $value['transferFrom'];
+							$acctgHeader['transaction_date'] = date('Y-m-d');
+							$acctgHeader['transaction_code'] = "JNLVOUCHER";
+							$acctgHeader['username'] = $value['transactedBy'];
+							$acctgHeader['reference'] = "TRAN-OUT-".$row->id;
+							$acctgHeader['status'] = 1;
+							$acctgHeader['particulars'] = "Funecare Item Transfer #".$row->id;
+							$acctgHeader['customer'] = "";
+							$acctgHeader['checkno'] = "";
+							
+							$currentBranch = FisBranch::where([
+									'branchID'=>$value['transferFrom']
+							])->firstOrFail();
+							
+							$acctgDetails = [];
+							$pushDetails = [];
+							
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['amount']= $row->sell_price;
+							$pushDetails['detail_particulars']="To record transfer of ".$row->item_name." from ".$value['transferFrom']." to ".$value['transferTo'];
+							array_push($acctgDetails, $pushDetails);
+							
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							$pushDetails['amount']= $row->sell_price;
+							$pushDetails['detail_particulars']="To record transfer of ".$row->item_name." from ".$value['transferFrom']." to ".$value['transferTo'];
+							array_push($acctgDetails, $pushDetails);
+							
+							
+							$saveAccounting = AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
+							
+							if(!$saveAccounting['status']=='saved')
+							{
+								DB::rollback();
+								return $saveAccounting;
+							}
+						}
+						
 						
 						
 						/*
@@ -385,7 +436,7 @@ class ServiceContractController extends Controller
 										'contract_id'=>'-',
 										'dr_no'=>'-',
 										'rr_no'=>'-',
-										'process'=>'IN',
+										'process'=>'TRAN-IN',
 										'remaining_balance'=>0,
 										'product_id'=>$row->item_code,
 										'quantity'=>1,
@@ -398,7 +449,49 @@ class ServiceContractController extends Controller
 										'transactedBy'=>$value['transactedBy']
 								]);
 						
-					
+						
+						if(strlen($row->SLCode)>1)
+						{
+							$acctgHeader = [];
+							$acctgHeader['branch_code'] = $value['transferTo'];
+							$acctgHeader['transaction_date'] = date('Y-m-d');
+							$acctgHeader['transaction_code'] = "JNLVOUCHER";
+							$acctgHeader['username'] = $value['transactedBy'];
+							$acctgHeader['reference'] = "TRAN-IN-".$row->id;
+							$acctgHeader['status'] = 1;
+							$acctgHeader['particulars'] = "Funecare Item Transfer #".$row->id;
+							$acctgHeader['customer'] = "";
+							$acctgHeader['checkno'] = "";
+							
+							$destinationBranch = FisBranch::where([
+									'branchID'=>$value['transferTo']
+							])->firstOrFail();
+							
+							$acctgDetails = [];
+							$pushDetails = [];
+							
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['amount']= $row->sell_price;
+							$pushDetails['detail_particulars']="To record transfer of ".$row->item_name." from ".$value['transferFrom']." to ".$value['transferTo'];
+							array_push($acctgDetails, $pushDetails);
+							
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $destinationBranch->borrowHO;
+							$pushDetails['amount']= $row->sell_price;
+							$pushDetails['detail_particulars']="To record transfer of ".$row->item_name." from ".$value['transferFrom']." to ".$value['transferTo'];
+							array_push($acctgDetails, $pushDetails);
+							
+							
+							$saveAccounting = AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
+							
+							if(!$saveAccounting['status']=='saved')
+							{
+								DB::rollback();
+								return $saveAccounting;
+							}
+						}
+
 				}
 				catch(\Exception $e)
 				{

@@ -226,7 +226,7 @@
 	    	 			   	 			
 	    	 		</tr>
 	    	 		<tr>
-	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">Ms. Maria April Villanueva</font></td> 
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">MS. MARIA APRIL VILLANUEVA</font></td> 
 	    	 		</tr>
 	    	 		<tr>
 	    	 			<td><font face="segoeui" style="font-size: 9px;">FuneCare Service Manager</font></td> 
@@ -239,7 +239,7 @@
 	    	 			   	 			
 	    	 		</tr>
 	    	 		<tr>
-	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">Ms. Juris D. Perez, CPA, MBA</font></td> 
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">MS. JURIS D. PEREZ, CPA, MBA</font></td> 
 	    	 		</tr>
 	    	 		<tr>
 	    	 			<td><font face="segoeui" style="font-size: 9px;">Chief Executive Officer</font></td> 
