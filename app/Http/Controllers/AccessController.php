@@ -208,7 +208,7 @@ class AccessController extends Controller
 				{
 					return [
 						'status'=>'unsaved',
-						'message'=>'Member Already Exists.'
+						'message'=>'Member Already Exist.'
 					];	
 				}
 			}
