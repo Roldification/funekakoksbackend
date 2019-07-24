@@ -1405,7 +1405,10 @@ class ServiceContractController extends Controller
 	
 	public function getAccountsOfClient(Request $request)
 	{
-		$clientid = $request->post()['client'];
+		$client =  (array)json_decode($request->post()['client']);
+		
+		$clientid = $client['client'];
+		$branch = $client['branch'];
 		
 		try {
 			$signee = FisMemberData::find($clientid);
@@ -1413,8 +1416,8 @@ class ServiceContractController extends Controller
 			if($signee->profile_type=='Signee')
 			{
 				
-				$contracts = DB::select(DB::raw("select contract_id, contract_no, contract_date, contract_amount, contract_balance, status from _fis_service_contract where signee=$clientid"));
-				$merchandises = DB::select(DB::raw("select id, OR_no as reference_no, date as posting_date, total_amount as amount, balance, status from _fis_itemsales_header where signee_id=$clientid"));
+				$contracts = DB::select(DB::raw("select contract_id, contract_no, contract_date, contract_amount, contract_balance, status from _fis_service_contract where signee=$clientid and fun_branch='".$branch."'"));
+				$merchandises = DB::select(DB::raw("select id, OR_no as reference_no, date as posting_date, total_amount as amount, balance, status from _fis_itemsales_header where signee_id=$clientid and fun_branch='".$branch."'"));
 				
 				return [
 						'status'=>'success',
