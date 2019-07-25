@@ -144,37 +144,40 @@ class InventoryController extends Controller
 	public function insertInventory(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['inventorydata']);
-			$inventoryItems = FisItems::create([
+
+			if ($value['isInventoriable'] == 1) {
+				$inventoryItems = FisItems::create([
 				  'item_code' => $value['code'].'-'.$value['item_code'],
 			      'item_name' => $value['item_name'],
 			      'unit_type' => $value['unit_type'],
-			      'BatchNo' => $value['BatchNo'],
+			      'BatchNo' => '-',
 			      'SLCode' => $value['SLCode'],
 			      'income_SLCode' => $value['income_SLCode'],
 			      'isActive' => 1,
 			      'isInventoriable' => $value['isInventoriable'],
-			      'rr_no' => $value['rr_no'],
+			      'rr_no' => '-',
 			      'selling_price' => $value['selling_price'],
 			      'date_entry' => date('Y-m-d'),
 			      'transactedBy' => $value['transactedBy'],
 				]);
-			/*
-			foreach ($value as $row)
-			{
-				$selection = DB::select(DB::raw("select fk_item_id, id as value, serialno as label, price as sublabel from
-						_fis_productlist where isEncumbered=1 and branch='".$branch."'
-						and fk_item_id='".$row->item_code."'"));
-				
-				array_push($itemSelection, $selection);
-				
-				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id, pl.serialno, ".$row->price." as sell_price from _fis_productlist pl
-					inner join _fis_items i on pl.fk_item_id = i.item_code
-					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
-					order by id"));
-				
-				array_push($itemPresentation, $presentation);
-			} */
-			
+			}
+			elseif ($value['isInventoriable'] == 0) {
+				$inventoryItems = FisItems::create([
+				  'item_code' => $value['code'].'-'.$value['item_code'],
+			      'item_name' => $value['item_name'],
+			      'unit_type' => $value['unit_type'],
+			      'BatchNo' => ' ',
+			      'SLCode' => '-',
+			      'income_SLCode' => '-',
+			      'isActive' => 1,
+			      'isInventoriable' => $value['isInventoriable'],
+			      'rr_no' => ' ',
+			      'selling_price' => $value['selling_price'],
+			      'date_entry' => date('Y-m-d'),
+			      'transactedBy' => $value['transactedBy'],
+				]);
+			}
+
 			return [
 					'status'=>'saved',
 					'message'=>$inventoryItems
@@ -623,8 +626,7 @@ class InventoryController extends Controller
 			      'unit_type' => $value['unit_type'],
 			      'SLCode' => $value['SLCode'],
 			      'income_SLCode' => $value['income_SLCode'],
-			      'BatchNo' => $value['BatchNo'],
-			     // 'rr_no' => $value['rr_no'],
+			      'isInventoriable' => $value['isInventoriable'],
 			      'transactedBy' => $value['transactedBy'],
 			      'date_updated' => date('Y-m-d')
 				]);
