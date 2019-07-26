@@ -317,11 +317,11 @@ class AccessController extends Controller
 		}
 				
 				
-		$mpdf = new \Mpdf\Mpdf();
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
 	
 		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
 		$mpdf->WriteHTML(view('sc_printing', ['accounts'=>$accounts, 'inclusions'=>$inclusions, 'totalAdditionalAmount'=>$totalAdditionalAmount]));
-		$mpdf->showImageErrors = true;
+		$mpdf->use_kwt = true; 
 		$mpdf->Output();
 	}
 	
@@ -719,10 +719,24 @@ class AccessController extends Controller
 	   					]);
 	   					
 	   					
-	   					$pushDetails['entry_type']="CR";
-	   					$pushDetails['SLCode']= $row->SLCode;
-	   					$pushDetails['amount']= $row->tot_price;
-	   					$pushDetails['detail_particulars']="Income of ".$row->service_name." from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					if(strpos($row->service_name, "MEMBERSHIP"))
+	   					{
+	   						$pushDetails['entry_type']="CR";
+	   						$pushDetails['SLCode']= $currentBranch->borrowHO;
+	   						$pushDetails['amount']= $row->tot_price;
+	   						$pushDetails['detail_particulars']="To record Membership fee from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   						
+	   					}
+	   					
+	   					else
+	   					{
+	   						$pushDetails['entry_type']="CR";
+	   						$pushDetails['SLCode']= $row->SLCode;
+	   						$pushDetails['amount']= $row->tot_price;
+	   						$pushDetails['detail_particulars']="Income of service_name from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   						
+	   					}
+	   					
 	   					
 	   					array_push($acctgDetails, $pushDetails);
 	   					
