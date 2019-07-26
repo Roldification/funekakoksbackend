@@ -10,6 +10,7 @@ use App\FisCaresInclusion;
 use App\FisCaresPackage;
 use App\FisCreateContract;
 use App\FisContractProf;
+use App\FisContractTransaction;
 
 class CaresController extends Controller
 {
@@ -112,10 +113,22 @@ class CaresController extends Controller
 		   				'isActive' => 1,
 		   				'balance' => $value['balance']
 			   	]);
+
+			   	$transaction = FisContractTransaction::create([
+			      'fk_contract_id' => $contract->id,
+			      'terms' => $value['payingTerms'],
+			      'dateSchedule' =>0,
+			      'principal_balance'=>0,
+	   			  'amount_pay'=>0,
+	   			  'principal_paid'=>0,
+			      'isPaid' => date('Y-m-d'),
+			      'date_pay' => date('Y-m-d'),
+			      'transactedBy' => $value['transactedBy']
+				]);
 				
 				return [
 						'status'=>'saved',
-							'message'=> $contract
+							'message'=> $contract, $transaction
 					];
 				
 
