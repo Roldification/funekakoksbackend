@@ -168,7 +168,7 @@ class InventoryController extends Controller
 			      'unit_type' => $value['unit_type'],
 			      'BatchNo' => ' ',
 			      'SLCode' => '-',
-			      'income_SLCode' => $value['income_SLCode'],
+				  'income_SLCode' => $value['income_SLCode'],
 			      'isActive' => 1,
 			      'isInventoriable' => $value['isInventoriable'],
 			      'rr_no' => ' ',
