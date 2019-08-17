@@ -557,6 +557,7 @@ class AccessController extends Controller
 	   					$inventoryCount = FisProductList::where([
 	   							'fk_item_id'=>$row->item_code,
 	   							'isEncumbered'=>1,
+	   							'branch'=>$value['sc_branch']
 	   					])->count();
 	   					
 	   					if($inventoryCount<$row->quantity)
@@ -624,6 +625,7 @@ class AccessController extends Controller
 	   					$productList = FisProductList::where([
 	   							'id'=>$row->id,
 	   							'isEncumbered'=>1,
+	   							'branch'=>$value['sc_branch']
 	   					])->firstOrFail();
 	   					
 	   					
@@ -1652,11 +1654,12 @@ class AccessController extends Controller
 				LEFT JOIN (SELECT * FROM _fis_package_inclusions
 				WHERE fk_package_id='".$serviceContract->package_class_id."'
 				AND inclusionType='Item')b ON fi.item_code = b.item_id WHERE isActive='1')sdf 
-				ORDER BY quantity desc, item_code asc"));
+				where (left(item_code,2)<>'01' or quantity>=1)
+				order by item_code asc, quantity "));
 			
 			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.package_class_id
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -1676,13 +1679,34 @@ class AccessController extends Controller
 					)a on fs.id = a.service_id and fs.isActive=1
 					)sdfa
 					order by duration desc"));
-							
+				
+			    $package_selected = DB::select(DB::raw("select * from
+						(
+						SELECT
+						case when item_id = '-' then CAST(service_id as varchar(5))
+						else item_id end as columnid,
+						isnull(item_name, service_name) as name,
+						case when quantity < 1 then duration
+						else quantity end as quantity,
+						isnull(unit_type, type_duration) as uom,
+						service_price as price, total_amount as total_price
+						FROM _fis_package_inclusions fpi
+						left join _fis_items i on fpi.item_id = i.item_code
+						left join _fis_services s on fpi.service_id = s.id
+						WHERE fk_package_id='".$serviceContract->package_class_id."'
+						)fas
+						order by columnid"));
+			    
+			    $chapel_rentals = DB::select(DB::raw("select id as value, chapel_name as label from _fis_chapel_package"));
+			    
 			return [
 						'status'=>'saved',
 						'message'=> [
 								'service_contract' => $sc_details,
 								'item_inclusions' => $user_check,
-								'service_inclusions' => $services
+								'service_inclusions' => $services,
+								'package_selected' => $package_selected,
+								'chapel_rentals' => $chapel_rentals
 						]
 				   ];
 			

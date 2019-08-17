@@ -22,6 +22,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-user', 'AccessController@insertAccess');
 	Route::post('get-accounts-of-client', 'ServiceContractController@getAccountsOfClient');
 	Route::post('process-transfer', 'ServiceContractController@processTransfer');
+	Route::post('process-deduction', 'ServiceContractController@processDeduction');
 	Route::post('update-contract', 'ServiceContractController@updateContract');
 	Route::post('login-user', 'AccessController@loginUser');
 	Route::post('insert-contract', 'AccessController@insertContract');
@@ -157,6 +158,7 @@ Route::get('get-add-package-list', 'InventoryController@getAddPackageList')->mid
 Route::get('get-package-inclusions', 'InventoryController@getPackageInclusions')->middleware('cors');
 Route::get('get-supplier-value', 'InventoryController@getSupplierValue')->middleware('cors');
 Route::get('get-fun-branch', 'InventoryController@getFunBranch')->middleware('cors');
+Route::get('get-chapel-inclusions', 'ServiceContractController@getChapelInclusions')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

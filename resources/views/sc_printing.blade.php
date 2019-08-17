@@ -133,13 +133,15 @@
     	 <div class="row" style="border:1px solid black; height:295px;">
     	 		<table style="width:100%;">
 	    	 		<tr>
-	    	 			<td style="width:70%;"><font face="segoeui"><strong>Particulars</strong></font></td>
+	    	 			<td style="width:50%;"><font face="segoeui"><strong>Particulars</strong></font></td>
+	    	 			<td style="width:20%;"><font face="segoeui"><strong>Particulars</strong></font></td>
 	    	 			<td style="width:10%;"><font face="segoeui"><strong>Unit Price</strong></font></td>
 	    	 			<td style="width:10%;"><font face="segoeui"><strong>Discount</strong></font></td>
 	    	 			<td style="width:10%;"><font face="segoeui"><strong>Total</strong></font></td>   	 			
 	    	 		</tr>
 	    	 		<tr>
-	    	 			<td><font face="segoeui" style="font-size:14px;">Casket Including Services</font></td>
+	    	 			<td colspan="2"><font face="segoeui" style="font-size:14px;">Casket Including Services</font></td>
+	    	 			
 	    	 			<td><font face="segoeui" style="font-size:12px;"><?php echo number_format((double)$accounts[0]->grossPrice - $totalAdditionalAmount, 2, '.', ','); ?></font></td>
 	    	 			<td><font face="segoeui" style="font-size:12px;"><?php echo number_format((double)$accounts[0]->discount, 2, '.', ','); ?></font></td>
 	    	 			<td><font face="segoeui" style="font-size:12px;"><?php echo number_format((double)$accounts[0]->contract_amount - $totalAdditionalAmount, 2, '.', ','); ?></font></td>
@@ -158,6 +160,7 @@
 	    	 			
 	    	 		 <tr>
 	    	 			<td><font face="segoeui" style="font-size:10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo $row->quantity; ?></font></td>
 	    	 		 </tr>
 	    	 			
 	    	 			<?php 
@@ -179,6 +182,7 @@
 	    	 			
 	    	 		 <tr>
 	    	 			<td><font face="segoeui" style="font-size:10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
+	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo $row->quantity; ?></font></td>
 	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)$row->total_price, 2, '.', ','); ?></font></td>
 	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)0, 2, '.', ','); ?></font></td>
 	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)$row->total_price, 2, '.', ','); ?></font></td>
