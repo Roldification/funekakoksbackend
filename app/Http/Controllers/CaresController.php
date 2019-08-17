@@ -20,7 +20,22 @@ class CaresController extends Controller
 			$value = (array)json_decode($request->post()['plandata']);
 			$value['dateIssue'] = date('Y-m-d', strtotime($value['dateIssue']));
 			$value['dueDate'] = date('Y-m-d', strtotime($value['dueDate']));
-			$planProfile = FisCaresPlan::create([
+
+			if ($value['membership_id']!="") {
+			$memcount = FisCaresPlan::where(['membership_id'=>$value['membership_id']])->first();
+
+				if($memcount)
+				{
+					return [
+						'status'=>'unsaved',
+						'message'=>'Member Already Exist.'
+					];	
+				}
+			}
+
+		
+
+				$planProfile = FisCaresPlan::create([
 				'is_member'	=> $value['is_member'],
 				'membership_id'	=> $value['membership_id'],
 				'firstName'	=> $value['firstName'],
@@ -35,32 +50,48 @@ class CaresController extends Controller
 				'b_contact_number' => '+63'.$value['b_contact_number'],
 				'date_created' => date('Y-m-d'),
 				'transactedBy' => $value['transactedBy']
-			]);
-
-			$bal = $value['salePrice'] - $value['firstPayment'];
-			$contract = FisContractProf::create([
-					'fk_profile_id'=> $planProfile->id,
-		   			'package_code'=>$value['package_code'],
-		   			'dateIssue'=>$value['dateIssue'],
-		   			'payingPeriod'=>$value['terms'],
-		   			'modePayment'=>$value['modePayment'],
-		   			'contractPrice'=>$value['salePrice'],
-		   			'amountInstalment'=>$value['amtinstalment'],
-		   			'firstPayment'=>$value['firstPayment'],
-		   			'dueDate'=>$value['dueDate'],
-		   			'isActive' =>'ACTIVE',
-		   			'balance' =>$bal,
-		   			'date_created' => date('Y-m-d'),
-		   			'transactedBy' => $value['transactedBy']
-			]);
-
-
+				]);
+			
+			// for installment
 			if ($value['modePayment'] == 'Monthly') {
-				//for installment
-	   			$datetopass = date('Y-m-d');
-	   			$hasMetSkip = false;
-			   	for ($i=0; $i<$value['terms']; $i++) {
+		   			$datetopass = date('Y-m-d');
+		   			$hasMetSkip = false;
 
+		   			if ($value['terms'] == '5 YEARS') {
+		   				$terms = 60;
+		   			}
+		   			else if ($value['terms'] == '4 YEARS') {
+			          $terms = 48;
+			        }
+			        else if ($value['terms'] == '3 YEARS') {
+			          $terms = 36;
+			        }
+			        else if ($value['terms'] == '2 YEARS') {
+			          $terms = 24;
+			        }
+			        else if ($value['terms'] == '1 YEAR') {
+			          $terms = 12;
+			        } 
+
+	   			
+	   				$bal = $value['salePrice'] - $value['firstPayment'];
+					$contract = FisContractProf::create([
+							'fk_profile_id'=> $planProfile->id,
+				   			'package_code'=>$value['package_code'],
+				   			'dateIssue'=>$value['dateIssue'],
+				   			'payingPeriod'=>$value['terms'],
+				   			'modePayment'=>$value['modePayment'],
+				   			'contractPrice'=>$value['salePrice'],
+				   			'amountInstalment'=>$value['amtinstalment'],
+				   			'firstPayment'=>$value['firstPayment'],
+				   			'dueDate'=>$value['dueDate'],
+				   			'isActive' =>'ACTIVE',
+				   			'balance' =>$bal,
+				   			'date_created' => date('Y-m-d'),
+				   			'transactedBy' => $value['transactedBy']
+					]);
+
+	   				for ($i=0; $i<$terms; $i++) {
 			   		$time = strtotime($datetopass);
 			   		$currentmonth = $datetopass;
 
@@ -89,29 +120,18 @@ class CaresController extends Controller
 
 			   		else { $datetopass = $nextmonth; }
 			   		if ($i==0) {
+			   			$bal = $value['salePrice'] - $value['firstPayment']; 
 			   			$transaction = FisContractTransaction::create([
 					      'fk_contract_id' => $contract->id,
 					      'dateSchedule' => $nextmonth,
-					      'principal_balance'=> $value['salePrice'],
+					      'principal_balance'=> $bal,
 			   			  'amount_instalment'=>$value['amtinstalment'],
 			   			  'principal_paid'=>$value['firstPayment'],
-					      'isPaid' =>1,
+					      'isPaid' =>'YES',
 					      'date_pay' => date('Y-m-d'),
 					      'transactedBy' => $value['transactedBy']
 						]);
 			   		}
-
-			   		elseif ($i==1) {
-			   			$transaction = FisContractTransaction::create([
-					      'fk_contract_id' => $contract->id,
-					      'dateSchedule' => $nextmonth,
-					      'principal_balance'=>$bal,
-			   			  'amount_instalment'=>$value['amtinstalment'],
-			   			  'principal_paid'=>0,
-					      'isPaid' =>0
-						]);
-			   		}
-
 			   		else{
 			   			$transaction = FisContractTransaction::create([
 					      'fk_contract_id' => $contract->id,
@@ -119,75 +139,176 @@ class CaresController extends Controller
 					      'principal_balance'=>0,
 			   			  'amount_instalment'=>$value['amtinstalment'],
 			   			  'principal_paid'=>0,
-					      'isPaid' =>0
+					      'isPaid' =>'NO'
 						]);
 			   		}
-			   		
-			   	}
-
-			   	return [
-				'status'=>'saved',
-				'message'=>$transaction
-				];
+			   		} // LOOP CLOSES
 			} // if monthly
 
-			if ($value['modePayment'] == 'Quarterly') {
-				//for installment
-	   			$datetopass = date('Y-m-d');
-	   			$hasMetSkip = false;
-	   			$increment = $value['terms']/3;
-	   			$beginDay = date('d', strtotime($datetopass));
-			   	for ($i=0; $i<$increment; $i++) {
+			else if ($value['modePayment'] == 'Quarterly') {
+		   			$datetopass = date('Y-m-d');
+		   			$hasMetSkip = false;
 
+		   			if ($value['terms'] == '5 YEARS') {
+		   				$terms = 60/3;
+		   			}
+		   			else if ($value['terms'] == '4 YEARS') {
+			          $terms = 48/3;
+			        }
+			        else if ($value['terms'] == '3 YEARS') {
+			          $terms = 36/3;
+			        }
+			        else if ($value['terms'] == '2 YEARS') {
+			          $terms = 24/3;
+			        }
+			        else if ($value['terms'] == '1 YEAR') {
+			          $terms = 12/3;
+			        } 
+
+			        $bal = $value['salePrice'] - $value['firstPayment'];
+					$contract = FisContractProf::create([
+							'fk_profile_id'=> $planProfile->id,
+				   			'package_code'=>$value['package_code'],
+				   			'dateIssue'=>$value['dateIssue'],
+				   			'payingPeriod'=>$value['terms'],
+				   			'modePayment'=>$value['modePayment'],
+				   			'contractPrice'=>$value['salePrice'],
+				   			'amountInstalment'=>$value['amtinstalment'],
+				   			'firstPayment'=>$value['firstPayment'],
+				   			'dueDate'=>$value['dueDate'],
+				   			'isActive' =>'ACTIVE',
+				   			'balance' =>$bal,
+				   			'date_created' => date('Y-m-d'),
+				   			'transactedBy' => $value['transactedBy']
+					]);
+	   			
+	   				$beginDay = date('d', strtotime($datetopass));
+				   	for ($i=0; $i<$terms; $i++) {
+				   		$time = strtotime($datetopass);
+				   		$currentmonth = $datetopass;
+
+				   		if($i==0)
+				   		 	$nextmonth = $currentmonth;
+
+				   		 	else
+				   		 	$nextmonth = date('Y-m-d', strtotime("+3 month", $time));
+
+				   		if(date('d', strtotime($nextmonth)) !== date('d', strtotime($currentmonth)) && $i>0)
+				   		{
+				   			$theyear = date('Y', strtotime($nextmonth));
+				   			$themonth = str_pad(date('m', strtotime($nextmonth)) - 1, 2, "0", STR_PAD_LEFT);
+				   			//$prevmonth = str_pad($themonth - 1, 2, "0", STR_PAD_LEFT);
+				   			$theday = date('d', strtotime($currentmonth));
+				   			$nextmonth = date("Y-m-t", strtotime("".$theyear."-".$themonth."-01"));
+				   			$datetopass = date("".$theyear."-".$themonth."-".$theday);
+				   			$hasMetSkip = true;
+				   		}
+
+				   		else { $datetopass = $nextmonth; }
+
+				   		if ($i==0) {
+				   			$bal = $value['salePrice'] - $value['firstPayment']; 
+				   			$transaction = FisContractTransaction::create([
+						      'fk_contract_id' => $contract->id,
+						      'dateSchedule' => $nextmonth,
+						      'principal_balance'=> $bal,
+				   			  'amount_instalment'=>$value['amtinstalment'],
+				   			  'principal_paid'=>$value['firstPayment'],
+						      'isPaid' =>'YES',
+						      'date_pay' => date('Y-m-d'),
+						      'transactedBy' => $value['transactedBy']
+							]);
+				   		}
+
+				   		else{
+				   			$transaction = FisContractTransaction::create([
+						      'fk_contract_id' => $contract->id,
+						      'dateSchedule' => $nextmonth,
+						      'principal_balance'=>0,
+				   			  'amount_instalment'=>$value['amtinstalment'],
+				   			  'principal_paid'=>0,
+						      'isPaid' =>'NO'
+							]);
+				   		}
+				   	} // loop close
+			} // if quarterly
+
+			else if ($value['modePayment'] == 'Annualy') {
+		   			$datetopass = date('Y-m-d');
+		   			$hasMetSkip = false;
+
+		   			if ($value['terms'] == '5 YEARS') {
+		   				$terms = 5;
+		   			}
+		   			else if ($value['terms'] == '4 YEARS') {
+			          $terms = 4;
+			        }
+			        else if ($value['terms'] == '3 YEARS') {
+			          $terms = 3;
+			        }
+			        else if ($value['terms'] == '2 YEARS') {
+			          $terms = 2;
+			        }
+	
+	   			
+	   				$bal = $value['salePrice'] - $value['firstPayment'];
+					$contract = FisContractProf::create([
+							'fk_profile_id'=> $planProfile->id,
+				   			'package_code'=>$value['package_code'],
+				   			'dateIssue'=>$value['dateIssue'],
+				   			'payingPeriod'=>$value['terms'],
+				   			'modePayment'=>$value['modePayment'],
+				   			'contractPrice'=>$value['salePrice'],
+				   			'amountInstalment'=>$value['amtinstalment'],
+				   			'firstPayment'=>$value['firstPayment'],
+				   			'dueDate'=>$value['dueDate'],
+				   			'isActive' =>'ACTIVE',
+				   			'balance' =>$bal,
+				   			'date_created' => date('Y-m-d'),
+				   			'transactedBy' => $value['transactedBy']
+					]);
+
+	   				for ($i=0; $i<$terms; $i++) {
 			   		$time = strtotime($datetopass);
 			   		$currentmonth = $datetopass;
 
-			   		if($i==0)
-			   		 	$nextmonth = $currentmonth;
-
+			   		if(!$hasMetSkip)
+			   		 {
+			   		 	if($i==0)
+			   		 		$nextmonth = $currentmonth;
 			   		 	else
-			   		 	$nextmonth = date('Y-m-d', strtotime("+3 month", $time));
+			   		 	$nextmonth = date('Y-m-d', strtotime("+1 year", $time));
+				   	 }
+			   		else { 
+			   			$nextmonth = $datetopass;
+			   			$hasMetSkip = false;
+			   		}
 
-			   		if(date('d', strtotime($nextmonth)) !== date('d', strtotime($currentmonth)) && $i>0)
+			   		if(date('m', strtotime($nextmonth)) -  date('m', strtotime($currentmonth)) >1 && date('Y', strtotime($nextmonth)) == date('Y', strtotime($currentmonth)))
 			   		{
-			   			$theyear = date('Y', strtotime($nextmonth));
-			   			$themonth = str_pad(date('m', strtotime($nextmonth)) - 1, 2, "0", STR_PAD_LEFT);
-			   			//$prevmonth = str_pad($themonth - 1, 2, "0", STR_PAD_LEFT);
+			   			$theyear = date('Y', strtotime($currentmonth));
+			   			$themonth = str_pad(date('m', strtotime($currentmonth)) + 2, 2, "0", STR_PAD_LEFT);
+			   			$prevmonth = str_pad($themonth - 1, 2, "0", STR_PAD_LEFT);
 			   			$theday = date('d', strtotime($currentmonth));
-			   			$nextmonth = date("Y-m-t", strtotime("".$theyear."-".$themonth."-01"));
+			   			$nextmonth = date("Y-m-t", strtotime("".$theyear."-".$prevmonth."-01"));
 			   			$datetopass = date("".$theyear."-".$themonth."-".$theday);
-
-
-
 			   			$hasMetSkip = true;
 			   		}
 
 			   		else { $datetopass = $nextmonth; }
-
 			   		if ($i==0) {
+			   			$bal = $value['salePrice'] - $value['firstPayment']; 
 			   			$transaction = FisContractTransaction::create([
 					      'fk_contract_id' => $contract->id,
 					      'dateSchedule' => $nextmonth,
-					      'principal_balance'=> $value['salePrice'],
+					      'principal_balance'=> $bal,
 			   			  'amount_instalment'=>$value['amtinstalment'],
 			   			  'principal_paid'=>$value['firstPayment'],
-					      'isPaid' =>1,
+					      'isPaid' =>'YES',
 					      'date_pay' => date('Y-m-d'),
 					      'transactedBy' => $value['transactedBy']
 						]);
 			   		}
-
-			   		elseif ($i==1) {
-			   			$transaction = FisContractTransaction::create([
-					      'fk_contract_id' => $contract->id,
-					      'dateSchedule' => $nextmonth,
-					      'principal_balance'=>$bal,
-			   			  'amount_instalment'=>$value['amtinstalment'],
-			   			  'principal_paid'=>0,
-					      'isPaid' =>0
-						]);
-			   		}
-
 			   		else{
 			   			$transaction = FisContractTransaction::create([
 					      'fk_contract_id' => $contract->id,
@@ -195,24 +316,48 @@ class CaresController extends Controller
 					      'principal_balance'=>0,
 			   			  'amount_instalment'=>$value['amtinstalment'],
 			   			  'principal_paid'=>0,
-					      'isPaid' =>0
+					      'isPaid' =>'NO'
 						]);
 			   		}
-			   		
-			   	}
-
-			   	return [
-				'status'=>'saved',
-				'message'=>$transaction
-				];
-				} // if monthly
+			   		} // LOOP CLOSES
+			} // if annualy
 			
+			else if ($value['modePayment'] == 'Spot Cash') {
+					$contract = FisContractProf::create([
+							'fk_profile_id'=> $planProfile->id,
+				   			'package_code'=>$value['package_code'],
+				   			'dateIssue'=>$value['dateIssue'],
+				   			'payingPeriod'=>$value['terms'],
+				   			'modePayment'=>$value['modePayment'],
+				   			'contractPrice'=>$value['salePrice'],
+				   			'amountInstalment'=>0,
+				   			'firstPayment'=>$value['firstPayment'],
+				   			'dueDate'=>date('Y-m-d'),
+				   			'isActive' =>'ACTIVE',
+				   			'balance' =>0,
+				   			'date_created' => date('Y-m-d'),
+				   			'transactedBy' => $value['transactedBy']
+					]);
+
+			   		$transaction = FisContractTransaction::create([
+					      'fk_contract_id' => $contract->id,
+					      'dateSchedule' => $value['dateIssue'],
+					      'principal_balance'=> 0,
+			   			  'amount_instalment'=>$value['salePrice'],
+			   			  'principal_paid'=>$value['firstPayment'],
+					      'isPaid' =>'YES',
+					      'date_pay' => date('Y-m-d'),
+					      'transactedBy' => $value['transactedBy']
+					]);
+			
+			} // if spot cash 
 
 			return [
 				'status'=>'saved',
-				'message'=>$planProfile, $contract
+				'message'=>$planProfile,$contract,$transaction
 			];
-			
+		
+
 		} catch (\Exception $e) {
 			return [
 				'status'=>'unsaved',
@@ -332,7 +477,7 @@ class CaresController extends Controller
 	public function updateCaresInfo(Request $request)
 	{
 		try {
-				$value = (array)json_decode($request->post()['infoupdate']);
+				$value = (array)json_decode($request->post()['memberData']);
 				
 				$info = FisCaresPlan::find($value['id']);
 
@@ -681,7 +826,7 @@ class CaresController extends Controller
 			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name,
 		 	C.dateIssue, C.payingPeriod, C.modePayment, 
 			C.contractPrice, C.amountInstalment, C.firstPayment, C.dueDate, C.isActive, C.balance,
-			T.fk_contract_id, T.dateSchedule, T.principal_balance, T.amount_instalment,
+			T.id as transaction_id, T.fk_contract_id, T.dateSchedule, T.principal_balance, T.amount_instalment,
 			T.principal_paid, T.isPaid, T.date_pay,
 			PC.package_name
 			FROM _fis_cares_profile AS P
@@ -702,6 +847,7 @@ class CaresController extends Controller
 			];
 		}
 	}
+
 
 	public function getPlanInclusionsDetails(Request $request) {
 		$value = (array)json_decode($request->post()['planData']);
@@ -746,6 +892,87 @@ class CaresController extends Controller
 				'message'=>$e->getMessage()
 			];	
 		}
+	}
+
+	public function updatePay(Request $request)
+	{
+		try {	
+
+			$value = (array)json_decode($request->post()['payData']);
+			$value['id'] = $value['transaction_id'];
+			$value['datePay'] = date('Y-m-d', strtotime($value['datePay']));
+
+			$transaction = FisContractTransaction::find($value['id']);
+			$bal = $value['principal_balance'] - $value['amount'];
+
+			if ($value['amount'] == $value['amount_instalment']) {
+				$transaction->update([
+		   			'date_pay'=>$value['datePay'],
+		   			'principal_paid'=>$value['amount'],
+		   			'principal_balance'=>$bal,
+		   			'isPaid'=>'YES'
+			   	]);
+			}
+
+			elseif($value['amount'] != $value['amount_instalment']){
+				$transaction->update([
+		   			'date_pay'=>$value['datePay'],
+		   			'principal_paid'=>$value['amount'],
+		   			'principal_balance'=>$bal,
+		   			'isPaid'=>'PARTIAL'
+			   	]);
+			}
+
+			if ($value['isPaid'] == 'PARTIAL' ) {
+				$sum = $value['amount']+$value['principal_paid'];
+				$transaction->update([
+		   			'date_pay'=>$value['datePay'],
+		   			'principal_paid'=>$sum,
+		   			'principal_balance'=>$bal,
+		   			'isPaid'=>'YES'
+			   	]);
+			}
+			
+	   			
+
+			$value['id'] = $value['fk_contract_id'];
+			$contract = FisContractProf::find($value['id']);
+	   		$contract->update([
+		   			'balance'=>$bal
+			   ]);
+
+
+			return [
+				'status'=>'saved',
+				'message'=>$transaction, $contract
+			];
+				
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function caresAgreement(Request $request)
+	{
+		$id = json_decode($request->post()['id']);
+		
+		$accounts = DB::select(DB::raw("
+			SELECT * FROM _fis_cares_profile AS CF
+			INNER JOIN _fis_cares_contract AS CC
+			ON CF.id = CC.fk_profile_id
+			INNER JOIN _fis_settings_relation AS SR
+			ON CF.b_relationship = SR.rtd_id 
+			WHERE CC.ID = $id
+			"));
+				
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+	
+		$mpdf->WriteHTML(view('cares_agreement', ['accounts'=>$accounts]));
+		$mpdf->use_kwt = true; 
+		$mpdf->Output();
 	}
 
 }
