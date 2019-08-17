@@ -29,6 +29,7 @@ use App\FisSCPayments;
 use App\FisPaymentType;
 use App\FisSalesTransaction;
 use App\FisItemTransfer;
+use App\FisPackage;
 
 class ServiceContractController extends Controller
 {
@@ -97,12 +98,14 @@ class ServiceContractController extends Controller
 						AND inclusionType='ITEM'
 						)b on fi.item_code = b.item_id where isActive = 1
 						)sdf 
-						order by quantity desc,  item_code asc
+						where (left(item_code,2)<>'01' or quantity>=1)
+						order by item_code asc, quantity 
 						"));
+					
 					
 					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid,  sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.package_class_id
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -121,13 +124,35 @@ class ServiceContractController extends Controller
 					SELECT * FROM _fis_package_inclusions WHERE fk_package_id='".$service_contract->package_class_id."' and inclusionType='SERV'
 					)a on fs.id = a.service_id WHERE fs.isActive=1)sdfa
 					ORDER BY duration desc"));
+					
+					
+					$package_selected = DB::select(DB::raw("select * from 
+						(
+						SELECT
+						case when item_id = '-' then CAST(service_id as varchar(5))
+						else item_id end as columnid,
+						isnull(item_name, service_name) as name,
+						case when quantity < 1 then duration
+						else quantity end as quantity,
+						isnull(unit_type, type_duration) as uom,
+						service_price as price, total_amount as total_price
+						FROM _fis_package_inclusions fpi
+						left join _fis_items i on fpi.item_id = i.item_code
+						left join _fis_services s on fpi.service_id = s.id
+						WHERE fk_package_id='".$service_contract->package_class_id."'
+						)fas
+						order by columnid"));
+					
+					$chapel_rentals = DB::select(DB::raw("select id as value, chapel_name as label from _fis_chapel_package"));
 						
 						return [
 								'status'=>'success_unposted',
 								'message'=> [
 										'service_contract' => $sc_details,
 										'item_inclusions' => $user_check,
-										'service_inclusions' => $services
+										'service_inclusions' => $services,
+										'package_selected' => $package_selected,
+										'chapel_rentals' => $chapel_rentals
 								]
 						];
 					
@@ -148,6 +173,48 @@ class ServiceContractController extends Controller
 		}
 		
 		
+		
+	}
+	
+	public function getChapelInclusions(Request $request)
+	{
+		
+		$id = $request->post()['id'];
+		$packageid = $request->post()['package_id'];
+		try {
+		 
+			
+		  $package = FisPackage::find($packageid);
+		  $levelid = $package['package_level'];
+		  $items = DB::select(DB::raw("select * from 
+			(
+			SELECT
+			case when item_id = '-' then CAST(service_id as varchar(5))
+			else item_id end as columnid,
+			isnull(item_name, service_name) as name,
+			case when quantity < 1 then duration
+			else quantity end as quantity,
+			isnull(unit_type, type_duration) as uom,
+			service_price as price, total_amount as total_price
+			FROM _fis_chapel_inclusions fpi
+			left join _fis_items i on fpi.item_id = i.item_code
+			left join _fis_services s on fpi.service_id = s.id
+			WHERE fk_chapel_id=$id and package_level<=$levelid
+			)fas
+			order by columnid"));
+			
+			
+		  return [
+		  	'status'=>$levelid,
+		  	'message'=>$items
+		  ];
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
 		
 	}
 	
@@ -516,6 +583,160 @@ class ServiceContractController extends Controller
 					];
 			
 			
+		} catch (\Exception $e) {
+			DB::rollback();
+			$dbDestinationBranch->rollBack();
+			
+			return [
+					'status'=>'unsaved',
+					'message'=> $e->getMessage()
+			];
+		}
+		
+	}
+	
+	
+	
+	public function processDeduction(Request $request)
+	{
+		$value = (array)json_decode($request->post()['transfer_details']);
+		
+		try {
+			DB::beginTransaction();
+			$dbDestinationBranch = DB::connection('sqlsrv');
+			$dbDestinationBranch->beginTransaction();
+			
+			$valarr = array_count_values(array_column($value['itemList'], 'id'));
+			$equivalence = array_sum($valarr) / count($valarr);
+			
+			if($equivalence!=1)
+				return [
+						'status' => 'unsaved',
+						'message' => 'Serial No. repitition found. Make sure we do not repeat serial no.',
+				];
+				
+				
+				foreach ($value['itemList'] as $row)
+				{
+					/*
+					 * 1. out sa source branch
+					 * 2. entry sa source branch
+					 * 3. in sa destination branch
+					 * 4. entry sa destination branch
+					 */
+					
+					try {
+						$productList = FisProductList::where([
+								'id'=>$row->id,
+								'isEncumbered'=>1,
+						])->firstOrFail();
+						
+						
+						
+						if(!$productList)
+							return [
+									'status'=>'unsaved',
+									'message'=>'No item available for '.$row->item_name.'.'
+							];
+							
+							
+							/*	FisItemTransfer::create([
+							 'transferFrom'=>$value['']
+							 ]); */
+							
+							
+							
+							
+							FisItemInventory::create(
+									[
+											'transaction_date'=>date('Y-m-d'),
+											'particulars'=>$value['purpose'],
+											'contract_id'=>'-',
+											'dr_no'=>'-',
+											'rr_no'=>'-',
+											'process'=>'OUT',
+											'remaining_balance'=>0,
+											'product_id'=>$row->item_code,
+											'quantity'=>1,
+											'item_price'=>$row->sell_price,
+											'remarks'=>'-',
+											'serialNo'=>'-',
+											'p_sequence'=>$row->id,
+											'fk_sales_id'=>0,
+											'fk_ORNo'=>'',
+											'transactedBy'=>$value['transactedBy']
+									]);
+							
+							$productList->update([
+									'isEncumbered'=>0
+							]);
+							
+							if(strlen($row->SLCode)>1)
+							{
+								$acctgHeader = [];
+								$acctgHeader['branch_code'] = $value['transferFrom'];
+								$acctgHeader['transaction_date'] = date('Y-m-d');
+								$acctgHeader['transaction_code'] = "JNLVOUCHER";
+								$acctgHeader['username'] = $value['transactedBy'];
+								$acctgHeader['reference'] = "OUT-".$row->id;
+								$acctgHeader['status'] = 1;
+								$acctgHeader['particulars'] = $value['purpose'];
+								$acctgHeader['customer'] = "";
+								$acctgHeader['checkno'] = "";
+								
+								$currentBranch = FisBranch::where([
+										'branchID'=>$value['transferFrom']
+								])->firstOrFail();
+								
+								$acctgDetails = [];
+								$pushDetails = [];
+								
+								$pushDetails['entry_type']="DR";
+								$pushDetails['SLCode']= $row->SLCode;
+								$pushDetails['amount']= $row->sell_price;
+								$pushDetails['detail_particulars']="To record deduction of ".$row->item_name." from ".$value['transferFrom'];
+								array_push($acctgDetails, $pushDetails);
+								
+								$pushDetails['entry_type']="CR";
+								$pushDetails['SLCode']= $currentBranch->borrowHO;
+								$pushDetails['amount']= $row->sell_price;
+								$pushDetails['detail_particulars']="To record deduction of ".$row->item_name." from ".$value['transferFrom'];
+								array_push($acctgDetails, $pushDetails);
+								
+								
+								$saveAccounting = AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
+								
+								if(!$saveAccounting['status']=='saved')
+								{
+									DB::rollback();
+									return $saveAccounting;
+								}
+							}
+
+					}
+					catch(\Exception $e)
+					{
+						DB::rollback();
+						$dbDestinationBranch->rollBack();
+						
+						return [
+								'status'=>'unsaved',
+								'message'=>$e->getMessage()
+						];
+						break;
+					}
+					
+				}
+				
+				DB::commit();
+				$dbDestinationBranch->commit();
+				
+				return [
+						'status'=>'saved',
+						'message'=>'Successfully Deducted Items.'
+				];
+				
+				
 		} catch (\Exception $e) {
 			DB::rollback();
 			$dbDestinationBranch->rollBack();
