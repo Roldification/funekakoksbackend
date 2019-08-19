@@ -233,7 +233,7 @@ class CaresController extends Controller
 				   	} // loop close
 			} // if quarterly
 
-			else if ($value['modePayment'] == 'Annualy') {
+			else if ($value['modePayment'] == 'Annually') {
 		   			$datetopass = date('Y-m-d');
 		   			$hasMetSkip = false;
 
@@ -320,7 +320,7 @@ class CaresController extends Controller
 						]);
 			   		}
 			   		} // LOOP CLOSES
-			} // if annualy
+			} // if annually
 			
 			else if ($value['modePayment'] == 'Spot Cash') {
 					$contract = FisContractProf::create([

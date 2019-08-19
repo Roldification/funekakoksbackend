@@ -2334,25 +2334,23 @@ class AccessController extends Controller
 		}
 	}
 
-	public function deleteBranch(Request $request)
-	{
+
+	public function getUserDetails(Request $request) {
+		$value = (array)json_decode($request->post()['UserName']);
 		try {
-				$value = (array)json_decode($request->post()['branchdatadelete']);
-			
-				$branch = FisBranches::find($value['branch_id']);
-	   			$branch->delete();
-			
-			return [
-					'status'=>'saved',
-					'message'=>$branch
-			];
-			
+		$info = DB::select(DB::raw("
+			SELECT * FROM SystemUser WHERE UserName = $value
+			"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
 		} catch (\Exception $e) {
-			
 			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
 		}
 	}
 

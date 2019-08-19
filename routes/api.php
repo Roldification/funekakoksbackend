@@ -83,17 +83,14 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-info', 'AccessController@updateInfo');
 	Route::post('update-branch', 'AccessController@updateBranch');
 	Route::post('update-location', 'AccessController@updateLocation');
-	
 	Route::post('update-incentives', 'AccessController@updateIncentives');
 
 	Route::post('delete-relation', 'AccessController@deleteRelation');
 	Route::post('delete-branch', 'AccessController@deleteBranch');
 	Route::post('delete-location', 'AccessController@deleteLocation');
 
-	
 	Route::post('post-purchase', 'AccessController@postPurchase');
 	Route::post('post-contract', 'AccessController@postContract');	
-
 	Route::post('post-contract', 'AccessController@postContract');
 	Route::post('post-billing-payment', 'AccessController@postBillingPayment');
 	Route::post('update-relation', 'AccessController@updateRelation');
@@ -105,6 +102,8 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('unpost-sales', 'ServiceContractController@unpostSales');
 	Route::post('get-minimal-probabilities', 'AccessController@getMinimalProbabilities');
 	Route::post('insert-charging', 'ServiceContractController@insertCharging');
+
+	Route::post('get-user-details', 'AccessController@getUserDetails');
 });
 
 
