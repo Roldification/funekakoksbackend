@@ -162,12 +162,24 @@ class AccessController extends Controller
 			
 			$value = (array)json_decode($request->post()['userdata']);
 			
+			if ($value['username']!="") {
+			$memcount = SystemUser::where(['username'=>$value['username']])->first();
+
+				if($memcount)
+				{
+					return [
+						'status'=>'unsaved',
+						'message'=>'Username Already Exist.'
+					];	
+				}
+			}
+
 			$user = SystemUser::create([
 					'UserName'=> $value['username'],
 					'Password'=>$value['password'],
-					'LastName'=>$value['name'],
-					'FirstName'=>$value['name'],
-					'MiddleName'=>$value['name'],
+					'LastName'=>$value['Lastname'],
+					'FirstName'=>$value['Firstname'],
+					'MiddleName'=>$value['Middlename'],
 					'UserStatus'=>1,
 					'EmployeeID'=>$value['username'],
 					'FKRoleID'=>$value['roleid'],
@@ -2322,6 +2334,25 @@ class AccessController extends Controller
 		}
 	}
 
+
+	public function getUserDetails(Request $request) {
+		$value = (array)json_decode($request->post()['UserName']);
+		try {
+		$info = DB::select(DB::raw("
+			SELECT * FROM SystemUser WHERE UserName = $value
+			"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
 
 
 }
