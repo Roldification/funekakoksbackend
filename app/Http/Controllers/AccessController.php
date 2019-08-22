@@ -180,7 +180,7 @@ class AccessController extends Controller
 					'LastName'=>$value['Lastname'],
 					'FirstName'=>$value['Firstname'],
 					'MiddleName'=>$value['Middlename'],
-					'UserStatus'=>1,
+					'UserStatus'=>0,
 					'EmployeeID'=>$value['username'],
 					'FKRoleID'=>$value['roleid'],
 					'FKBranchID'=>$value['branchid'],
@@ -1896,7 +1896,7 @@ class AccessController extends Controller
 			$value = (array)json_decode($request->post()['userdata']);
 			
 			
-			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where username='".$value['username']."' and password='".$value['password']."'"));
+			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and username='".$value['username']."' and password='".$value['password']."'"));
 			
 			if($user_check)
 			{
@@ -1920,7 +1920,7 @@ class AccessController extends Controller
 			
 			else return [
 					'status'=>'error',
-					'message'=>'Invalid Username/Password.'
+					'message'=>'Invalid Username/Password or Account is Inactive.'
 			]; 
 			
 		} catch (\Exception $e) {
@@ -2339,7 +2339,9 @@ class AccessController extends Controller
 		$value = (array)json_decode($request->post()['UserName']);
 		try {
 		$info = DB::select(DB::raw("
-			SELECT * FROM SystemUser WHERE UserName = $value
+			SELECT *, B.name as branch_name FROM SystemUser AS S 
+			INNER JOIN _fis_branch AS B ON S.FKBranchID = B.branchID
+			WHERE S.UserName = '".$value['UserName']."'
 			"));	
 
 			if($info)
@@ -2354,5 +2356,137 @@ class AccessController extends Controller
 		}
 	}
 
+
+	public function updateUserDetailInfo(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['usersData']);
+			
+				$user = FisPassword::find($value['UserName']);
+			
+					$user->update(
+	   					['UserName'=> $value['UserName'],
+	   					'FirstName'=> $value['FirstName'],
+	   					'MiddleName'=> $value['MiddleName'],
+	   					'LastName'=> $value['LastName'],
+	   					'DateUpdated'=> date('Y-m-d'),
+	   					'UpdatedBy'=> $value['UserName']
+	   				]);
+				
+	   				
+			
+			return [
+					'status'=>'saved',
+					'message'=>$user
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function getActiveAccount(Request $request) {
+		$value = "";
+		try {
+		$info = DB::select(DB::raw("
+			SELECT S.UserName,(S.LastName+', '+S.FirstName+' '+S.MiddleName) AS full_name, S.UserStatus, S.FKRoleID, S.FKBranchID,
+			B.name as branch_name FROM SystemUser AS S 
+			INNER JOIN _fis_branch AS B ON S.FKBranchID = B.branchID
+			"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function updateAccountRole(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['userData']);
+			
+				$user = FisPassword::find($value['UserName']);
+			
+					$user->update(
+	   					['FKRoleID'=> $value['role']
+	   				]);
+				
+	   				
+			
+			return [
+					'status'=>'saved',
+					'message'=>$user
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function deactivateUser(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['userData']);
+			
+				$user = FisPassword::find($value['UserName']);
+			
+					$user->update(
+	   					['UserStatus'=>0]);
+				
+	   				
+			
+			return [
+					'status'=>'saved',
+					'message'=>$user
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function activateUser(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['userData']);
+			
+				$user = FisPassword::find($value['UserName']);
+			
+					$user->update(
+	   					['UserStatus'=>1]);
+				
+	   				
+			
+			return [
+					'status'=>'saved',
+					'message'=>$user
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}	
 
 }
