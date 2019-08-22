@@ -1900,22 +1900,24 @@ class ServiceContractController extends Controller
 			else
 			{
 				try {
-					$user_check = DB::select(DB::raw("select item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode from
+					$user_check = DB::select(DB::raw("SELECT item_code, item_name, quantity, price, discount, (price * quantity) as tot_price, SLCode, income_SLCode FROM
 						(
-						SELECT item_code, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi
-						left join
+						SELECT item_code, isActive, item_name, isnull(quantity, 0) as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM _fis_items fi
+						LEFT JOIN
 						(
-						select * from _fis_package_inclusions
-						where fk_package_id='".$value['package_class_id']."'
-						and inclusionType='ITEM'
-						)b on fi.item_code = b.item_id
+						SELECT * FROM _fis_package_inclusions
+						WHERE fk_package_id='".$value['package_class_id']."'
+						AND inclusionType='ITEM'
+						)b on fi.item_code = b.item_id where isActive = 1
 						)sdf
-						order by quantity desc,  item_code asc
+						where (left(item_code,2)<>'01' or quantity>=1)
+						order by item_code asc, quantity
 						"));
 					
+					
 					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid,  sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.package_class_id
 					from _fis_service_contract sc
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -1926,22 +1928,43 @@ class ServiceContractController extends Controller
 					where contract_id=".$value['contract_id']));
 					
 					
-					$services = DB::select(DB::raw("select * from
+					$services = DB::select(DB::raw("SELECT * FROM
+					(
+					SELECT fs.id, isActive, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
+					LEFT JOIN
+					(
+					SELECT * FROM _fis_package_inclusions WHERE fk_package_id='".$value['package_class_id']."' and inclusionType='SERV'
+					)a on fs.id = a.service_id WHERE fs.isActive=1)sdfa
+					ORDER BY duration desc"));
+					
+					
+					$package_selected = DB::select(DB::raw("select * from
 						(
-						SELECT fs.id, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
-						left join
-						(
-						select * from _fis_package_inclusions where fk_package_id='".$value['package_class_id']."' and inclusionType='SERV'
-						)a on fs.id = a.service_id and fs.isActive=1
-						)sdfa
-						order by duration desc"));
+						SELECT
+						case when item_id = '-' then CAST(service_id as varchar(5))
+						else item_id end as columnid,
+						isnull(item_name, service_name) as name,
+						case when quantity < 1 then duration
+						else quantity end as quantity,
+						isnull(unit_type, type_duration) as uom,
+						service_price as price, total_amount as total_price
+						FROM _fis_package_inclusions fpi
+						left join _fis_items i on fpi.item_id = i.item_code
+						left join _fis_services s on fpi.service_id = s.id
+						WHERE fk_package_id='".$value['package_class_id']."'
+						)fas
+						order by columnid"));
+					
+					$chapel_rentals = DB::select(DB::raw("select id as value, chapel_name as label from _fis_chapel_package"));
 					
 					return [
 							'status'=>'success_unposted',
 							'message'=> [
 									'service_contract' => $sc_details,
 									'item_inclusions' => $user_check,
-									'service_inclusions' => $services
+									'service_inclusions' => $services,
+									'package_selected' => $package_selected,
+									'chapel_rentals' => $chapel_rentals
 							]
 					];
 					
