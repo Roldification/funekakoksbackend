@@ -169,21 +169,19 @@
 	    	 		<tr>
 	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;"><?php echo $user ?></font></td> 
 	    	 		</tr>
-	    	 		<tr>
-	    	 			<td><font face="segoeui" style="font-size: 9px;">FuneCare Service Manager</font></td> 
-	    	 		</tr>
+	    	 		
     	 </table>
     	 
-         <table style="width:30%; margin-top:10px;">
+         <table style="width:50%; margin-top:10px;">
 	    	 		<tr>
 	    	 			<td><font face="segoeui"><strong>Noted by:</strong></font></td>
 	    	 			   	 			
 	    	 		</tr>
 	    	 		<tr>
-	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">Ms. Maria April Villanueva</font></td> 
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">Maria April Villanueva</font></td> 
 	    	 		</tr>
 	    	 		<tr>
-	    	 			<td><font face="segoeui" style="font-size: 9px;">FuneCare Service Manager</font></td> 
+	    	 			<td><font face="segoeui" style="text-align:center; font-size: 9px;">FuneCare Service Manager</font></td> 
 	    	 		</tr>
     	 </table>
     	 		

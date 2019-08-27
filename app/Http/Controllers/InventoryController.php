@@ -161,7 +161,7 @@ class InventoryController extends Controller
 			      'transactedBy' => $value['transactedBy'],
 				]);
 			}
-			elseif ($value['isInventoriable'] == 0) {
+			else if ($value['isInventoriable'] == 0) {
 				$inventoryItems = FisItems::create([
 				  'item_code' => $value['code'].'-'.$value['item_code'],
 			      'item_name' => $value['item_name'],
