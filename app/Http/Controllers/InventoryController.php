@@ -227,7 +227,7 @@ class InventoryController extends Controller
 	   					'standardPrice'=>$value['standardPrice'],
 	   					'salesPrice'=>$value['salesPrice'],
 	   					'isActive' => 1,
-	   					'createdBy'=>$value['transactedBy']
+	   					'updateInclusionBy'=>$value['transactedBy']
 	   				]);
 			foreach ($value['inclusions'] as $row){
 
@@ -245,7 +245,6 @@ class InventoryController extends Controller
 					'inclusionType'=> 'ITEM',
 					'service_price'=> $row->inventory_price,
 					'total_amount'=> $row->total_price,
-					'transactedBy'=> $value['transactedBy'],
 					'dateEncoded'=> date('Y-m-d')
 					]);	
 				}
@@ -263,7 +262,6 @@ class InventoryController extends Controller
 					'inclusionType'=> 'SERV',
 					'service_price'=> $row->inventory_price,
 					'total_amount'=> $row->total_price,
-					'transactedBy'=> $value['transactedBy'],
 					'dateEncoded'=> date('Y-m-d')
 					]);	
 				}
