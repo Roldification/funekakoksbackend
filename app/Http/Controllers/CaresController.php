@@ -563,17 +563,18 @@ class CaresController extends Controller
 	   					'discount'=>$value['discount'],
 	   					'salesPrice'=>$value['salesPrice'],
 	   					'isActive' => 1,
-	   					'createdBy'=>$value['transactedBy']
+	   					'UpdateInclusionBy'=>$value['transactedBy']
 	   				]);
 			foreach ($value['inclusions'] as $row){
 			try {
+					$value['fk_package_id'] = $value['package_code'];
+					$inclusion = FisCaresInclusion::find($value['fk_package_id']);
 					$inclusion = FisCaresInclusion::updateOrCreate([
 					'fk_package_id'=> $value['package_code'],
 					'inclusion_name'=> $row->inventory_name,
 					'inclusion_ql'=> $row->inventory_ql,
 					'inclusion_uom'=> $row->inventory_uom,
 					'inclusion_price '=> $row->inventory_price,
-					'createdBy'=> $value['transactedBy'],
 					'dateEncoded'=> date('Y-m-d')
 					]);	
 	
@@ -619,7 +620,8 @@ class CaresController extends Controller
 	{
 		try {
 				$value = (array)json_decode($request->post()['inventorydelete']);
-				$inc = FisCaresInclusion::find($value['inclusion_id']);
+				$value['fk_package_id'] = $value['package'];
+				$inc = FisCaresInclusion::find($value['fk_package_id']);
 		   		$inc->delete();
 				
 			return [
