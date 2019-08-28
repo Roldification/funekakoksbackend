@@ -230,8 +230,11 @@ class InventoryController extends Controller
 	   					'createdBy'=>$value['transactedBy']
 	   				]);
 			foreach ($value['inclusions'] as $row){
+
 			try {
 				if(($row->inventory_type) == 'ITEM'){
+					$row->fk_package_id = $row->package_id;
+					$inclusion = FisInclusions::find($row->fk_package_id);
 					$inclusion = FisInclusions::updateOrCreate([
 					'fk_package_id'=> $row->package_id,
 					'item_id'=> $row->inventory_id,
@@ -248,6 +251,8 @@ class InventoryController extends Controller
 				}
 
 				else if(($row->inventory_type) == 'SERV'){
+					$row->fk_package_id = $row->package_id;
+					$inclusion = FisInclusions::find($row->fk_package_id);
 					$inclusion = FisInclusions::updateOrCreate([
 					'fk_package_id'=> $row->package_id,
 					'item_id'=> '-',
