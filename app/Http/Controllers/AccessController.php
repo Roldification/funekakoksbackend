@@ -1617,7 +1617,7 @@ class AccessController extends Controller
 		try {
 			$user_check = DB::select(DB::raw("SELECT item_code, item_name, 0 as quantity, selling_price as price, 0 as discount, 0 as tot_price, SLCode, income_SLCode FROM
 				_fis_items fi
-				WHERE isActive = '1' 
+				WHERE isActive = '1' and left(fi.item_code,2)<>'01'
 				order by item_code asc
 				"));
 			
