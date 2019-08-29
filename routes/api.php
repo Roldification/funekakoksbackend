@@ -80,6 +80,8 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-cares-package', 'CaresController@updateCaresPackage');
 	Route::post('update-pay', 'CaresController@updatePay');
 
+	Route::post('insert-plan-inclusions-items', 'CaresController@insertPlanInclusionsItems');
+
 	//
 	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
