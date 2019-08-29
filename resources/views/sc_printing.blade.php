@@ -76,7 +76,7 @@
 					<tr>
 						<td style="width:9%;"><font face="segoeui"><strong>Address:</strong></font></td>
 						<td style="width:55%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->deceased_address; ?></font></td>
-						<td style="width:13%;"><font face="segoeui"><strong>Cause of Death:</strong></font></td>
+						<td style="width:13%;"><font face="segoeui"><strong>Death:</strong></font></td>
 						<td style="width:21%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->causeOfDeath; ?></font></td>
 					</tr>
 				</table>
@@ -255,18 +255,17 @@
     	 	<div>
     	 		<font face="segoeui" ><strong>TERMS</strong></font>
     	 		<p align="justify" style="margin-top:-4px;">
-    	 			<font face="segoeui" style="font-size: 9px;">For the Burial and funeral services rendered to the aforementioned deceased and to our full satisfaction,
-    	 			The undersigned agree to pay the balance of stated service on or before the interment schedule. <i><b>NO PAYMENT NO INTERMENT.</b></i>
+    	 			<font face="segoeui" style="font-size: 9px;">For the Burial and Funeral services rendered to the aforementioned deceased and to our full satisfaction. The undersigned agree to pay in FULL balance  the stated services or submit the mortuary requirements on or before the interment schedule. <i><b>NO PAYMENT NO INTERMENT.</b></i>
     	 			</font>
     	 		</p>
     	 		
     	 		<p align="justify" style="margin-top:20px;">
-    	 			<font face="segoeui" style="font-size: 9px;">That any damages to the facilities and equipment used during the term of this contract shall be accounted by the contracting party.
+    	 			<font face="segoeui" style="font-size: 9px;">That any damages to the facilities and equipment used during the term of the signed contract shall be accounted by the contracting party.
     	 			</font>
     	 		</p>
     	 		
     	 		<p align="justify" style="margin-top:20px;">
-    	 			<font face="segoeui" style="font-size: 9px;">For complaint/s regarding the services rendere by TAGUM COOPERATIVE FUNECARE the contracting party may contact immediately the office for appropriate action.
+    	 			<font face="segoeui" style="font-size: 9px;">For inquiries, update and complaint/s regarding the services rendered by TAGUM COOPERATIVE FUNECARE, the contracting party may contact immediately the office for appropriate action.
     	 			</font>
     	 		</p>
     	 	</div>

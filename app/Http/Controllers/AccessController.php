@@ -1655,7 +1655,7 @@ class AccessController extends Controller
 			
 			$sc_count = ServiceContract::where('fun_branch', $value['fun_branch'])->count();
 			
-			$value['contract_no'] = date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
+			$value['contract_no'] = $value['fun_branch']."-".date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
 			$value['contract_balance'] = $value['contract_amount'];
 			$value['contract_date'] = date('Y-m-d');
 			$value['burial_time'] = date_format(date_create($value['burial_time']), 'Y-m-d H:i:s');
