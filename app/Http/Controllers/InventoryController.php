@@ -161,7 +161,7 @@ class InventoryController extends Controller
 			      'transactedBy' => $value['transactedBy'],
 				]);
 			}
-			elseif ($value['isInventoriable'] == 0) {
+			else if ($value['isInventoriable'] == 0) {
 				$inventoryItems = FisItems::create([
 				  'item_code' => $value['code'].'-'.$value['item_code'],
 			      'item_name' => $value['item_name'],
@@ -227,11 +227,14 @@ class InventoryController extends Controller
 	   					'standardPrice'=>$value['standardPrice'],
 	   					'salesPrice'=>$value['salesPrice'],
 	   					'isActive' => 1,
-	   					'createdBy'=>$value['transactedBy']
+	   					'updateInclusionBy'=>$value['transactedBy']
 	   				]);
 			foreach ($value['inclusions'] as $row){
+
 			try {
 				if(($row->inventory_type) == 'ITEM'){
+					$row->fk_package_id = $row->package_id;
+					$inclusion = FisInclusions::find($row->fk_package_id);
 					$inclusion = FisInclusions::updateOrCreate([
 					'fk_package_id'=> $row->package_id,
 					'item_id'=> $row->inventory_id,
@@ -242,12 +245,13 @@ class InventoryController extends Controller
 					'inclusionType'=> 'ITEM',
 					'service_price'=> $row->inventory_price,
 					'total_amount'=> $row->total_price,
-					'transactedBy'=> $value['transactedBy'],
 					'dateEncoded'=> date('Y-m-d')
 					]);	
 				}
 
 				else if(($row->inventory_type) == 'SERV'){
+					$row->fk_package_id = $row->package_id;
+					$inclusion = FisInclusions::find($row->fk_package_id);
 					$inclusion = FisInclusions::updateOrCreate([
 					'fk_package_id'=> $row->package_id,
 					'item_id'=> '-',
@@ -258,7 +262,6 @@ class InventoryController extends Controller
 					'inclusionType'=> 'SERV',
 					'service_price'=> $row->inventory_price,
 					'total_amount'=> $row->total_price,
-					'transactedBy'=> $value['transactedBy'],
 					'dateEncoded'=> date('Y-m-d')
 					]);	
 				}

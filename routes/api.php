@@ -85,6 +85,11 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-location', 'AccessController@updateLocation');
 	Route::post('update-incentives', 'AccessController@updateIncentives');
 
+	Route::post('update-user-detail-info', 'AccessController@updateUserDetailInfo');
+	Route::post('update-account-role', 'AccessController@updateAccountRole');
+	Route::post('deactivate-user', 'AccessController@deactivateUser');
+	Route::post('activate-user', 'AccessController@activateUser');
+
 	Route::post('delete-relation', 'AccessController@deleteRelation');
 	Route::post('delete-branch', 'AccessController@deleteBranch');
 	Route::post('delete-location', 'AccessController@deleteLocation');
@@ -167,6 +172,9 @@ Route::get('get-package-inclusions', 'InventoryController@getPackageInclusions')
 Route::get('get-supplier-value', 'InventoryController@getSupplierValue')->middleware('cors');
 Route::get('get-fun-branch', 'InventoryController@getFunBranch')->middleware('cors');
 Route::get('get-chapel-inclusions', 'ServiceContractController@getChapelInclusions')->middleware('cors');
+
+// accounts
+Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

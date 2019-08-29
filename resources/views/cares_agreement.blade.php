@@ -197,7 +197,7 @@
 		</tr>
 		<tr>
 			<td style="width: 350; padding-top: 50px; text-decoration: underline;">
-				<strong>JURIS D. PEREZ</strong>
+				<strong>JURIS D. PEREZ, CPA, MBA</strong>
 			</td>
 			<td style="width: 350; padding-top: 50px; text-decoration: underline;">
 				<strong>
