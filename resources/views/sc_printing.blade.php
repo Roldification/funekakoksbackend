@@ -14,13 +14,23 @@
     	 font {
     	  font-size:12px;
     	 }
+    	 
+    	 .subheader {
+    	 font-size:<?php echo count($inclusions) > 24 ? "12px" : "14px"; ?>;
+    	 }
+    	 
+    	 .tablevalue
+    	 {
+    	 font-size:<?php echo count($inclusions) > 24 ? "10px" : "12px"; ?>;
+    	 }
+    	 
     	</style>
     </head>
     <body>
     			
    
          <div style="height:90px;">
-         
+      
          </div>			    	 	  
     	 <div class="row" style="margin-top:5px;">
     	 	<table style="width:100%;">
@@ -140,7 +150,7 @@
 	    	 			<td style="width:10%;"><font face="segoeui"><strong>Total</strong></font></td>   	 			
 	    	 		</tr>
 	    	 		<tr>
-	    	 			<td colspan="2"><font face="segoeui" style="font-size:14px;">Casket Including Services</font></td>
+	    	 			<td colspan="2"><font face="segoeui" id="subheader">Casket Including Services</font></td>
 	    	 			
 	    	 			<td><font face="segoeui" style="font-size:12px;"><?php echo number_format((double)$accounts[0]->grossPrice - $totalAdditionalAmount, 2, '.', ','); ?></font></td>
 	    	 			<td><font face="segoeui" style="font-size:12px;"><?php echo number_format((double)$accounts[0]->discount, 2, '.', ','); ?></font></td>
@@ -159,8 +169,8 @@
 	    	 			?>
 	    	 			
 	    	 		 <tr>
-	    	 			<td><font face="segoeui" style="font-size:10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
-	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo $row->quantity; ?></font></td>
+	    	 			<td><font face="segoeui" class="tablevalue">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
+	    	 			<td><font face="segoeui" class="tablevalue"><?php echo $row->quantity; ?></font></td>
 	    	 		 </tr>
 	    	 			
 	    	 			<?php 
@@ -168,7 +178,7 @@
 	    	 		}
 	    	 		?>
 	    	 		<tr>
-	    	 			<td><font face="segoeui" style="font-size:14px;">Additional Service</font></td>
+	    	 			<td><font face="segoeui" class="subheader">Additional Service</font></td>
 	    	 			<td></td>
 	    	 			<td></td>
 	    	 			<td></td>
@@ -181,11 +191,11 @@
 	    	 			?>
 	    	 			
 	    	 		 <tr>
-	    	 			<td><font face="segoeui" style="font-size:10px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
-	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo $row->quantity; ?></font></td>
-	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)$row->total_price, 2, '.', ','); ?></font></td>
-	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)0, 2, '.', ','); ?></font></td>
-	    	 			<td><font face="segoeui" style="font-size:10px;"><?php echo number_format((double)$row->total_price, 2, '.', ','); ?></font></td>
+	    	 			<td><font face="segoeui" class="tablevalue">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<?php echo $row->inclusionname; ?></font></td>
+	    	 			<td><font face="segoeui" class="tablevalue"><?php echo $row->quantity; ?></font></td>
+	    	 			<td><font face="segoeui" class="tablevalue"><?php echo number_format((double)$row->total_price, 2, '.', ','); ?></font></td>
+	    	 			<td><font face="segoeui" class="tablevalue"><?php echo number_format((double)0, 2, '.', ','); ?></font></td>
+	    	 			<td><font face="segoeui" class="tablevalue"><?php echo number_format((double)$row->total_price, 2, '.', ','); ?></font></td>
 	    	 		 </tr>
 	    	 			
 	    	 			<?php 
