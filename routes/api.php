@@ -50,6 +50,9 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('get-product-list', 'InventoryController@getProductList');
 	Route::post('get-rr-list', 'InventoryController@getRRList');
 
+	Route::post('insert-inclusions-inv', 'InventoryController@insertInclusionsInv');
+	Route::post('insert-inclusions-serv', 'InventoryController@insertInclusionsServ');
+
 	Route::post('update-items', 'InventoryController@updateItems');
 	Route::post('update-service', 'InventoryController@updateService');
 	Route::post('update-supplier', 'InventoryController@updateSupplier');

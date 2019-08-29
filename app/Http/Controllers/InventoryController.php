@@ -216,6 +216,66 @@ class InventoryController extends Controller
 		}
 	}
 
+
+	public function insertInclusionsInv(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['inclusionsData']);
+				$inclusion = FisInclusions::create([
+				'fk_package_id'=> $value['package_id'],
+				'item_id'=> $value['inventory_id'],
+				'service_id '=> '-',
+				'quantity'=> $value['quantity'],
+				'duration '=> '0',
+				'type_duration '=> '-',
+				'inclusionType'=> 'ITEM',
+				'service_price'=> $value['inventory_price'],
+				'total_amount'=> $value['total_price'],
+				'dateEncoded'=> date('Y-m-d')
+				]);	
+	
+			return [
+				'status'=>'saved',
+				'message'=>$inclusion
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertInclusionsServ(Request $request) {
+		try {
+
+			$value = (array)json_decode($request->post()['inclusionsData']);
+				$inclusion = FisInclusions::create([
+				'fk_package_id'=> $value['package_id'],
+				'item_id'=> '-',
+				'service_id '=> $value['inventory_id'],
+				'quantity'=> '0',
+				'duration '=> $value['service_length'],
+				'type_duration '=> $value['service_type'],
+				'inclusionType'=> 'SERV',
+				'service_price'=> $value['inventory_price'],
+				'total_amount'=> $value['total_price'],
+				'dateEncoded'=> date('Y-m-d')
+				]);	
+	
+			return [
+				'status'=>'saved',
+				'message'=>$inclusion
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
 	public function insertInclusions(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['inclusionsData']);
@@ -229,54 +289,10 @@ class InventoryController extends Controller
 	   					'isActive' => 1,
 	   					'updateInclusionBy'=>$value['transactedBy']
 	   				]);
-			foreach ($value['inclusions'] as $row){
-
-			try {
-				if(($row->inventory_type) == 'ITEM'){
-					$row->item_id = $row->inventory_id;
-					$inclusion = FisInclusions::find($row->item_id);
-					$inclusion = FisInclusions::updateOrCreate([
-					'fk_package_id'=> $row->package_id,
-					'item_id'=> $row->inventory_id,
-					'service_id '=> '-',
-					'quantity'=> $row->quantity,
-					'duration '=> '0',
-					'type_duration '=> '-',
-					'inclusionType'=> 'ITEM',
-					'service_price'=> $row->inventory_price,
-					'total_amount'=> $row->total_price,
-					'dateEncoded'=> date('Y-m-d')
-					]);	
-				}
-
-				else if(($row->inventory_type) == 'SERV'){
-					$row->service_id = $row->inventory_id;
-					$inclusion = FisInclusions::find($row->service_id);
-					$inclusion = FisInclusions::updateOrCreate([
-					'fk_package_id'=> $row->package_id,
-					'item_id'=> '-',
-					'service_id '=> $row->inventory_id,
-					'quantity'=> '0',
-					'duration '=> $row->service_length,
-					'type_duration '=> $row->service_type,
-					'inclusionType'=> 'SERV',
-					'service_price'=> $row->inventory_price,
-					'total_amount'=> $row->total_price,
-					'dateEncoded'=> date('Y-m-d')
-					]);	
-				}
-					
-					
-			} catch (\Exception $e) {
-			return [
-				'message'=>$e->getMessage()
-			]; }
-			}
-
 
 			return [
 				'status'=>'saved',
-				'message'=>$inclusion, $packagePrice
+				'message'=>$packagePrice
 			];
 			
 		} catch (\Exception $e) {
