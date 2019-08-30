@@ -598,6 +598,31 @@ class CaresController extends Controller
 		}
 	}
 
+	public function insertPlanInclusionsItems(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['inclusionsData']);
+				$inclusion = FisCaresInclusion::Create([
+				'fk_package_id'=> $value['package_code'],
+				'inclusion_name'=> $value['inventory_name'],
+				'inclusion_ql'=> $value['inventory_ql'],
+				'inclusion_uom'=> $value['inventory_uom'],
+				'inclusion_price '=> $value['inventory_price'],
+				'dateEncoded'=> date('Y-m-d')
+			]);	
+	
+			return [
+				'status'=>'saved',
+				'message'=>$inclusion
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
 	public function getInclusionCares(Request $request) {
 		$value = (array)json_decode($request->post()['package_code']);
 		try {
