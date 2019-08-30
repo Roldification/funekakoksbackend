@@ -510,6 +510,8 @@ class InventoryController extends Controller
 		}
 	}
 
+
+
 	public function getItemList(Request $request) {
 		$value = (array)json_decode($request->post()['itemList']);
 		try {
@@ -759,7 +761,6 @@ class InventoryController extends Controller
 			$value = (array)json_decode($request->post()['packageupdate']);
 			$package = FisPackage::find($value['package_code']);
 	   		$package->update([
-			      'package_code' => $value['package_code'],
 			      'package_name' => $value['package_name'],
 			      'createdBy' => $value['transactedBy']
 				]);
@@ -929,7 +930,7 @@ class InventoryController extends Controller
 		$value = (array)json_decode($request->post()['incList']);
 		try {
 		$inclusions = DB::select(DB::raw("
-			SELECT CI.fk_chapel_id, CI.item_id, CI.quantity,
+			SELECT CI.fk_chapel_id as fk_package_id, CI.item_id, CI.quantity,
 			CI.duration, CI.type_duration, CI.inclusionType, CI.transactedBy,
 			CI.service_price, CI.total_amount, I.item_name
 			FROM _fis_chapel_inclusions as CI
@@ -969,7 +970,8 @@ class InventoryController extends Controller
 				'inclusionType'=> 'ITEM',
 				'service_price'=> $value['inventory_price'],
 				'total_amount'=> $value['total_price'],
-				'dateEncoded'=> date('Y-m-d')
+				'dateEncoded'=> date('Y-m-d'),
+				'package_level'=>1
 				]);	
 	
 			return [
@@ -998,7 +1000,8 @@ class InventoryController extends Controller
 				'inclusionType'=> 'SERV',
 				'service_price'=> $value['inventory_price'],
 				'total_amount'=> $value['total_price'],
-				'dateEncoded'=> date('Y-m-d')
+				'dateEncoded'=> date('Y-m-d'),
+				'package_level'=>1
 				]);	
 	
 			return [
@@ -1063,6 +1066,47 @@ class InventoryController extends Controller
 			];
 			
 		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function getChapelListEdit(Request $request) {
+		$value = (array)json_decode($request->post()['itemList']);
+		try {
+			$user_check = DB::select(DB::raw("SELECT * FROM _fis_chapel_package
+				WHERE id = '".$value['item_code']."'"));
+				
+			if($user_check)
+				
+				return	$user_check;
+			else return [];
+
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function updateChapelPackage(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['packageupdate']);
+			$package = FisChapelPackage::find($value['id']);
+	   		$package->update([
+			      'chapel_name' => $value['chapel_name'],
+			      'createdBy' => $value['transactedBy']
+				]);
+			return [
+					'status'=>'saved',
+					'message'=>$package
+			];
+		} catch (\Exception $e) {
+			
 			return [
 				'status'=>'unsaved',
 				'message'=>$e->getMessage()

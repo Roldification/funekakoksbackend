@@ -52,6 +52,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	Route::post('get-chapel-inclusion-list', 'InventoryController@getChapelInclusionList');
 
+
 	Route::post('insert-inclusions-inv', 'InventoryController@insertInclusionsInv');
 	Route::post('insert-inclusions-serv', 'InventoryController@insertInclusionsServ');
 	
@@ -60,10 +61,14 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-chapel-inc-serv', 'InventoryController@insertChapelIncServ');
 	Route::post('insert-chapel-inclusions', 'InventoryController@insertChapelInclusions');
 
+	Route::post('get-chapel-list-edit', 'InventoryController@getChapelListEdit');
+
 	Route::post('update-items', 'InventoryController@updateItems');
 	Route::post('update-service', 'InventoryController@updateService');
 	Route::post('update-supplier', 'InventoryController@updateSupplier');
 	Route::post('update-package', 'InventoryController@updatePackage');
+
+	Route::post('update-chapel-package', 'InventoryController@updateChapelPackage');
 
 	Route::post('delete-supplier', 'InventoryController@deleteSupplier');
 	Route::post('delete-inventory', 'InventoryController@deleteInventory');
