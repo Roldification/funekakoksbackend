@@ -329,7 +329,7 @@ class AccessController extends Controller
 		}
 				
 				
-		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LETTER']);
 	
 		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
 		$mpdf->WriteHTML(view('sc_printing', ['accounts'=>$accounts, 'inclusions'=>$inclusions, 'totalAdditionalAmount'=>$totalAdditionalAmount]));
@@ -471,8 +471,8 @@ class AccessController extends Controller
 	   		//$isInventoryValid = \Illuminate\Support\Facades\Validator::make($value, $this->validatorsField('fisItemInventory'));
 	   		
 	   	$contract_discount = 0;
-	   	
-	   	$contract_discount = is_numeric($value['sc_discount']) ? $value['sc_discount'] : 0;
+	   	$setDiscount = $value['sc_discount'] + $value['sc_chapel_discount'];
+	   	$contract_discount = is_numeric($setDiscount) ? $setDiscount: 0;
 	   	
 	   		
 	   	DB::beginTransaction();
@@ -516,11 +516,15 @@ class AccessController extends Controller
 	   			
 	   			$sc = ServiceContract::find($value['sc_id']);
 	   			$sc->update(
-	   					['contract_amount'=>$value['sc_amount'] - $contract_discount,
-	   					 'grossPrice'=>	$value['sc_amount'],
-	   					 'contract_balance'=> $value['sc_amount'] - $contract_discount,
+	   					['contract_amount'=>$value['sc_net_amount'], 
+	   					 'grossPrice'=>	$value['sc_net_amount'] + $contract_discount,
+	   					 'contract_balance'=> $value['sc_net_amount'],
 	   					 'status'=>'ACTIVE',
-	   					 'discount'=>$contract_discount,
+	   				     'chapel_amount'=>$value['sc_chapel_amount'],
+	   					 'chapel_discount'=>$value['sc_chapel_discount'],
+	   					 'package_amount'=>$value['sc_amount'],
+	   					 'chapel_selected'=>$value['sc_chapel_selected'],
+	   					 'discount'=>$value['sc_discount'],
 	   					 'isPosted'=>1
 	   					]
 	   					);
@@ -528,9 +532,9 @@ class AccessController extends Controller
 	   			$scpayment = FisSCPayments::create([
 	   					'contract_id'=>$value['sc_id'],
 	   					'accountType'=>2, 
-	   					'AR_Debit'=>$value['sc_amount'] - $contract_discount,
+	   					'AR_Debit'=>$value['sc_net_amount'],
 	   					'AR_Credit'=>0,
-	   					'balance'=>$value['sc_amount'] - $contract_discount,
+	   					'balance'=>$value['sc_net_amount'],
 	   					'reference_no'=>'RELEASE_'.$sc->contract_no,
 	   					'payment_date'=>date('Y-m-d'),
 	   					'payment_mode'=>3, //3 sa for the meantime
@@ -546,7 +550,7 @@ class AccessController extends Controller
 	   			
 	   			$pushDetails['entry_type']="DR";
 	   			$pushDetails['SLCode']="1-1-112-03-004";
-	   			$pushDetails['amount']=$value['sc_amount'] - $contract_discount;
+	   			$pushDetails['amount']=$value['sc_net_amount'];
 	   			$pushDetails['detail_particulars']="To record AR from Service Contract No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 	   			array_push($acctgDetails, $pushDetails);
 	   			
