@@ -36,7 +36,10 @@ use App\FisCharging;
 use App\FisPackageInclusions;
 use App\FisPackageServiceDelete;
 use App\FisPackageItemDelete;
-
+use App\FisChapelPackage;
+use App\FisChapelInclusions;
+use App\FisChapelServInc;
+use App\FisChapelItemInc;
 
 class InventoryController extends Controller
 {
@@ -307,14 +310,15 @@ class InventoryController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['packagetitledata']);
 			$packageData = FisPackage::create([
-			      'package_code' => $value['package_code'],
+				  'package_code' => $value['package_code'],
 			      'package_name' => $value['package_name'],
 			      'isActive' => 0,
 			      'discount'=> 0,
 	   			  'standardPrice'=> 0,
 	   			  'salesPrice'=> 0,
 			      'date_created' => date('Y-m-d'),
-			      'createdBy' => $value['transactedBy']
+			      'createdBy' => $value['transactedBy'],
+			      'package_level' =>1
 				]);
 			return [
 				'status'=>'saved',
@@ -328,6 +332,33 @@ class InventoryController extends Controller
 			];	
 		}
 	}
+
+	public function insertChapelPackage(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['packagetitledata']);
+			$packageData = FisChapelPackage::create([
+			      'chapel_name' => $value['chapel_name'],
+			      'isActive' => 0,
+			      'discount'=> 0,
+	   			  'standardPrice'=> 0,
+	   			  'salesPrice'=> 0,
+			      'date_created' => date('Y-m-d'),
+			      'createdBy' => $value['transactedBy'],
+			      'package_level' =>1
+				]);
+			return [
+				'status'=>'saved',
+				'message'=>$packageData
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
 
 	public function insertSupplier(Request $request) {
 		try {
@@ -359,7 +390,13 @@ class InventoryController extends Controller
 		UNION ALL
 		SELECT service_name, selling_price, cast(id as varchar(10))id, '-' as discount, '-' as standardPrice, isActive, 'Service' as type FROM _fis_services
 		UNION ALL
-		SELECT package_name, salesPrice, cast(package_code as varchar(10))package_code, cast(discount as varchar(10))discount, cast(standardPrice as varchar(10))standardPrice, isActive, 'Package' as type FROM _fis_package
+		SELECT package_name, salesPrice, cast(package_code as varchar(10))package_code, 
+		cast(discount as varchar(10))discount, cast(standardPrice as varchar(10))standardPrice, 
+		isActive, 'Casket Package' as type FROM _fis_package
+		UNION ALL
+		SELECT chapel_name, salesPrice, cast(id as varchar(10))chapel_id, 
+		cast(discount as varchar(10))discount, cast(standardPrice as varchar(10))standardPrice, 
+		isActive, 'Chapel Package' as type FROM _fis_chapel_package
 		"));
 
 			if($user_check)
@@ -826,7 +863,7 @@ class InventoryController extends Controller
 					}
 				}
 
-				elseif(($value['type']) == 'Package') {
+				elseif(($value['type']) == 'Casket Package') {
 					$value['package_code'] = $value['item_code'];
 					if ($value['isActive'] == 1) {
 						$inventory = FisPackage::find($value['package_code']);
@@ -836,6 +873,22 @@ class InventoryController extends Controller
 					}
 					elseif ($value['isActive'] == 0) {
 						$inventory = FisPackage::find($value['package_code']);
+						$inventory->update([
+		   					'isActive' => 1
+		   				]);
+					}
+				}
+
+				elseif(($value['type']) == 'Chapel Package') {
+					$value['chapel_code'] = $value['item_code'];
+					if ($value['isActive'] == 1) {
+						$inventory = FisChapelPackage::find($value['chapel_code']);
+						$inventory->update([
+		   					'isActive' => 0
+		   				]);
+					}
+					elseif ($value['isActive'] == 0) {
+						$inventory = FisChapelPackage::find($value['chapel_code']);
 						$inventory->update([
 		   					'isActive' => 1
 		   				]);
@@ -857,6 +910,165 @@ class InventoryController extends Controller
 	}
 
 
+	public function getChapelList(Request $request) {
+		$value="";
+		try {
+		$user_check = DB::select(DB::raw("SELECT id as value, chapel_name as label FROM _fis_chapel_package"));
+			if($user_check)
+				return	$user_check;
+				else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getChapelInclusionList(Request $request) {
+		$value = (array)json_decode($request->post()['incList']);
+		try {
+		$inclusions = DB::select(DB::raw("
+			SELECT CI.fk_chapel_id, CI.item_id, CI.quantity,
+			CI.duration, CI.type_duration, CI.inclusionType, CI.transactedBy,
+			CI.service_price, CI.total_amount, I.item_name
+			FROM _fis_chapel_inclusions as CI
+			FULL OUTER JOIN _fis_items AS I on CI.item_id = I.item_code
+			FULL OUTER JOIN _fis_chapel_package AS CP on CI.fk_chapel_id = CP.id
+			WHERE CI.inclusionType='ITEM' and  CI.fk_chapel_id = '".$value['item_code']."'
+			union all
+			SELECT CI.fk_chapel_id, CI.service_id, CI.quantity,
+			CI.duration, CI.type_duration, CI.inclusionType, CI.transactedBy,
+			CI.service_price, CI.total_amount, S.service_name
+			FROM _fis_chapel_inclusions as CI
+			FULL OUTER JOIN _fis_services AS S on CI.service_id = S.id
+			FULL OUTER JOIN _fis_chapel_package AS CP on CI.fk_chapel_id = CP.id
+			WHERE CI.inclusionType='SERV' and  CI.fk_chapel_id = '".$value['item_code']."'
+			"));
+			if($inclusions)
+			return	$inclusions;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function insertChapelIncInv(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['inclusionsData']);
+				$inclusion = FisChapelInclusions::create([
+				'fk_chapel_id'=> $value['package_id'],
+				'item_id'=> $value['inventory_id'],
+				'service_id '=> '-',
+				'quantity'=> $value['quantity'],
+				'duration '=> '0',
+				'type_duration '=> '-',
+				'inclusionType'=> 'ITEM',
+				'service_price'=> $value['inventory_price'],
+				'total_amount'=> $value['total_price'],
+				'dateEncoded'=> date('Y-m-d')
+				]);	
+	
+			return [
+				'status'=>'saved',
+				'message'=>$inclusion
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertChapelIncServ(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['inclusionsData']);
+				$inclusion = FisChapelInclusions::create([
+				'fk_chapel_id'=> $value['package_id'],
+				'item_id'=> '-',
+				'service_id '=> $value['inventory_id'],
+				'quantity'=> '0',
+				'duration '=> $value['service_length'],
+				'type_duration '=> $value['service_type'],
+				'inclusionType'=> 'SERV',
+				'service_price'=> $value['inventory_price'],
+				'total_amount'=> $value['total_price'],
+				'dateEncoded'=> date('Y-m-d')
+				]);	
+	
+			return [
+				'status'=>'saved',
+				'message'=>$inclusion
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function deleteChapelInc(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['inventorydelete']);
+
+				if ($value['inventory_type'] == 'ITEM') {
+					$value['item_id'] = $value['inclusion_id'];
+					$inc = FisChapelItemInc::find($value['item_id']);
+		   			$inc->delete();
+				}
+				else if ($value['inventory_type'] == 'SERV') {
+					$value['service_id'] = $value['inclusion_id'];
+					$inc = FisChapelServInc::find($value['service_id']);
+		   			$inc->delete();
+				}
+			return [
+					'status'=>'saved',
+					'message'=>$inc
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function insertChapelInclusions(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['inclusionsData']);
+
+			$value['id'] = $value['package_id'];
+			$packagePrice = FisChapelPackage::find($value['id']);
+	   		$packagePrice->update([
+	   					'discount'=>$value['discount'],
+	   					'standardPrice'=>$value['standardPrice'],
+	   					'salesPrice'=>$value['salesPrice'],
+	   					'isActive' => 1,
+	   					'updateInclusionBy'=>$value['transactedBy']
+	   				]);
+
+			return [
+				'status'=>'saved',
+				'message'=>$packagePrice
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
 
 
 }

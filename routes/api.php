@@ -50,8 +50,15 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('get-product-list', 'InventoryController@getProductList');
 	Route::post('get-rr-list', 'InventoryController@getRRList');
 
+	Route::post('get-chapel-inclusion-list', 'InventoryController@getChapelInclusionList');
+
 	Route::post('insert-inclusions-inv', 'InventoryController@insertInclusionsInv');
 	Route::post('insert-inclusions-serv', 'InventoryController@insertInclusionsServ');
+	
+	Route::post('insert-chapel-package', 'InventoryController@insertChapelPackage');
+	Route::post('insert-chapel-inc-inv', 'InventoryController@insertChapelIncInv');
+	Route::post('insert-chapel-inc-serv', 'InventoryController@insertChapelIncServ');
+	Route::post('insert-chapel-inclusions', 'InventoryController@insertChapelInclusions');
 
 	Route::post('update-items', 'InventoryController@updateItems');
 	Route::post('update-service', 'InventoryController@updateService');
@@ -61,6 +68,8 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('delete-supplier', 'InventoryController@deleteSupplier');
 	Route::post('delete-inventory', 'InventoryController@deleteInventory');
 	Route::post('delete-inc', 'InventoryController@deleteInc');
+
+	Route::post('delete-chapel-inc', 'InventoryController@deleteChapelInc');
 
 	// TC Cares
 	Route::post('insert-plan-profile', 'CaresController@insertPlanProfile');
@@ -177,6 +186,8 @@ Route::get('get-package-inclusions', 'InventoryController@getPackageInclusions')
 Route::get('get-supplier-value', 'InventoryController@getSupplierValue')->middleware('cors');
 Route::get('get-fun-branch', 'InventoryController@getFunBranch')->middleware('cors');
 Route::get('get-chapel-inclusions', 'ServiceContractController@getChapelInclusions')->middleware('cors');
+
+Route::get('get-chapel-list', 'InventoryController@getChapelList')->middleware('cors');
 
 // accounts
 Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
