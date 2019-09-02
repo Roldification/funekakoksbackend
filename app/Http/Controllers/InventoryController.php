@@ -78,6 +78,9 @@ class InventoryController extends Controller
 			
 			foreach ($value['rr_items'] as $row){
 			try {
+					
+					
+				
 					$rr = FisRReport::create([
 						'supplier_id' => $value['supplier_id'],
 						'date_received' => $value['date_received'],
@@ -108,13 +111,21 @@ class InventoryController extends Controller
 				        'date_entry' => date('Y-m-d'),
 				        'transactedBy' => $value['transactedBy']
 					]);	
-
+					
+					//for remaining balance
+					$forInventoryCount = FisProductList::where([
+							'fk_item_id'=>$row->item_code,
+							'isEncumbered'=>1,
+							'branch'=>$row->branch_id
+					])->count();
+					
 					$inventory = FisItemInventory::create([
 						'transaction_date' => date('Y-m-d'),
 						'particulars ' => 'From Receiving Report',
 						'dr_no'	=> $row->dr_no,
 						'rr_no'	=> $row->rr_no,
-						'process' => 'IN',
+						'process' => 'REC-IN',
+						'remaining_balance'=>$forInventoryCount + 1,
 						'product_id' => $row->item_code,
 						'item_price' =>$row->cost,
 						'remarks' => $row->remarks,

@@ -963,15 +963,23 @@ class ServiceContractController extends Controller
 					])->firstOrFail();
 					
 					
+					//for remaining balance
+					$forInventoryCount = FisProductList::where([
+							'fk_item_id'=>$row->item_code,
+							'isEncumbered'=>1,
+							'branch'=>$value['fun_branch']
+					])->count();
+					
+					
 					FisItemInventory::create(
 							[
 									'transaction_date'=>date('Y-m-d'),
-									'particulars'=>'Purchased by Merch. Purchase #'.$value['OR_no'],
+									'particulars'=>'Cancelled Purchase #'.$value['OR_no'],
 									'contract_id'=>0,
 									'dr_no'=>'-',
 									'rr_no'=>'-',
-									'process'=>'IN',
-									'remaining_balance'=>0,
+									'process'=>'CAN-IN',
+									'remaining_balance'=> $forInventoryCount + 1,
 									'product_id'=>$row->item_code,
 									'quantity'=>1,
 									'item_price'=>$row->item_price,
@@ -1412,20 +1420,29 @@ class ServiceContractController extends Controller
 				];
 			}
 			
-			
+
 			
 			$value['item_inclusions'] = DB::select(DB::raw("select product_id as item_code, price, sales.id as sales_id, total_price as tot_price, quantity, discount, SLCode, income_SLCode, item_name from _fis_item_sales sales
 					inner join _fis_items i on sales.product_id = i.item_code
 					where contract_id=".$value_api['contract_id']));
 			
-			$contractDetails = DB::select(DB::raw("select contract_amount, contract_balance, grossPrice, sc.status, sc.isPosted, fun_branch, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)sc_deceased, discount as sc_discount, contract_id as sc_id, contract_no as sc_number,
-					(s.lastname + ', ' + s.firstname + ' ' + s.middlename)sc_signee
+			$contractDetails = DB::select(DB::raw("select contract_amount, contract_balance, grossPrice, sc.status, sc.isPosted, fun_branch, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)sc_deceased, (discount + chapel_discount) as sc_discount, contract_id as sc_id, contract_no as sc_number,
+					(s.lastname + ', ' + s.firstname + ' ' + s.middlename)sc_signee, date_posted
 					from _fis_service_contract sc 
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
 								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
 								where profile_type='Decease')d on d.id = sc.deceased_id
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					where contract_id=".$value_api['contract_id']));
+			
+			
+			if(date('Y-m-d')." 00:00:00.000"!=$contractDetails[0]->date_posted)
+			{
+				return [
+						'status'=>'unsaved',
+						'message'=>'Invalid date'
+				];
+			}
 			
 			$value['sc_amount']	= $contractDetails[0]->contract_amount;
 			$value['sc_branch']	= $contractDetails[0]->fun_branch;
@@ -1503,7 +1520,7 @@ class ServiceContractController extends Controller
 			
 			
 			$acctgHeader = [];
-			$acctgHeader['branch_code'] = '201';
+			$acctgHeader['branch_code'] = $value['sc_branch'];
 			$acctgHeader['transaction_date'] = date('Y-m-d');
 			$acctgHeader['transaction_code'] = "JNLVOUCHER";
 			$acctgHeader['username'] = $value_api['username'];
@@ -1594,16 +1611,23 @@ class ServiceContractController extends Controller
 								//'isEncumbered'=>1,
 						])->firstOrFail();
 						
+						//for remaining balance
+						$forInventoryCount = FisProductList::where([
+								'fk_item_id'=>$row->item_code,
+								'isEncumbered'=>1,
+								'branch'=>$value['sc_branch']
+						])->count();
+						
 						
 						FisItemInventory::create(
 								[
 										'transaction_date'=>date('Y-m-d'),
-										'particulars'=>'Purchased by SC. #'.$sc->contract_no,
+										'particulars'=>'Cancelled SC. #'.$sc->contract_no,
 										'contract_id'=>$sc->contract_id,
 										'dr_no'=>'-',
 										'rr_no'=>'-',
-										'process'=>'IN',
-										'remaining_balance'=>0,
+										'process'=>'CAN-IN',
+										'remaining_balance'=> $forInventoryCount + 1,
 										'product_id'=>$row->item_code,
 										'quantity'=>1,
 										'item_price'=>$row->item_price,

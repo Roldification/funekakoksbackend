@@ -525,6 +525,7 @@ class AccessController extends Controller
 	   					 'package_amount'=>$value['sc_amount'],
 	   					 'chapel_selected'=>$value['sc_chapel_selected'],
 	   					 'discount'=>$value['sc_discount'],
+	   					 'date_posted'=>date('Y-m-d'),
 	   					 'isPosted'=>1
 	   					]
 	   					);
@@ -644,6 +645,13 @@ class AccessController extends Controller
 	   							'branch'=>$value['sc_branch']
 	   					])->firstOrFail();
 	   					
+	   					//for remaining balance
+	   					$forInventoryCount = FisProductList::where([
+	   							'fk_item_id'=>$row->item_code,
+	   							'isEncumbered'=>1,
+	   							'branch'=>$value['sc_branch']
+	   					])->count();
+	   					
 	   					
 	   					FisItemInventory::create(
 	   							[
@@ -652,8 +660,8 @@ class AccessController extends Controller
 	   									'contract_id'=>$sc->contract_id,
 	   									'dr_no'=>'-',
 	   									'rr_no'=>'-',
-	   									'process'=>'OUT',
-	   									'remaining_balance'=>0,
+	   									'process'=>'PUR-OUT',
+	   									'remaining_balance'=> $forInventoryCount - 1,
 	   									'product_id'=>$row->item_code,
 	   									'quantity'=>1,
 	   									'item_price'=>$row->sell_price,
@@ -1354,6 +1362,14 @@ class AccessController extends Controller
 				{
 					try {
 						
+						//for remaining balance
+						$forInventoryCount = FisProductList::where([
+								'fk_item_id'=>$row->item_code,
+								'isEncumbered'=>1,
+								'branch'=>$value['sales_header']->branch
+						])->count();
+						
+						
 						FisItemInventory::create(
 								[
 										'transaction_date'=>date('Y-m-d'),
@@ -1361,8 +1377,8 @@ class AccessController extends Controller
 										'contract_id'=>0,
 										'dr_no'=>'-',
 										'rr_no'=>'-',
-										'process'=>'OUT',
-										'remaining_balance'=>0,
+										'process'=>'PUR-OUT',
+										'remaining_balance'=> $forInventoryCount - 1,
 										'product_id'=>$row->item_code,
 										'quantity'=>1,
 										'item_price'=>$row->sell_price,
