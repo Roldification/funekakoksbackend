@@ -310,12 +310,12 @@ class AccessController extends Controller
 				end as ispackage, i.print_index
 				from _fis_item_sales sales
 				inner join _fis_items i on sales.product_id = i.item_code
-				where contract_id=$id
+				where contract_id=$id and isViewPrint=1
 				union all
 				select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname, CAST(service_duration as varchar(3)) + ' ' + duration_unit as quantity, total_amount,
 				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id='".$accounts[0]->package_class_id."' and service_id = s.id)ispackage, s.print_index
 				from _fis_service_sales ss
-				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=$id
+				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=$id and isViewPrint=1
 				)dfa order by print_index"));
 		
 		$totalAdditionalAmount = 0;

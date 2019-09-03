@@ -219,27 +219,69 @@ class ServiceContractController extends Controller
 	}
 	
 	
+	public function resetCharging(Request $request)
+	{
+		$details = json_decode($request->post()['payment_details']);
+	
+		try {
+			$isExists = DB::update('update _fis_sc_charging
+							set total_amount = total_amount - balance,
+							balance = total_amount - balance
+							where fk_scID =? and total_amount <> balance', [$details]);
+			
+		
+				return [
+						'status'=>'saved',
+						'message'=>''
+				];
+			
+			
+		} catch (\Exception $e) {
+			return [
+					'status'=>'unsaved',
+					'message'=> $e->getMessage()
+			];
+		}
+		
+		
+	}
+	
+	
 	public function removeCharging(Request $request)
 	{
 		$details = (array)json_decode($request->post()['payment_details']);
 		
 		try {
-			$accountType = FisCharging::where(['fk_scID'=>$details['contract_id'], 'accountType'=>$details['account_type']])->delete();
 			
-			if($accountType)
+			$isPaid = FisSCPayments::where(['contract_id'=>$details['contract_id'], 'accountType'=>$details['account_type'], 'isCancelled'=>0])->count();
+			
+			if($isPaid>=1)
 			{
 				return [
-						'status'=>'saved',
-						'message'=>'Account Charging successfully removed.'
+						'status'=>'unsaved',
+						'message'=>'Account Charging already has a payment made.'
 				];
 			}
 			
 			else
 			{
-				return [
-						'status'=>'unsaved',
-						'message'=>'Account Charging cannot be found or cannot be removed.'
-				];
+				$accountType = FisCharging::where(['fk_scID'=>$details['contract_id'], 'accountType'=>$details['account_type']])->delete();
+				
+				if($accountType)
+				{
+					return [
+							'status'=>'saved',
+							'message'=>'Account Charging successfully removed.'
+					];
+				}
+				
+				else
+				{
+					return [
+							'status'=>'unsaved',
+							'message'=>'Account Charging cannot be found or cannot be removed.'
+					];
+				}
 			}
 		} catch (\Exception $e) {
 			
@@ -1800,13 +1842,36 @@ class ServiceContractController extends Controller
 	{
 		try {
 			$value = (array)json_decode($request->post()['payment_details']);
-			$value['balance'] = $value['total_amount'];
-			$value['date'] = date('Y-m-d H:i:s');
-			$charging = FisCharging::create($value);
-			return [
-					'status'=>'saved',
-					'message'=>''
-			];
+			
+			$isExists = DB::update('update _fis_sc_charging set total_amount = total_amount + '.$value['total_amount'].', balance = balance + '.$value['total_amount'].'
+									where fk_scID = ? and accountType = ?', [$value['fk_scID'], $value['accountType']]);
+			
+			
+			
+			if($isExists>=1)
+			{
+				return [
+						'status'=>'savedupdate',
+						'message'=>$isExists
+				];
+				
+			}
+			
+			else
+			{
+				$value['balance'] = $value['total_amount'];
+				$value['date'] = date('Y-m-d H:i:s');
+				$charging = FisCharging::create($value);
+				
+				return [
+						'status'=>'saved',
+						'message'=>''
+				];
+			}
+			
+			
+			
+		
 			
 			
 		} catch (\Exception $e) {

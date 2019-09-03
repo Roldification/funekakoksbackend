@@ -22,6 +22,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-user', 'AccessController@insertAccess');
 	Route::post('get-accounts-of-client', 'ServiceContractController@getAccountsOfClient');
 	Route::post('process-transfer', 'ServiceContractController@processTransfer');
+	Route::post('reset-charging', 'ServiceContractController@resetCharging');
 	Route::post('process-deduction', 'ServiceContractController@processDeduction');
 	Route::post('update-contract', 'ServiceContractController@updateContract');
 	Route::post('login-user', 'AccessController@loginUser');
