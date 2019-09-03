@@ -182,7 +182,6 @@ Route::get('cares-agreement', 'CaresController@caresAgreement')->middleware('cor
 Route::get('get-incentives', 'AccessController@getIncentives')->middleware('cors');
 
 // Inventory
-Route::get('get-inventory-list', 'InventoryController@getInventoryList')->middleware('cors');
 Route::get('get-item-package', 'InventoryController@getItemPackage')->middleware('cors');
 Route::get('get-service-package', 'InventoryController@getServicePackage')->middleware('cors');
 Route::get('get-supplier', 'InventoryController@getSupplierList')->middleware('cors');
@@ -192,8 +191,15 @@ Route::get('get-package-inclusions', 'InventoryController@getPackageInclusions')
 Route::get('get-supplier-value', 'InventoryController@getSupplierValue')->middleware('cors');
 Route::get('get-fun-branch', 'InventoryController@getFunBranch')->middleware('cors');
 Route::get('get-chapel-inclusions', 'ServiceContractController@getChapelInclusions')->middleware('cors');
-
 Route::get('get-chapel-list', 'InventoryController@getChapelList')->middleware('cors');
+Route::get('casket-packages', 'InventoryController@casketPackages')->middleware('cors');
+Route::get('get-chapel-item', 'InventoryController@getChapelItem')->middleware('cors');
+
+Route::get('get-all-items', 'InventoryController@getAllItems')->middleware('cors');
+Route::get('get-all-services', 'InventoryController@getAllServices')->middleware('cors');
+Route::get('get-all-casket-packages', 'InventoryController@getAllCasketPackages')->middleware('cors');
+Route::get('get-all-chapel-packages', 'InventoryController@getAllChapelPackages')->middleware('cors');
+
 
 // accounts
 Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
