@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisRReport;
 use App\FisDeceased;
 use App\FisItems;
@@ -31,7 +32,6 @@ use App\FisSalesTransaction;
 use App\FisPaymentType;
 use App\FisSCPayments;
 use App\FisPackage;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisCharging;
 use App\FisPackageInclusions;
 use App\FisPackageServiceDelete;
@@ -226,10 +226,10 @@ class InventoryController extends Controller
 				$inclusion = FisInclusions::create([
 				'fk_package_id'=> $value['package_id'],
 				'item_id'=> $value['inventory_id'],
-				'service_id '=> '-',
+				'service_id '=> ' ',
 				'quantity'=> $value['quantity'],
-				'duration '=> '0',
-				'type_duration '=> '-',
+				'duration '=> ' ',
+				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'ITEM',
 				'service_price'=> $value['inventory_price'],
 				'total_amount'=> $value['total_price'],
@@ -255,9 +255,9 @@ class InventoryController extends Controller
 			$value = (array)json_decode($request->post()['inclusionsData']);
 				$inclusion = FisInclusions::create([
 				'fk_package_id'=> $value['package_id'],
-				'item_id'=> '-',
+				'item_id'=> ' ',
 				'service_id '=> $value['inventory_id'],
-				'quantity'=> '0',
+				'quantity'=> ' ',
 				'duration '=> $value['service_length'],
 				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'SERV',
@@ -383,32 +383,6 @@ class InventoryController extends Controller
 		}
 	}
 
-	public function getInventoryList(Request $request) {
-		$value = "";
-		try {
-		$user_check = DB::select(DB::raw("SELECT item_name, selling_price, item_code, '-' as discount, '-' as standardPrice,  isActive, 'Item' as type FROM _fis_items
-		UNION ALL
-		SELECT service_name, selling_price, cast(id as varchar(10))id, '-' as discount, '-' as standardPrice, isActive, 'Service' as type FROM _fis_services
-		UNION ALL
-		SELECT package_name, salesPrice, cast(package_code as varchar(10))package_code, 
-		cast(discount as varchar(10))discount, cast(standardPrice as varchar(10))standardPrice, 
-		isActive, 'Casket Package' as type FROM _fis_package
-		UNION ALL
-		SELECT chapel_name, salesPrice, cast(id as varchar(10))chapel_id, 
-		cast(discount as varchar(10))discount, cast(standardPrice as varchar(10))standardPrice, 
-		isActive, 'Chapel Package' as type FROM _fis_chapel_package
-		"));
-
-			if($user_check)
-			return	$user_check;
-			else return [];
-		} catch (\Exception $e) {
-			return [
-			'status'=>'error',
-			'message'=>$e->getMessage()
-			];
-		}
-	}
 
 	public function getItemPackage(Request $request) {
 		$value = "";
@@ -425,6 +399,24 @@ class InventoryController extends Controller
 			];
 		}
 	}
+
+	public function getChapelItem(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("SELECT item_code as value, item_name as label, *  FROM _fis_items WHERE isActive = '1' 
+and left(item_code, 2)<>'01'"));
+
+			if($user_check)
+			return	$user_check;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
 
 	public function getFunBranch(Request $request) {
 		$value = "";
@@ -963,10 +955,10 @@ class InventoryController extends Controller
 				$inclusion = FisChapelInclusions::create([
 				'fk_chapel_id'=> $value['package_id'],
 				'item_id'=> $value['inventory_id'],
-				'service_id '=> '-',
+				'service_id '=> ' ',
 				'quantity'=> $value['quantity'],
-				'duration '=> '0',
-				'type_duration '=> '-',
+				'duration '=> ' ',
+				'type_duration '=>  $value['service_type'],
 				'inclusionType'=> 'ITEM',
 				'service_price'=> $value['inventory_price'],
 				'total_amount'=> $value['total_price'],
@@ -992,9 +984,9 @@ class InventoryController extends Controller
 			$value = (array)json_decode($request->post()['inclusionsData']);
 				$inclusion = FisChapelInclusions::create([
 				'fk_chapel_id'=> $value['package_id'],
-				'item_id'=> '-',
+				'item_id'=> ' ',
 				'service_id '=> $value['inventory_id'],
-				'quantity'=> '0',
+				'quantity'=> ' ',
 				'duration '=> $value['service_length'],
 				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'SERV',
@@ -1111,6 +1103,106 @@ class InventoryController extends Controller
 				'status'=>'unsaved',
 				'message'=>$e->getMessage()
 			];	
+		}
+	}
+
+
+	public function casketPackages(Request $request)
+	{
+		$id = $request->post()['id'];
+		
+		$package = DB::select(DB::raw("
+			SELECT * FROM _fis_package WHERE package_code = '".$id."'
+			"));
+
+		$items = DB::select(DB::raw("
+			SELECT PCI.*, I.item_name FROM _fis_package_inclusions AS PCI 
+			LEFT JOIN _fis_items AS I ON PCI.item_id = I.item_code
+			WHERE inclusionType = 'ITEM' and fk_package_id = '".$id."'
+			"));
+
+		$service = DB::select(DB::raw("
+			SELECT PCI.*, S.service_name FROM _fis_package_inclusions AS PCI 
+			LEFT JOIN _fis_services AS S ON PCI.service_id = S.id
+			WHERE inclusionType = 'SERV' and fk_package_id = '".$id."'
+			"));
+				
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+	
+		$mpdf->WriteHTML(view('casket_packages', ['package'=>$package, 'items'=>$items, 'service'=>$service]));
+		$mpdf->use_kwt = true; 
+		$mpdf->Output();
+	}
+
+	public function getAllItems(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("
+			SELECT *, 'Item' as type FROM _fis_items
+		"));
+
+			if($user_check)
+			return	$user_check;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getAllServices(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("
+			SELECT *, id as item_code, 'Service' as type FROM _fis_services
+		"));
+
+			if($user_check)
+			return	$user_check;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getAllCasketPackages(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("
+			SELECT *, package_code as item_code, 'Casket Package' as type FROM _fis_package
+		"));
+
+			if($user_check)
+			return	$user_check;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getAllChapelPackages(Request $request) {
+		$value = "";
+		try {
+		$user_check = DB::select(DB::raw("
+			SELECT *, id as item_code, 'Chapel Package' as type FROM _fis_chapel_package
+		"));
+
+			if($user_check)
+			return	$user_check;
+			else return [];
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
 		}
 	}
 
