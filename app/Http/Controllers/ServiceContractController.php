@@ -445,6 +445,12 @@ class ServiceContractController extends Controller
 								'transferFrom'=>$value['']
 						]); */
 						
+						//for remaining balance
+						$forInventoryCount = FisProductList::where([
+								'fk_item_id'=>$row->item_code,
+								'isEncumbered'=>1,
+								'branch'=>$value['transferFrom']
+						])->count();
 						
 						
 					
@@ -456,7 +462,7 @@ class ServiceContractController extends Controller
 										'dr_no'=>'-',
 										'rr_no'=>'-',
 										'process'=>'TRAN-OUT',
-										'remaining_balance'=>0,
+										'remaining_balance'=>$forInventoryCount - 1,
 										'product_id'=>$row->item_code,
 										'quantity'=>1,
 										'item_price'=>$row->sell_price,
@@ -538,6 +544,16 @@ class ServiceContractController extends Controller
 						
 						$inventoryitem = new FisItemInventory;
 						$inventoryitem->setConnection('sqlsrv');
+						
+						
+						//for remaining balance
+						$forInventoryCount = FisProductList::where([
+								'fk_item_id'=>$row->item_code,
+								'isEncumbered'=>1,
+								'branch'=>$value['transferTo']
+						])->count();
+						
+						
 						$newInventory = $inventoryitem::create(
 								[
 										'transaction_date'=>date('Y-m-d'),
@@ -546,7 +562,7 @@ class ServiceContractController extends Controller
 										'dr_no'=>'-',
 										'rr_no'=>'-',
 										'process'=>'TRAN-IN',
-										'remaining_balance'=>0,
+										'remaining_balance'=>$forInventoryCount,
 										'product_id'=>$row->item_code,
 										'quantity'=>1,
 										'item_price'=>$row->sell_price,
@@ -914,7 +930,7 @@ class ServiceContractController extends Controller
 					where sales_id=".$value_api['sales_id']));
 			
 			
-			$value['item_inventory'] = DB::select(DB::raw("select SLCode, p_sequence as id, item_code, item_name, inventory.item_price , inventory.serialNo from _fis_item_inventory inventory
+			$value['item_inventory'] = DB::select(DB::raw("select SLCode, p_sequence as id, item_code, item_name, inventory.item_price , inventory.serialNo, expense_SLCode from _fis_item_inventory inventory
 					inner join _fis_items i on inventory.product_id = i.item_code
 					where fk_sales_id=".$value_api['sales_id']));
 			
@@ -1041,14 +1057,16 @@ class ServiceContractController extends Controller
 					
 					if($row->SLCode!="-")
 					{
-						$pushDetails['entry_type']="CR";
+						$pushDetails['entry_type']="DR";
 						$pushDetails['SLCode']= $row->SLCode;
 						$pushDetails['amount']= $productList->price;
 						$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from Merch. Purchase #".$value['OR_no']." Signee Name : ".$value['client'];
 						array_push($acctgDetails, $pushDetails);
 						
-						$pushDetails['entry_type']="DR";
-						$pushDetails['SLCode']= $currentBranch->borrowHO;
+						$debitSL = $row->expense_SLCode == "BRANCH" ? $currentBranch->borrowHO : $row->expense_SLCode;
+						
+						$pushDetails['entry_type']="CR";
+						$pushDetails['SLCode']= $debitSL;
 						$pushDetails['amount']= $productList->price;
 						$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from Merch. Purchase #".$value['OR_no']." Signee Name : ".$value['client'];
 						array_push($acctgDetails, $pushDetails);
@@ -1080,12 +1098,21 @@ class ServiceContractController extends Controller
 							'isCancelled'=>1
 					]);
 					
+					if(strpos($row->service_name, "GIFT COUPON"))
+					{
+						$pushDetails['entry_type']="DR";
+						$pushDetails['SLCode']= $currentBranch->borrowHO;
+						$pushDetails['amount']= $row->tot_price;
+						$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+					}
 					
-					$pushDetails['entry_type']="DR";
-					$pushDetails['SLCode']= $row->SLCode;
-					$pushDetails['amount']= $row->tot_price;
-					$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Purchase #".$value['OR_no']." Signee: ".$value['client'];
-					
+					else
+					{
+						$pushDetails['entry_type']="DR";
+						$pushDetails['SLCode']= $row->SLCode;
+						$pushDetails['amount']= $row->tot_price;
+						$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from Merch. Ref #".$value['OR_no']." Signee: ".$value['client'];
+					}
 					array_push($acctgDetails, $pushDetails);
 					
 					
@@ -1537,7 +1564,7 @@ class ServiceContractController extends Controller
 			
 			
 			
-		 	$value['item_inventory'] = DB::select(DB::raw("select SLCode, p_sequence as id, item_code, item_name, inventory.item_price , inventory.serialNo from _fis_item_inventory inventory
+		 	$value['item_inventory'] = DB::select(DB::raw("select SLCode, p_sequence as id, item_code, item_name, inventory.item_price , inventory.serialNo, expense_SLCode from _fis_item_inventory inventory
 					inner join _fis_items i on inventory.product_id = i.item_code
 					where contract_id=".$value_api['contract_id']));
 		 	
@@ -1689,14 +1716,16 @@ class ServiceContractController extends Controller
 						
 						if($row->SLCode!="-")
 						{
-							$pushDetails['entry_type']="CR";
+							$pushDetails['entry_type']="DR";
 							$pushDetails['SLCode']= $row->SLCode;
 							$pushDetails['amount']= $productList->price;
 							$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from SC No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 							array_push($acctgDetails, $pushDetails);
 							
-							$pushDetails['entry_type']="DR";
-							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							$debitSL = $row->expense_SLCode == "BRANCH" ? $currentBranch->borrowHO : $row->expense_SLCode;
+							
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= $debitSL;
 							$pushDetails['amount']= $productList->price;
 							$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from SC No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 							array_push($acctgDetails, $pushDetails);
@@ -1728,12 +1757,21 @@ class ServiceContractController extends Controller
 								'isCancelled'=>1
 						]);
 
-												
-						$pushDetails['entry_type']="DR";
-						$pushDetails['SLCode']= $row->SLCode;
-						$pushDetails['amount']= $row->tot_price;
-						$pushDetails['detail_particulars']="Income of ".$row->service_name." from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+						if(strpos($row->service_name, "GIFT COUPON"))
+						{
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							$pushDetails['amount']= $row->tot_price;
+							$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+						}
 						
+						else
+						{
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['amount']= $row->tot_price;
+							$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+						}
 						array_push($acctgDetails, $pushDetails);
 						
 						
