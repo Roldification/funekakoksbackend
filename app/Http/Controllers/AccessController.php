@@ -1602,9 +1602,9 @@ class AccessController extends Controller
 
 	public function getIncentives(Request $request) {
 		try {
-		$incentives = DB::select(DB::raw("SELECT (prof.lastname + ', ' + prof.firstname + ' ' + prof.middlename) member_name, inf.incentives, inf.remarks, inf.status, inf.date_claim, inf.date_inform, inf.fk_profile_id
-			FROM _fis_informantInfo as inf
-			LEFT JOIN _fis_ProfileHeader as prof ON inf.fk_profile_id = prof.id"));
+		$incentives = DB::select(DB::raw("
+			SELECT (lastname + ', ' + firstname + ' ' + middlename)member_name,* FROM _fis_ProfileHeader WHERE profile_type = 'Informant'
+			"));
 			if($incentives)
 				return	$incentives;
 				else return [];
@@ -2036,32 +2036,6 @@ class AccessController extends Controller
 		}
 	}
 
-	public function getMemberInfo(Request $request) {
-		$value = "";
-		try {
-		$info = DB::select(DB::raw("SELECT 
-		(P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name,  
-		P.lastname, P.firstname, P.middlename, P.id, P.customer_id,  P.contact_no, P.address, P.is_member, P.profile_type, P.date_entry, 
-		D.fk_profile_id, D.birthday, D.date_died, D.causeOfDeath, D.religion, D.primary_branch, D.servicing_branch, D.deathPlace, D.relationToSignee,
-		S.fk_profile_id, S.fb_account, S.email_address,
-		I.fk_profile_id, I.incentives, I.remarks, I.date_inform
-		from _fis_profileHeader as P
-		FULL OUTER JOIN _fis_deceaseInfo AS D on P.id = D.fk_profile_id
-		FULL OUTER JOIN _fis_informantInfo AS I  on P.id = I.fk_profile_id
-		FULL OUTER JOIN _fis_signeeInfo AS S on P.id = S.fk_profile_id"));	
-
-			if($info)
-			return	$info;
-			else return [];
-				
-		} catch (\Exception $e) {
-			return [
-			'status'=>'error',
-			'message'=>$e->getMessage()
-			];
-		}
-	}
-
 	public function getSLCode(Request $request) {
 		$value = "";
 		try {
@@ -2208,7 +2182,7 @@ class AccessController extends Controller
 	   			if(($value['profile_type']) == 'Decease'){
 				$value['fk_profile_id'] = $value['id'];
 				$memberProfile = FisDeceased::find($value['fk_profile_id']);
-				$memberProfile->update([
+				$memberProfile->updateorCreate([
 				  'birthday' => date('Y-m-d', strtotime($value['birthday'])),
 				  'date_died' => date('Y-m-d', strtotime($value['date_died'])),
 			      'causeOfDeath' => $value['causeOfDeath'],
@@ -2223,7 +2197,7 @@ class AccessController extends Controller
 				elseif (($value['profile_type']) == 'Signee') {
 				$value['fk_profile_id'] = $value['id'];
 				$memberProfile = FisSignee::find($value['fk_profile_id']);
-				$memberProfile->update([
+				$memberProfile->updateorCreate([
 			      'fb_account' => $value['fb_account'],
 			      'email_address' => $value['email_address']
 				]);
@@ -2232,7 +2206,7 @@ class AccessController extends Controller
 				elseif (($value['profile_type']) == 'Informant') {
 				$value['fk_profile_id'] = $value['id'];
 				$memberProfile = FisInformant::find($value['fk_profile_id']);
-				$memberProfile->update([
+				$memberProfile->updateorCreate([
 					'date_inform' => date('Y-m-d', strtotime($value['date_inform'])),
 					'incentives' => $value['incentives'],
 					'remarks' => $value['remarks']
@@ -2259,8 +2233,7 @@ class AccessController extends Controller
 		try {
 				$value = (array)json_decode($request->post()['incentivesData']);
 			
-				$incentives = FisIncentives::find($value['fk_profile_id']);
-			
+				$incentives = FisIncentives::find($value['id']);
 					$incentives->update(
 	   					['status'=> 'CLAIMED',
 	   					'incentives'=> $value['incentives'],
@@ -2507,6 +2480,110 @@ class AccessController extends Controller
 				'message'=>$e->getMessage()
 			];	
 		}
+	}
+
+	public function getIncentivesId(Request $request) {
+		$value = (array)json_decode($request->post()['dataIncentives']);
+		try {
+			$user_check = DB::select(DB::raw("
+				SELECT * FROM _fis_informantInfo WHERE fk_profile_id = '".$value['fk_profile_id']."'
+				"));
+				
+			if($user_check)
+				
+				return	$user_check;
+			else return [];
+
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function AddIncentives(Request $request) {
+		try {
+			$value = (array)json_decode($request->post()['incentivesData']);
+					$memberProfile = FisInformant::create([
+				      'incentives' => $value['incentives'],
+				      'remarks' => $value['remarks'],
+				      'date_inform' =>  date('Y-m-d'),
+				      'status' => 'UNCLAIMED',
+				      'fk_profile_id' => $value['fk_profile_id']
+				  	]);
+			return [
+				'status'=>'saved',
+				'message'=>$memberProfile
+			];
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function getSigneeDetails(Request $request) {
+		$value = "";
+		try {
+		$info = DB::select(DB::raw("
+		SELECT (P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, P.*, S.id as signee_id, 
+		S.fb_account, S.email_address
+		from _fis_profileHeader as P INNER JOIN _fis_signeeInfo AS S on P.id = S.fk_profile_id
+
+		"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
 	}	
+
+	public function getDeceasedDetails(Request $request) {
+		$value = "";
+		try {
+		$info = DB::select(DB::raw("
+		SELECT (P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name,* from _fis_profileHeader as P 
+		INNER JOIN _fis_deceaseInfo AS D on P.id = D.fk_profile_id
+		"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getInformantDetails(Request $request) {
+		$value = "";
+		try {
+		$info = DB::select(DB::raw("
+		SELECT (lastname + ', ' + firstname + ' ' + middlename) member_name,* from _fis_profileHeader WHERE profile_type = 'Informant'
+		"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
 
 }

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class FisIncentives extends Model
 {
     protected $table = '_fis_informantInfo'; //table name of the model
-    protected $primaryKey = 'fk_profile_id';
+    protected $primaryKey = 'id';
 	protected $guarded = []; //set all the fields fillable. fillable means the ones to be supplied for inserting data
 	public $timestamps = false; //disable updated_at and created_at in tables.
 }

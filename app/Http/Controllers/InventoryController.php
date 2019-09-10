@@ -1138,11 +1138,12 @@ and left(item_code, 2)<>'01'"));
 			WHERE inclusionType = 'SERV' and fk_package_id = '".$id."'
 			"));
 				
-		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
-	
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL']);
+		$mpdf->SetDisplayMode('fullpage');
 		$mpdf->WriteHTML(view('casket_packages', ['package'=>$package, 'items'=>$items, 'service'=>$service]));
 		$mpdf->use_kwt = true; 
-		$mpdf->Output();
+		$mpdf->SetTitle('Casket Package');
+		$mpdf->Output('');
 	}
 
 	public function getAllItems(Request $request) {
