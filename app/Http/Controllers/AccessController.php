@@ -685,14 +685,17 @@ class AccessController extends Controller
 	   					
 	   					if($row->SLCode!="-")
 	   					{
-	   						$pushDetails['entry_type']="DR";
+	   						$pushDetails['entry_type']="CR";
 	   						$pushDetails['SLCode']= $row->SLCode;
 	   						$pushDetails['amount']= $productList->price;
 	   						$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from SC No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 	   						array_push($acctgDetails, $pushDetails);
 	   						
-	   						$pushDetails['entry_type']="CR";
-	   						$pushDetails['SLCode']= $currentBranch->borrowHO;
+	   						//different credit for each item. edited by harold 9/4/2019
+	   						$creditSL = $row->expense_SLCode == "BRANCH" ? $currentBranch->borrowHO : $row->expense_SLCode;
+	   						
+	   						$pushDetails['entry_type']="DR";
+	   						$pushDetails['SLCode']= $creditSL;
 	   						$pushDetails['amount']= $productList->price;
 	   						$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from SC No.".$value['sc_number']." Signee Name : ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 	   						array_push($acctgDetails, $pushDetails);
@@ -745,7 +748,7 @@ class AccessController extends Controller
 	   					]);
 	   					
 	   					
-	   					if(strpos($row->service_name, "MEMBERSHIP"))
+	   					if(strpos($row->service_name, "GIFT COUPON"))
 	   					{
 	   						$pushDetails['entry_type']="CR";
 	   						$pushDetails['SLCode']= $currentBranch->borrowHO;
@@ -1402,14 +1405,18 @@ class AccessController extends Controller
 						
 						if($row->SLCode!="-")
 						{
-							$pushDetails['entry_type']="DR";
+							$pushDetails['entry_type']="CR";
 							$pushDetails['SLCode']= $row->SLCode;
 							$pushDetails['amount']= $productList->price;
 							$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
 							array_push($acctgDetails, $pushDetails);
 							
-							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							
+							//different credit for each item. edited by harold 9/4/2019
+							$creditSL = $row->expense_SLCode == "BRANCH" ? $currentBranch->borrowHO : $row->expense_SLCode;
+												
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $creditSL;
 							$pushDetails['amount']= $productList->price;
 							$pushDetails['detail_particulars']="To record Inventory of ".$row->item_name." from Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
 							array_push($acctgDetails, $pushDetails);
@@ -1462,11 +1469,23 @@ class AccessController extends Controller
 								
 						]);
 						
-						$pushDetails['entry_type']="CR";
-						$pushDetails['SLCode']= $row->SLCode;
-						$pushDetails['amount']= $row->tot_price;
-						$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+						if(strpos($row->service_name, "GIFT COUPON"))
+						{
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							$pushDetails['amount']= $row->tot_price;
+							$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+						}
 						
+						
+						else
+						{
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['amount']= $row->tot_price;
+							$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							
+						}
 						array_push($acctgDetails, $pushDetails);
 						
 						
@@ -1773,7 +1792,7 @@ class AccessController extends Controller
 				array_push($itemSelection, $selection);
 				
 
-				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id, serialno, ".$row->price." as sell_price, SLCode from _fis_productlist pl
+				$presentation = DB::select(DB::raw("select top ".$row->quantity." item_code, item_name, pl.id, serialno, ".$row->price." as sell_price, SLCode, expense_SLCode from _fis_productlist pl
 					inner join _fis_items i on pl.fk_item_id = i.item_code
 					where isEncumbered=1 and branch='".$branch."'and fk_item_id='".$row->item_code."'
 					order by id"));
