@@ -128,14 +128,14 @@
 
 		<tr>
 			<th>Contract Price:</th>
-			<th>Amount of Instalment:</th>
+			<th>Amount of Installment:</th>
 		</tr>
 		<tr>
 			<td style="border-bottom: 1px solid #000000; border-right: 1px solid #000000;">
-			<strong><?php echo number_format((double)$accounts[0]->contractPrice); ?></strong>
+			<strong><?php echo number_format((double)$accounts[0]->contractPrice, 2,'.',''); ?></strong>
 			</td>
 			<td style="border-bottom: 1px solid #000000; border-right: 1px solid #000000;">
-			<strong><?php echo number_format((double)$accounts[0]->amountInstalment); ?></strong>
+			<strong><?php echo number_format((double)$accounts[0]->amountInstalment, 2,'.',''); ?></strong>
 			</td>
 		</tr>
 
@@ -164,11 +164,11 @@
 
 		<tr>
 			<th>First Payment:</th>
-			<th>Due Date/Paying Date:</th>
+			<th>Paying Date:</th>
 		</tr>
 		<tr>
 			<td style="border-bottom: 1px solid #000000; border-right: 1px solid #000000;">
-				<strong><?php echo number_format((double)$accounts[0]->firstPayment); ?></strong>
+				<strong><?php echo number_format((double)$accounts[0]->firstPayment, 2,'.',''); ?></strong>
 			</td>
 			<td style="border-bottom: 1px solid #000000; border-right: 1px solid #000000;">
 				<strong><?php echo date('F d, Y', strtotime($accounts[0]->dueDate)); ?></strong>
@@ -201,7 +201,7 @@
 			</td>
 			<td style="width: 350; padding-top: 50px; text-decoration: underline;">
 				<strong>
-				<?php echo $accounts[0]->lastName.", ".$accounts[0]->firstName." ".$accounts[0]->middleName ?>
+				<?php echo" ".$accounts[0]->firstName."  ".$accounts[0]->middleInitial.". ".$accounts[0]->lastName ?>
 				</strong>
 			</td>
 		</tr>

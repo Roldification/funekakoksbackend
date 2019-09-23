@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\FisCaresPlan;
@@ -18,8 +17,8 @@ class CaresController extends Controller
 		try {
 
 			$value = (array)json_decode($request->post()['plandata']);
-			$value['dateIssue'] = date('Y-m-d', strtotime($value['dateIssue']));
-			$value['dueDate'] = date('Y-m-d', strtotime($value['dueDate']));
+			$value['dateIssue'] = date_format(date_create($value['dateIssue']), 'Y-m-d H:i:s');
+			$value['dueDate'] = date_format(date_create($value['dueDate']), 'Y-m-d H:i:s');
 
 			if ($value['membership_id']!="") {
 			$memcount = FisCaresPlan::where(['membership_id'=>$value['membership_id']])->first();
@@ -32,8 +31,6 @@ class CaresController extends Controller
 					];	
 				}
 			}
-
-		
 
 				$planProfile = FisCaresPlan::create([
 				'is_member'	=> $value['is_member'],
@@ -375,8 +372,9 @@ class CaresController extends Controller
 			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name, 
 			P.b_firstName, P.b_middleName, P.b_lastName,
 			P.b_relationship, P.b_contact_number,
-			C.id as c_id, C.package_code, C.fk_profile_id, C.dateIssue, C.payingPeriod, C.modePayment, 
-			C.contractPrice, C.amountInstalment, C.firstPayment, C.dueDate, C.isActive, C.balance
+			C.id as c_id, C.package_code, C.fk_profile_id, CONVERT(VARCHAR(30),C.dateIssue,101) AS dateIssue , C.payingPeriod, C.modePayment, 
+			CONVERT(VARCHAR(30),C.contractPrice,0) AS contractPrice, CONVERT(VARCHAR(30),C.amountInstalment,0) AS amountInstalment, 
+			CONVERT(VARCHAR(30),C.firstPayment,0) AS firstPayment, CONVERT(VARCHAR(30),C.dueDate,0) AS dueDate,  CONVERT(VARCHAR(30),C.balance,0) AS balance, C.isActive
 			FROM _fis_cares_profile AS P
 			LEFT JOIN _fis_cares_contract AS C ON C.FK_PROFILE_ID = P.ID
 			"));	
@@ -765,7 +763,7 @@ class CaresController extends Controller
 	public function getActivePackageData(Request $request) {
 		$value = (array)json_decode($request->post()['package_code']);
 		try {
-		$package = DB::select(DB::raw("SELECT package_code, package_name, salesPrice FROM _fis_cares_package where package_code = '".$value['package_code']."'
+		$package = DB::select(DB::raw("SELECT package_code, package_name, CONVERT(VARCHAR(30),salesPrice,0) AS salesPrice FROM _fis_cares_package WHERE package_code = '".$value['package_code']."'
 			"));
 			if($package)
 				return	$package;
@@ -821,10 +819,13 @@ class CaresController extends Controller
 		$info = DB::select(DB::raw("
 			SELECT P.id, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
 			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name,
-		 	C.dateIssue, C.payingPeriod, C.modePayment, 
-			C.contractPrice, C.amountInstalment, C.firstPayment, C.dueDate, C.isActive, C.balance,
-			T.id as transaction_id, T.fk_contract_id, T.dateSchedule, T.principal_balance, T.amount_instalment,
-			T.principal_paid, T.isPaid, T.date_pay,
+		 	CONVERT(VARCHAR(30),C.dateIssue,101) AS dateIssue, C.payingPeriod, C.modePayment, 
+			CONVERT(VARCHAR(30),C.contractPrice,0) AS contractPrice, CONVERT(VARCHAR(30),C.amountInstalment,0) AS amountInstalment, 
+			CONVERT(VARCHAR(30),C.firstPayment,0) AS firstPayment, CONVERT(VARCHAR(30),C.dueDate,0) AS dueDate, C.isActive, 
+			CONVERT(VARCHAR(30),C.balance,0) AS balance,
+			T.id as transaction_id, T.fk_contract_id, CONVERT(VARCHAR(30),T.dateSchedule,101) AS dateSchedule, 
+			CONVERT(VARCHAR(30),T.principal_balance,0) AS principal_balance, CONVERT(VARCHAR(30),T.amount_instalment,0) AS amount_instalment,
+			CONVERT(VARCHAR(30),T.principal_paid,0) AS principal_paid, T.isPaid, CONVERT(VARCHAR(30),T.date_pay,101) AS date_pay,
 			PC.package_name
 			FROM _fis_cares_profile AS P
 			LEFT JOIN _fis_cares_contract AS C ON C.FK_PROFILE_ID = P.ID
@@ -851,10 +852,12 @@ class CaresController extends Controller
 		$info = DB::select(DB::raw("
 			SELECT P.id, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
 			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name,
-		 	C.dateIssue, C.payingPeriod, C.modePayment, 
-			C.contractPrice, C.amountInstalment, C.firstPayment, C.dueDate, C.isActive, C.balance,
-			T.id as transaction_id, T.fk_contract_id, T.dateSchedule, T.principal_balance, T.amount_instalment,
-			T.principal_paid, T.isPaid, T.date_pay,
+		 	CONVERT(VARCHAR, C.dateIssue, 101) AS dateIssue, C.payingPeriod, C.modePayment, 
+			CONVERT(VARCHAR(30),C.contractPrice,0) AS contractPrice, C.amountInstalment, C.firstPayment, 
+			CONVERT(VARCHAR, C.dueDate, 101) as dueDate, C.isActive, CONVERT(VARCHAR(30),C.balance,0) as balance,
+			T.id as transaction_id, T.fk_contract_id, CONVERT(VARCHAR, T.dateSchedule, 101) AS dateSchedule, CONVERT(VARCHAR(30),T.principal_balance,0) as principal_balance, 
+			CONVERT(VARCHAR(30),T.amount_instalment,0) AS amount_instalment,
+			CONVERT(VARCHAR(30),T.principal_paid,0) AS principal_paid, T.isPaid, CONVERT(VARCHAR, T.date_pay, 101) AS date_pay,
 			PC.package_name
 			FROM _fis_cares_profile AS P
 			LEFT JOIN _fis_cares_contract AS C ON C.FK_PROFILE_ID = P.ID
@@ -934,7 +937,7 @@ class CaresController extends Controller
 
 			if ($value['amount'] == $value['amount_instalment']) {
 				$transaction->update([
-		   			'date_pay'=>$value['datePay'],
+		   			'date_pay'=> date('Y-m-d'),
 		   			'principal_paid'=>$value['amount'],
 		   			'principal_balance'=>$bal,
 		   			'isPaid'=>'YES'
@@ -943,7 +946,7 @@ class CaresController extends Controller
 
 			elseif($value['amount'] != $value['amount_instalment']){
 				$transaction->update([
-		   			'date_pay'=>$value['datePay'],
+		   			'date_pay'=> date('Y-m-d'),
 		   			'principal_paid'=>$value['amount'],
 		   			'principal_balance'=>$bal,
 		   			'isPaid'=>'PARTIAL'
@@ -953,7 +956,7 @@ class CaresController extends Controller
 			if ($value['isPaid'] == 'PARTIAL' ) {
 				$sum = $value['amount']+$value['principal_paid'];
 				$transaction->update([
-		   			'date_pay'=>$value['datePay'],
+		   			'date_pay'=> date('Y-m-d'),
 		   			'principal_paid'=>$sum,
 		   			'principal_balance'=>$bal,
 		   			'isPaid'=>'YES'
@@ -987,7 +990,7 @@ class CaresController extends Controller
 		$id = json_decode($request->post()['id']);
 		
 		$accounts = DB::select(DB::raw("
-			SELECT * FROM _fis_cares_profile AS CF
+			SELECT *, SUBSTRING (CF.middlename, 1, 1) as middleInitial FROM _fis_cares_profile AS CF
 			INNER JOIN _fis_cares_contract AS CC
 			ON CF.id = CC.fk_profile_id
 			INNER JOIN _fis_settings_relation AS SR
@@ -1000,6 +1003,26 @@ class CaresController extends Controller
 		$mpdf->WriteHTML(view('cares_agreement', ['accounts'=>$accounts]));
 		$mpdf->use_kwt = true; 
 		$mpdf->Output();
+	}
+
+	public function getAllItemServ(Request $request) {
+		try {
+		$info = DB::select(DB::raw("
+			SELECT item_code as value, item_name AS label, item_name, item_code FROM _fis_items 
+			UNION ALL
+			SELECT CAST(id as varchar(10)) as value, service_name AS label, service_name, CAST(id as varchar(10)) FROM _fis_services
+			"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
 	}
 
 }

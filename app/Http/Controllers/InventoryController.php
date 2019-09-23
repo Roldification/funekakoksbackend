@@ -241,9 +241,9 @@ class InventoryController extends Controller
 				$inclusion = FisInclusions::create([
 				'fk_package_id'=> $value['package_id'],
 				'item_id'=> $value['inventory_id'],
-				'service_id '=> ' ',
+				'service_id '=> '-',
 				'quantity'=> $value['quantity'],
-				'duration '=> ' ',
+				'duration '=> '-',
 				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'ITEM',
 				'service_price'=> $value['inventory_price'],
@@ -270,9 +270,9 @@ class InventoryController extends Controller
 			$value = (array)json_decode($request->post()['inclusionsData']);
 				$inclusion = FisInclusions::create([
 				'fk_package_id'=> $value['package_id'],
-				'item_id'=> ' ',
+				'item_id'=> '-',
 				'service_id '=> $value['inventory_id'],
-				'quantity'=> ' ',
+				'quantity'=> '-',
 				'duration '=> $value['service_length'],
 				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'SERV',
@@ -970,9 +970,9 @@ and left(item_code, 2)<>'01'"));
 				$inclusion = FisChapelInclusions::create([
 				'fk_chapel_id'=> $value['package_id'],
 				'item_id'=> $value['inventory_id'],
-				'service_id '=> ' ',
+				'service_id '=> '-',
 				'quantity'=> $value['quantity'],
-				'duration '=> ' ',
+				'duration '=> '-',
 				'type_duration '=>  $value['service_type'],
 				'inclusionType'=> 'ITEM',
 				'service_price'=> $value['inventory_price'],
@@ -999,9 +999,9 @@ and left(item_code, 2)<>'01'"));
 			$value = (array)json_decode($request->post()['inclusionsData']);
 				$inclusion = FisChapelInclusions::create([
 				'fk_chapel_id'=> $value['package_id'],
-				'item_id'=> ' ',
+				'item_id'=> '-',
 				'service_id '=> $value['inventory_id'],
-				'quantity'=> ' ',
+				'quantity'=> '-',
 				'duration '=> $value['service_length'],
 				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'SERV',

@@ -35,6 +35,7 @@ use App\FisCharging;
 use App\FisIncentives;
 use App\FisPassword;
 use App\FisLocation;
+use App\FisProfileLogs;
 
 
 class AccessController extends Controller
@@ -109,14 +110,14 @@ class AccessController extends Controller
 			
 			$deceased = FisDeceased::create([
 					'fk_profile_id'=>$profile->id,
-					'birthday'=>$value['birthday'],
-					'date_died'=>$value['datedied'],
+					'birthday'=> date_format(date_create($value['birthday']), 'Y-m-d H:i:s'),
+					'date_died'=> date_format(date_create($value['date_died']), 'Y-m-d H:i:s'),
 					'causeOfDeath'=>$value['causeOfDeath'],
 					'religion'=>$value['religion'],
 					'primary_branch'=>$value['primary_branch'],
 					'servicing_branch'=>$value['servicing_branch'],
 					'deathPlace'=>$value['deathPlace'],
-					'relationToSignee'=> 4 //$value['relationToSignee'],
+					'relationToSignee'=> $value['relationToSignee']
 			]);
 			
 			DB::commit();
@@ -191,7 +192,7 @@ class AccessController extends Controller
 					'CreatedBy'=>'sa',
 					'CreatedDate'=>date('Y-m-d'),
 					'UpdatedBy'=>'sa',
-					'DateUpdated'=>date('Y-m-d'),	
+					'DateUpdated'=>date('Y-m-d')
 			]);
 				
 			return [
@@ -203,7 +204,7 @@ class AccessController extends Controller
 			
 			return [
 					'status' => 'unsaved',
-					'message' => $e->getMessage(), //use $request->post when getting formData type of post request
+					'message' => $e->getMessage() //use $request->post when getting formData type of post request
 			];
 		}
 	}
@@ -241,7 +242,7 @@ class AccessController extends Controller
 
 				if(($value['profile_type']) == 'Decease'){
 				$deceaseValue = (array)json_decode($request->post()['memberdata']);
-				$memberProfileDeceased = FisDeceased::create([
+				$deceaseProfile = FisDeceased::create([
 				  'birthday' => date('Y-m-d', strtotime($deceaseValue['birthday'])),
 				  'date_died' => date('Y-m-d', strtotime($deceaseValue['date_died'])),
 			      'causeOfDeath' => $deceaseValue['causeOfDeath'],
@@ -253,37 +254,66 @@ class AccessController extends Controller
 			      'fk_profile_id' => $memberProfile->id
 				]);
 
+				$profileLogs= FisProfileLogs::create([
+				      'fk_profile_id' => $memberProfile->id,
+				      'profile_type' => $value['profile_type'],
+				      'date_created' =>  date('Y-m-d'),
+				      'createdBy' => $value['transactedBy']
+					]);
+
+				return [
+					'status'=>'saved',
+					'message'=>$memberProfile, $deceaseProfile
+				];
 
 				}
 
 				if (($value['profile_type']) == 'Signee') {
 					$signeeValue = (array)json_decode($request->post()['memberdata']);
-					$memberProfileSignee= FisSignee::create([
+					$signeeProfile = FisSignee::create([
 				      'fb_account' => $signeeValue['fb_account'],
 				      'email_address' => $signeeValue['email_address'],
 				      'fk_profile_id' => $memberProfile->id
 					]);
+
+					$profileLogs= FisProfileLogs::create([
+				      'fk_profile_id' => $memberProfile->id,
+				      'profile_type' => $value['profile_type'],
+				      'date_created' =>  date('Y-m-d'),
+				      'createdBy' => $value['transactedBy']
+					]);
+
+					return [
+					'status'=>'saved',
+					'message'=>$memberProfile, $signeeProfile
+					];
 				}
 			
 				if (($value['profile_type']) == 'Informant') {
 					$informantValue = (array)json_decode($request->post()['memberdata']);
 
 					$informantValue['date_inform'] = date('Y-m-d', strtotime($informantValue['date_inform']));
-					$memberProfile = FisInformant::create([
+					$informantProfile = FisInformant::create([
 				      'incentives' => $informantValue['incentives'],
 				      'remarks' => $informantValue['remarks'],
-				      'date_inform' => $informantValue['date_inform'],
+				      'date_inform' =>  date('Y-m-d'),
 				      'status' => 'UNCLAIMED',
 				      'fk_profile_id' => $memberProfile->id
 				  	]);
 
-				}
-			
-				return [
+				  	$profileLogs= FisProfileLogs::create([
+				      'fk_profile_id' => $memberProfile->id,
+				      'profile_type' => $value['profile_type'],
+				      'date_created' =>  date('Y-m-d'),
+				      'createdBy' => $value['transactedBy']
+					]);
+
+					return [
 					'status'=>'saved',
-					'message'=>$memberProfile
+					'message'=>$memberProfile, $informantProfile
 				];
-		
+
+				}
 
 		} catch (\Exception $e) {
 			return [
@@ -1622,7 +1652,11 @@ class AccessController extends Controller
 	public function getIncentives(Request $request) {
 		try {
 		$incentives = DB::select(DB::raw("
-			SELECT (lastname + ', ' + firstname + ' ' + middlename)member_name,* FROM _fis_ProfileHeader WHERE profile_type = 'Informant'
+			SELECT P.id, P.customer_id,(P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, 
+			P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, 'Informant' as profile_type
+			from _fis_profileHeader as P 
+			LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
+			WHERE PL.profile_type = 'Informant'
 			"));
 			if($incentives)
 				return	$incentives;
@@ -1959,7 +1993,7 @@ class AccessController extends Controller
 			
 			else return [
 					'status'=>'error',
-					'message'=>'Invalid Username/Password or Account is Inactive.'
+					'message'=>'Invalid Username/Password or Account Disabled.'
 			]; 
 			
 		} catch (\Exception $e) {
@@ -2201,9 +2235,9 @@ class AccessController extends Controller
 	   			if(($value['profile_type']) == 'Decease'){
 				$value['fk_profile_id'] = $value['id'];
 				$memberProfile = FisDeceased::find($value['fk_profile_id']);
-				$memberProfile->updateorCreate([
-				  'birthday' => date('Y-m-d', strtotime($value['birthday'])),
-				  'date_died' => date('Y-m-d', strtotime($value['date_died'])),
+				$memberProfile->update([
+				  'birthday' => date_format(date_create($value['birthday']), 'Y-m-d H:i:s'),
+				  'date_died' => date_format(date_create($value['date_died']), 'Y-m-d H:i:s'),
 			      'causeOfDeath' => $value['causeOfDeath'],
 			      'deathPlace' => $value['deathPlace'],
 			      'religion' => $value['religion'],
@@ -2216,21 +2250,12 @@ class AccessController extends Controller
 				elseif (($value['profile_type']) == 'Signee') {
 				$value['fk_profile_id'] = $value['id'];
 				$memberProfile = FisSignee::find($value['fk_profile_id']);
-				$memberProfile->updateorCreate([
+				$memberProfile->update([
 			      'fb_account' => $value['fb_account'],
 			      'email_address' => $value['email_address']
 				]);
 				}
-				
-				elseif (($value['profile_type']) == 'Informant') {
-				$value['fk_profile_id'] = $value['id'];
-				$memberProfile = FisInformant::find($value['fk_profile_id']);
-				$memberProfile->updateorCreate([
-					'date_inform' => date('Y-m-d', strtotime($value['date_inform'])),
-					'incentives' => $value['incentives'],
-					'remarks' => $value['remarks']
-				]);
-				}
+	
 			
 			return [
 					'status'=>'saved',
@@ -2525,8 +2550,8 @@ class AccessController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['incentivesData']);
 					$memberProfile = FisInformant::create([
-				      'incentives' => $value['incentives'],
-				      'remarks' => $value['remarks'],
+				      'incentives' => $value['incentives_new'],
+				      'remarks' => $value['remarks_new'],
 				      'date_inform' =>  date('Y-m-d'),
 				      'status' => 'UNCLAIMED',
 				      'fk_profile_id' => $value['fk_profile_id']
@@ -2548,10 +2573,12 @@ class AccessController extends Controller
 		$value = "";
 		try {
 		$info = DB::select(DB::raw("
-		SELECT (P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, P.*, S.id as signee_id, 
-		S.fb_account, S.email_address
-		from _fis_profileHeader as P INNER JOIN _fis_signeeInfo AS S on P.id = S.fk_profile_id
-
+		SELECT P.id, P.customer_id,(P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, 
+		P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, 'Signee' as profile_type,
+		S.id as signee_id, S.fk_profile_id, S.fb_account, S.email_address
+		from _fis_profileHeader as P LEFT JOIN _fis_signeeInfo AS S on P.id = S.fk_profile_id
+		LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
+		WHERE PL.profile_type = 'Signee'
 		"));	
 
 			if($info)
@@ -2570,8 +2597,14 @@ class AccessController extends Controller
 		$value = "";
 		try {
 		$info = DB::select(DB::raw("
-		SELECT (P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name,* from _fis_profileHeader as P 
-		INNER JOIN _fis_deceaseInfo AS D on P.id = D.fk_profile_id
+		SELECT P.id, P.customer_id,(P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, 
+		P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, 'Decease' as profile_type,
+		D.id as decease_id, D.fk_profile_id, D.birthday, D.date_died, D.causeOfDeath, D.religion,
+		D.primary_branch, D.servicing_branch, D.deathPlace, D.relationToSignee
+		from _fis_profileHeader as P 
+		LEFT JOIN _fis_deceaseInfo AS D on P.id = D.fk_profile_id
+		LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
+		WHERE PL.profile_type = 'Decease'
 		"));	
 
 			if($info)
@@ -2589,9 +2622,14 @@ class AccessController extends Controller
 	public function getInformantDetails(Request $request) {
 		$value = "";
 		try {
+
 		$info = DB::select(DB::raw("
-		SELECT (lastname + ', ' + firstname + ' ' + middlename) member_name,* from _fis_profileHeader WHERE profile_type = 'Informant'
-		"));	
+		SELECT P.id, P.customer_id,(P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, 
+		P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, 'Informant' as profile_type
+		from _fis_profileHeader as P 
+		LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
+		WHERE PL.profile_type = 'Informant'	
+		"));
 
 			if($info)
 			return	$info;
@@ -2602,6 +2640,94 @@ class AccessController extends Controller
 			'status'=>'error',
 			'message'=>$e->getMessage()
 			];
+		}
+	}
+
+
+	public function insertProfile(Request $request){
+		try {
+
+				$value = (array)json_decode($request->post()['memberdata']);
+
+				if ($value['id']!="") {
+				$memcount = FisProfileLogs::where(['fk_profile_id'=>$value['id'],'profile_type'=>$value['change_profile_type']])->first();
+
+					if($memcount)
+					{
+						return [
+							'status'=>'unsaved',
+							'message'=>'Profile Type Already Exist.'
+						];	
+					}
+				}
+
+					
+
+				if(($value['change_profile_type']) == 'Decease'){
+				$memberProfile = FisDeceased::create([
+				  'birthday' => date('Y-m-d', strtotime($value['birthday'])),
+				  'date_died' => date('Y-m-d', strtotime($value['date_died'])),
+			      'causeOfDeath' => $value['causeOfDeath'],
+			      'deathPlace' => $value['deathPlace'],
+			      'religion' => $value['religion'],
+			      'primary_branch' => $value['primary_branch'],
+			      'servicing_branch' => $value['servicing_branch'],
+			      'relationToSignee' => $value['relationToSignee'],
+			      'fk_profile_id' => $value['id']
+				]);
+
+				$profileLogs= FisProfileLogs::create([
+				      'fk_profile_id' => $value['id'],
+				      'profile_type' => $value['change_profile_type'],
+				      'date_created' =>  date('Y-m-d'),
+				      'createdBy' => $value['transactedBy']
+					]);
+				}
+
+				else if (($value['change_profile_type']) == 'Signee') {
+					$memberProfile= FisSignee::create([
+				      'fb_account' => $value['fb_account'],
+				      'email_address' => $value['email_address'],
+				      'fk_profile_id' => $value['id']
+					]);
+
+					$profileLogs= FisProfileLogs::create([
+				      'fk_profile_id' => $value['id'],
+				      'profile_type' => $value['change_profile_type'],
+				      'date_created' =>  date('Y-m-d'),
+				      'createdBy' => $value['transactedBy']
+					]);
+				}
+			
+				else if (($value['change_profile_type']) == 'Informant') {
+					$memberProfile = FisInformant::create([
+				      'incentives' => $value['incentives'],
+				      'remarks' => $value['remarks'],
+				      'date_inform' =>  date('Y-m-d'),
+				      'status' => 'UNCLAIMED',
+				      'fk_profile_id' => $value['id']
+				  	]);
+
+				  	$profileLogs= FisProfileLogs::create([
+				      'fk_profile_id' => $value['id'],
+				      'profile_type' => $value['change_profile_type'],
+				      'date_created' =>  date('Y-m-d'),
+				      'createdBy' => $value['transactedBy']
+					]);
+
+				}
+			
+				return [
+					'status'=>'saved',
+					'message'=>$memberProfile, $profileLogs
+				];
+		
+
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
 		}
 	}
 

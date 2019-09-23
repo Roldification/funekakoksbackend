@@ -131,6 +131,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('get-user-details', 'AccessController@getUserDetails');
 	Route::post('get-incentives-id', 'AccessController@getIncentivesId');
 	Route::post('add-incentives', 'AccessController@AddIncentives');
+	Route::post('insert-profile', 'AccessController@insertProfile');
 
 });
 
@@ -206,9 +207,10 @@ Route::get('get-all-chapel-packages', 'InventoryController@getAllChapelPackages'
 Route::get('get-signee-details', 'AccessController@getSigneeDetails')->middleware('cors');
 Route::get('get-deceased-details', 'AccessController@getDeceasedDetails')->middleware('cors');
 Route::get('get-informant-details', 'AccessController@getInformantDetails')->middleware('cors');
-
 // accounts
 Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
+
+Route::get('get-all-item-services', 'CaresController@getAllItemServ')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
