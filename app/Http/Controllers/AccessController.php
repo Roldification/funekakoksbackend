@@ -87,59 +87,6 @@ class AccessController extends Controller
 		}
 	}
 	
-	public function insertDeceaseProfile(Request $request)
-	{
-		try {
-			
-			$value = (array)json_decode($request->post()['deceasedata']);
-			
-	
-			DB::beginTransaction();
-			
-			$profile = FisMemberData::create([
-					'customer_id'=>$value['cidReference'],
-					'firstname'=>$value['firstname'],
-					'middlename'=>$value['middlename'],
-					'lastname'=>$value['lastname'],
-					'contact_no'=>'', //deceased has no contact number
-					'address'=>$value['address'],
-					'is_member'=>$value['isTCMember'],
-					'profile_type'=>'Decease',
-					'date_entry'=>date('Y-m-d'),
-			]);
-			
-			$deceased = FisDeceased::create([
-					'fk_profile_id'=>$profile->id,
-					'birthday'=> date_format(date_create($value['birthday']), 'Y-m-d H:i:s'),
-					'date_died'=> date_format(date_create($value['date_died']), 'Y-m-d H:i:s'),
-					'causeOfDeath'=>$value['causeOfDeath'],
-					'religion'=>$value['religion'],
-					'primary_branch'=>$value['primary_branch'],
-					'servicing_branch'=>$value['servicing_branch'],
-					'deathPlace'=>$value['deathPlace'],
-					'relationToSignee'=> $value['relationToSignee']
-			]);
-			
-			DB::commit();
-			
-			return [
-					'status'=>'saved',
-					'message'=>$profile,
-			];
-			
-			
-		} catch (\Exception $e) {
-			DB::rollBack();
-			
-			return [
-					'status'=>'unsaved',
-					'message'=>$e->getMessage()
-			];
-			
-		}
-		
-	}
-
 	public function insertBranch(Request $request) {
 		try {
 			$value = (array)json_decode($request->post()['branchdata']);
@@ -257,13 +204,14 @@ class AccessController extends Controller
 				$profileLogs= FisProfileLogs::create([
 				      'fk_profile_id' => $memberProfile->id,
 				      'profile_type' => $value['profile_type'],
+				      'isActive' => 1,
 				      'date_created' =>  date('Y-m-d'),
 				      'createdBy' => $value['transactedBy']
 					]);
 
 				return [
 					'status'=>'saved',
-					'message'=>$memberProfile, $deceaseProfile
+					'message'=>$memberProfile, $deceaseProfile, $profileLogs
 				];
 
 				}
@@ -279,13 +227,14 @@ class AccessController extends Controller
 					$profileLogs= FisProfileLogs::create([
 				      'fk_profile_id' => $memberProfile->id,
 				      'profile_type' => $value['profile_type'],
+				      'isActive' => 1,
 				      'date_created' =>  date('Y-m-d'),
 				      'createdBy' => $value['transactedBy']
 					]);
 
 					return [
 					'status'=>'saved',
-					'message'=>$memberProfile, $signeeProfile
+					'message'=>$memberProfile, $signeeProfile, $profileLogs
 					];
 				}
 			
@@ -304,13 +253,14 @@ class AccessController extends Controller
 				  	$profileLogs= FisProfileLogs::create([
 				      'fk_profile_id' => $memberProfile->id,
 				      'profile_type' => $value['profile_type'],
+				      'isActive' => 1,
 				      'date_created' =>  date('Y-m-d'),
 				      'createdBy' => $value['transactedBy']
 					]);
 
 					return [
 					'status'=>'saved',
-					'message'=>$memberProfile, $informantProfile
+					'message'=>$memberProfile, $informantProfile, $profileLogs
 				];
 
 				}
@@ -1653,7 +1603,8 @@ class AccessController extends Controller
 		try {
 		$incentives = DB::select(DB::raw("
 			SELECT P.id, P.customer_id,(P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, 
-			P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, 'Informant' as profile_type
+			P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, 'Informant' as profile_type,
+			PL.isActive
 			from _fis_profileHeader as P 
 			LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
 			WHERE PL.profile_type = 'Informant'
@@ -2679,6 +2630,7 @@ class AccessController extends Controller
 				$profileLogs= FisProfileLogs::create([
 				      'fk_profile_id' => $value['id'],
 				      'profile_type' => $value['change_profile_type'],
+				      'isActive' => 1,
 				      'date_created' =>  date('Y-m-d'),
 				      'createdBy' => $value['transactedBy']
 					]);
@@ -2694,6 +2646,7 @@ class AccessController extends Controller
 					$profileLogs= FisProfileLogs::create([
 				      'fk_profile_id' => $value['id'],
 				      'profile_type' => $value['change_profile_type'],
+				      'isActive' => 1,
 				      'date_created' =>  date('Y-m-d'),
 				      'createdBy' => $value['transactedBy']
 					]);
@@ -2711,6 +2664,7 @@ class AccessController extends Controller
 				  	$profileLogs= FisProfileLogs::create([
 				      'fk_profile_id' => $value['id'],
 				      'profile_type' => $value['change_profile_type'],
+				      'isActive' => 1,
 				      'date_created' =>  date('Y-m-d'),
 				      'createdBy' => $value['transactedBy']
 					]);
@@ -2724,6 +2678,80 @@ class AccessController extends Controller
 		
 
 		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function getProfileSettings(Request $request) {
+		$value = "";
+		try {
+		$info = DB::select(DB::raw("
+			SELECT PL.id, P.customer_id, (P.lastname+', '+P.firstname+' '+P.middlename)member_name, PL.profile_type, PL.isActive
+			FROM _fis_ProfileHeader AS P
+			INNER JOIN  _fis_ProfileLogs AS PL ON PL.fk_profile_id = P.id
+			"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+
+	public function deactivateProfile(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['userData']);
+			
+				$user = FisProfileLogs::find($value['id']);
+			
+					$user->update(
+	   					['isActive'=>0]);
+				
+	   				
+			
+			return [
+					'status'=>'saved',
+					'message'=>$user
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function activateProfile(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['userData']);
+			
+				$user = FisProfileLogs::find($value['id']);
+			
+					$user->update(
+	   					['isActive'=>1]);
+				
+	   				
+			
+			return [
+					'status'=>'saved',
+					'message'=>$user
+			];
+			
+		} catch (\Exception $e) {
+			
 			return [
 				'status'=>'unsaved',
 				'message'=>$e->getMessage()

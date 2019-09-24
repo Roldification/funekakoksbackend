@@ -27,7 +27,6 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-contract', 'ServiceContractController@updateContract');
 	Route::post('login-user', 'AccessController@loginUser');
 	Route::post('insert-contract', 'AccessController@insertContract');
-	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('cancel-payment', 'ServiceContractController@cancelPayment');
 	Route::post('get-member-branch', 'ServiceContractController@getMemberBranch');
@@ -133,6 +132,8 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('add-incentives', 'AccessController@AddIncentives');
 	Route::post('insert-profile', 'AccessController@insertProfile');
 
+	Route::post('deactivate-profile', 'AccessController@deactivateProfile');
+	Route::post('activate-profile', 'AccessController@activateProfile');
 });
 
 
@@ -209,8 +210,8 @@ Route::get('get-deceased-details', 'AccessController@getDeceasedDetails')->middl
 Route::get('get-informant-details', 'AccessController@getInformantDetails')->middleware('cors');
 // accounts
 Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
-
 Route::get('get-all-item-services', 'CaresController@getAllItemServ')->middleware('cors');
+Route::get('get-profile-settings', 'AccessController@getProfileSettings')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

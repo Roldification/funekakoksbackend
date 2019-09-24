@@ -944,7 +944,7 @@ class CaresController extends Controller
 			   	]);
 			}
 
-			elseif($value['amount'] != $value['amount_instalment']){
+			else{
 				$transaction->update([
 		   			'date_pay'=> date('Y-m-d'),
 		   			'principal_paid'=>$value['amount'],
@@ -963,13 +963,13 @@ class CaresController extends Controller
 			   	]);
 			}
 			
-	   			
+			
 
 			$value['id'] = $value['fk_contract_id'];
 			$contract = FisContractProf::find($value['id']);
 	   		$contract->update([
 		   			'balance'=>$bal
-			   ]);
+			]);
 
 
 			return [
