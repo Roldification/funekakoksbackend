@@ -2759,4 +2759,31 @@ class AccessController extends Controller
 		}
 	}
 
+
+	public function adminUpdateInc(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['incData']);
+			
+				$user = FisIncentives::find($value['id']);
+			
+					$user->update(
+	   					['status'=>'UNCLAIMED']);
+				
+	   				
+			
+			return [
+					'status'=>'saved',
+					'message'=>$user
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
 }

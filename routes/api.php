@@ -96,7 +96,6 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	Route::post('insert-plan-inclusions-items', 'CaresController@insertPlanInclusionsItems');
 
-	//
 	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
 	Route::post('update-info', 'AccessController@updateInfo');
@@ -134,6 +133,8 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	Route::post('deactivate-profile', 'AccessController@deactivateProfile');
 	Route::post('activate-profile', 'AccessController@activateProfile');
+
+	Route::post('adamin-update-inc', 'AccessController@adminUpdateInc');
 });
 
 
