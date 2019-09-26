@@ -226,7 +226,7 @@ class ServiceContractController extends Controller
 		try {
 			$isExists = DB::update('update _fis_sc_charging
 							set total_amount = total_amount - balance,
-							balance = total_amount - balance
+							balance = 0
 							where fk_scID =? and total_amount <> balance', [$details]);
 			
 		
@@ -253,7 +253,7 @@ class ServiceContractController extends Controller
 		
 		try {
 			
-			$isPaid = FisSCPayments::where(['contract_id'=>$details['contract_id'], 'accountType'=>$details['account_type'], 'isCancelled'=>0])->count();
+			$isPaid = FisSCPayments::where(['contract_id'=>$details['contract_id'], 'accountType'=>$details['account_type'], 'isCancelled'=>0, ['AR_Credit','>', 0]])->count();
 			
 			if($isPaid>=1)
 			{
@@ -1412,7 +1412,7 @@ class ServiceContractController extends Controller
 			$acctgHeader_pay['transaction_date'] = date('Y-m-d');
 			$acctgHeader_pay['transaction_code'] = $paytype->trandesc;
 			$acctgHeader_pay['username'] = $paydetails['username'];
-			$acctgHeader_pay['reference'] = "CSCPay".$contract->contract_no."-".$payment->reference_no;
+			$acctgHeader_pay['reference'] = "CSCPay-".$payment->reference_no;
 			$acctgHeader_pay['status'] = $paytype->trantype;
 			$acctgHeader_pay['particulars'] = "Posting of Cancellation of SC Payment w/ SC #".$contract->contract_no;
 			$acctgHeader_pay['customer'] = "";
@@ -1505,13 +1505,7 @@ class ServiceContractController extends Controller
 					where contract_id=".$value_api['contract_id']));
 			
 			
-			if(date('Y-m-d')." 00:00:00.000"!=$contractDetails[0]->date_posted)
-			{
-				return [
-						'status'=>'unsaved',
-						'message'=>'Invalid date'
-				];
-			}
+			
 			
 			$value['sc_amount']	= $contractDetails[0]->contract_amount;
 			$value['sc_branch']	= $contractDetails[0]->fun_branch;
@@ -1559,7 +1553,13 @@ class ServiceContractController extends Controller
 				];
 				
 			}
-			
+			if(date('Y-m-d')." 00:00:00.000"!=$contractDetails[0]->date_posted)
+			{
+				return [
+						'status'=>'unsaved',
+						'message'=>'Invalid date'
+				];
+			}
 			
 			
 			

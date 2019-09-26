@@ -217,7 +217,7 @@ class AccessController extends Controller
 
 				}
 
-				if (($value['profile_type']) == 'Signee') {
+				if ($value['profile_type'] == 'Signee' || $value['profile_type'] == 'Signee') {
 					$signeeValue = (array)json_decode($request->post()['memberdata']);
 					$signeeProfile = FisSignee::create([
 				      'fb_account' => $signeeValue['fb_account'],
@@ -321,6 +321,24 @@ class AccessController extends Controller
 	public function statementPrint(Request $request)
 	{
 		$id = $request->post()['id'];
+		
+		$contracts = (array)json_decode($request->post()['contractparam']);
+		
+		$params = "";
+		
+		for($x=0; $x<count($contracts); $x++)
+		{
+			$params = $params.$contracts[$x];
+			
+			if($x + 1 != count($contracts))
+			{
+				$params = $params.",";
+			}
+			
+		}
+		
+		echo $params;
+		
 		//return $myid;
 		
 		$accounts = DB::select(DB::raw("select *, dbo._computeAge(birthday, getdate())as deceased_age,
@@ -342,6 +360,7 @@ class AccessController extends Controller
 							inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=scv.contract_id
 			)ff where ispackage=1),0) as packagePrice
 			from _SERVICE_CONTRACT_VIEW scv where signee=$id
+			and scv.contract_id in (".$params.")
 			AND status='ACTIVE'"));
 		
 		$additionalServices = [];
@@ -377,6 +396,7 @@ class AccessController extends Controller
 				where fk_scID in
 				(
 				select contract_id from _fis_service_contract where signee=$id and status='ACTIVE'
+				and contract_id in (".$params.")
 				) and isCancelled=0
 				group by account_type"));
 		
@@ -385,6 +405,7 @@ class AccessController extends Controller
 				where contract_id in
 				(
 				select contract_id from _fis_service_contract where signee=$id and status='ACTIVE'
+				and contract_id in (".$params.")
 				)
 				and left(tran_type,3)='PAY' and isCancelled=0"));
 		
@@ -394,7 +415,7 @@ class AccessController extends Controller
 		$mpdf->WriteHTML(view('statement_printing', ['client'=>$request->post()['client'],'user'=>$request->post()['user'], 'accounts'=>$accounts, 'addservices'=>$additionalServices, 'accountcharging'=>$accountcharging, 'transactions'=>$transactions]));
 		$mpdf->showImageErrors = true;
 	
-		$mpdf->Output();
+		$mpdf->Output();  
 	}
 	
 	
@@ -1586,7 +1607,7 @@ class AccessController extends Controller
 				inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 				inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
 								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
-								where profile_type='Decease')d on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$request->post()['branch']."'"));
+								where profile_type='Decease')d on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$request->post()['branch']."' order by sc.contract_id desc"));
 			
 			return $qry;
 			
@@ -1680,7 +1701,8 @@ class AccessController extends Controller
 			
 			$sc_count = ServiceContract::where('fun_branch', $value['fun_branch'])->count();
 			
-			$value['contract_no'] = $value['fun_branch']."-".date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
+			//$value['contract_no'] = $value['fun_branch']."-".date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
+			$value['contract_no'] = $value['fun_branch']."-".date('Y')."-".str_pad($value['contract_no'], 5, '0', STR_PAD_LEFT);
 			$value['contract_balance'] = $value['contract_amount'];
 			$value['contract_date'] = date('Y-m-d');
 			$value['burial_time'] = date_format(date_create($value['burial_time']), 'Y-m-d H:i:s');
@@ -1808,9 +1830,12 @@ class AccessController extends Controller
 	{
 		$value="";
 		
+		
+		$appendix = isset($request->post()['typesearch']) ? "profile_type in ('Walkin', 'Signee') " : "profile_type='Signee'";
+		
 		try {
 			$user_check = DB::select(DB::raw("SELECT top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_profileheader
-			where profile_type='Signee' and (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
+			where ".$appendix." and (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
 			
 		if($user_check)
 		return	$user_check;
