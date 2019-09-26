@@ -79,9 +79,6 @@ class InventoryController extends Controller
 			foreach ($value['rr_items'] as $row){
 			try {
 					
-				
-				
-				
 					$rr = FisRReport::create([
 						'supplier_id' => $value['supplier_id'],
 						'date_received' => $value['date_received'],
