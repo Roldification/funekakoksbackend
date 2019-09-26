@@ -79,9 +79,6 @@ class InventoryController extends Controller
 			foreach ($value['rr_items'] as $row){
 			try {
 					
-				
-				
-				
 					$rr = FisRReport::create([
 						'supplier_id' => $value['supplier_id'],
 						'date_received' => $value['date_received'],
@@ -241,9 +238,9 @@ class InventoryController extends Controller
 				$inclusion = FisInclusions::create([
 				'fk_package_id'=> $value['package_id'],
 				'item_id'=> $value['inventory_id'],
-				'service_id '=> ' ',
+				'service_id '=> '-',
 				'quantity'=> $value['quantity'],
-				'duration '=> ' ',
+				'duration '=> '-',
 				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'ITEM',
 				'service_price'=> $value['inventory_price'],
@@ -270,9 +267,9 @@ class InventoryController extends Controller
 			$value = (array)json_decode($request->post()['inclusionsData']);
 				$inclusion = FisInclusions::create([
 				'fk_package_id'=> $value['package_id'],
-				'item_id'=> ' ',
+				'item_id'=> '-',
 				'service_id '=> $value['inventory_id'],
-				'quantity'=> ' ',
+				'quantity'=> '-',
 				'duration '=> $value['service_length'],
 				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'SERV',
@@ -970,9 +967,9 @@ and left(item_code, 2)<>'01'"));
 				$inclusion = FisChapelInclusions::create([
 				'fk_chapel_id'=> $value['package_id'],
 				'item_id'=> $value['inventory_id'],
-				'service_id '=> ' ',
+				'service_id '=> '-',
 				'quantity'=> $value['quantity'],
-				'duration '=> ' ',
+				'duration '=> '-',
 				'type_duration '=>  $value['service_type'],
 				'inclusionType'=> 'ITEM',
 				'service_price'=> $value['inventory_price'],
@@ -999,9 +996,9 @@ and left(item_code, 2)<>'01'"));
 			$value = (array)json_decode($request->post()['inclusionsData']);
 				$inclusion = FisChapelInclusions::create([
 				'fk_chapel_id'=> $value['package_id'],
-				'item_id'=> ' ',
+				'item_id'=> '-',
 				'service_id '=> $value['inventory_id'],
-				'quantity'=> ' ',
+				'quantity'=> '-',
 				'duration '=> $value['service_length'],
 				'type_duration '=> $value['service_type'],
 				'inclusionType'=> 'SERV',
@@ -1142,11 +1139,12 @@ and left(item_code, 2)<>'01'"));
 			WHERE inclusionType = 'SERV' and fk_package_id = '".$id."'
 			"));
 				
-		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
-	
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL']);
+		$mpdf->SetDisplayMode('fullpage');
 		$mpdf->WriteHTML(view('casket_packages', ['package'=>$package, 'items'=>$items, 'service'=>$service]));
 		$mpdf->use_kwt = true; 
-		$mpdf->Output();
+		$mpdf->SetTitle('Casket Package');
+		$mpdf->Output('');
 	}
 
 	public function getAllItems(Request $request) {

@@ -27,7 +27,6 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-contract', 'ServiceContractController@updateContract');
 	Route::post('login-user', 'AccessController@loginUser');
 	Route::post('insert-contract', 'AccessController@insertContract');
-	Route::post('insert-decease-profile', 'AccessController@insertDeceaseProfile');
 	Route::post('insert-member-profile', 'AccessController@insertMemberProfile');
 	Route::post('cancel-payment', 'ServiceContractController@cancelPayment');
 	Route::post('get-member-branch', 'ServiceContractController@getMemberBranch');
@@ -97,7 +96,6 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	Route::post('insert-plan-inclusions-items', 'CaresController@insertPlanInclusionsItems');
 
-	//
 	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
 	Route::post('update-info', 'AccessController@updateInfo');
@@ -129,6 +127,14 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-charging', 'ServiceContractController@insertCharging');
 
 	Route::post('get-user-details', 'AccessController@getUserDetails');
+	Route::post('get-incentives-id', 'AccessController@getIncentivesId');
+	Route::post('add-incentives', 'AccessController@AddIncentives');
+	Route::post('insert-profile', 'AccessController@insertProfile');
+
+	Route::post('deactivate-profile', 'AccessController@deactivateProfile');
+	Route::post('activate-profile', 'AccessController@activateProfile');
+
+	Route::post('adamin-update-inc', 'AccessController@adminUpdateInc');
 });
 
 
@@ -159,7 +165,7 @@ Route::get('get-inventory-search', 'AccessController@getInventorySearch')->middl
 Route::get('get-contract-list', 'AccessController@getContractList')->middleware('cors');
 Route::get('get-relation', 'AccessController@getRelation')->middleware('cors');
 Route::get('get-relation-value', 'AccessController@getRelationValue')->middleware('cors');
-Route::get('get-member-info', 'AccessController@getMemberInfo')->middleware('cors');
+
 Route::get('get-branch', 'AccessController@getBranch')->middleware('cors');
 Route::get('get-branch-value', 'AccessController@getBranchValue')->middleware('cors');
 Route::get('get-driver', 'AccessController@getDriver')->middleware('cors');
@@ -200,9 +206,13 @@ Route::get('get-all-services', 'InventoryController@getAllServices')->middleware
 Route::get('get-all-casket-packages', 'InventoryController@getAllCasketPackages')->middleware('cors');
 Route::get('get-all-chapel-packages', 'InventoryController@getAllChapelPackages')->middleware('cors');
 
-
+Route::get('get-signee-details', 'AccessController@getSigneeDetails')->middleware('cors');
+Route::get('get-deceased-details', 'AccessController@getDeceasedDetails')->middleware('cors');
+Route::get('get-informant-details', 'AccessController@getInformantDetails')->middleware('cors');
 // accounts
 Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
+Route::get('get-all-item-services', 'CaresController@getAllItemServ')->middleware('cors');
+Route::get('get-profile-settings', 'AccessController@getProfileSettings')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
