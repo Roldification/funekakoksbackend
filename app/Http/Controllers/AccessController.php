@@ -217,7 +217,7 @@ class AccessController extends Controller
 
 				}
 
-				if ($value['profile_type'] == 'Signee' || $value['profile_type'] == 'Signee') {
+				if ($value['profile_type'] == 'Signee' || $value['profile_type'] == 'Walkin') {
 					$signeeValue = (array)json_decode($request->post()['memberdata']);
 					$signeeProfile = FisSignee::create([
 				      'fb_account' => $signeeValue['fb_account'],
@@ -1945,12 +1945,11 @@ class AccessController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['userdata']);
 	
-			
-			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and username='".$value['username']."'"));
+			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and UserName='".$value['username']."'"));
 
 			foreach ($user_check as $row){
 				
-				if (Hash::check($value['password'], $row->Password)) {
+					if (Hash::check($value['password'], $row->Password)) {
 					//create an access token for the user
 					$accessToken = AccessTokens::create([
 						'username'=>$value['username'],
@@ -1969,6 +1968,23 @@ class AccessController extends Controller
 					}
 		
 			}
+					/*$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and UserName='".$value['username']."' and Password='".$value['password']."'"));
+
+
+					$accessToken = AccessTokens::create([
+						'username'=>$value['username'],
+						'api_token'=>substr(md5(uniqid(mt_rand(), true)), 0, 30),
+						'date_issued'=>date('Y-m-d H:i:s'),
+						'date_expire'=>date('Y-m-d H:i:s', strtotime(date("Y-m-d H:i:s"). ' + 5 days')),
+						'updated_at'=>date('Y-m-d'),
+						'created_at'=>date('Y-m-d'),
+					]);
+							
+					return [
+						'status'=>'saved',
+						'accesstoken'=>$accessToken,
+						'user'=> $user_check
+					];*/
 
 			return [
 				'status'=>'error',
@@ -2141,9 +2157,9 @@ class AccessController extends Controller
 				$value = (array)json_decode($request->post()['passswordUpdate']);
 				$password = FisPassword::find($value['UserName']);
 				if ($value['old_password'] == $password->Password) {
-					$password->update(
-	   					['Password'=>$value['new_password']]
-	   				);
+					$password->update([
+	   						'Password'=>bcrypt($value['new_password'])
+	   					]);
 
 					return [
 						'status'=>'saved',

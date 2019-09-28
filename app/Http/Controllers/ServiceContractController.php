@@ -1834,7 +1834,10 @@ class ServiceContractController extends Controller
 			if($signee->profile_type=='Signee')
 			{
 				
-				$contracts = DB::select(DB::raw("select contract_id, contract_no, contract_date, contract_amount, contract_balance, status from _fis_service_contract where signee=$clientid and fun_branch='".$branch."'"));
+				$contracts = DB::select(DB::raw("
+					select contract_id, contract_no, CONVERT(VARCHAR(30),contract_date,101) AS contract_date , contract_amount, contract_balance, status 
+				from _fis_service_contract where signee=$clientid and fun_branch='".$branch."'
+				"));
 				$merchandises = DB::select(DB::raw("select id, OR_no as reference_no, date as posting_date, total_amount as amount, balance, status from _fis_itemsales_header where signee_id=$clientid and fun_branch='".$branch."'"));
 				
 				return [
