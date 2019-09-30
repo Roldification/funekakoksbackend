@@ -499,13 +499,13 @@ class ServiceContractController extends Controller
 							$pushDetails = [];
 							
 							$pushDetails['entry_type']="DR";
-							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['SLCode']= $currentBranch->borrowHO;
 							$pushDetails['amount']= $row->sell_price;
 							$pushDetails['detail_particulars']="To record transfer of ".$row->item_name." from ".$value['transferFrom']." to ".$value['transferTo'];
 							array_push($acctgDetails, $pushDetails);
 							
 							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							$pushDetails['SLCode']= $row->SLCode;
 							$pushDetails['amount']= $row->sell_price;
 							$pushDetails['detail_particulars']="To record transfer of ".$row->item_name." from ".$value['transferFrom']." to ".$value['transferTo'];
 							array_push($acctgDetails, $pushDetails);
@@ -596,13 +596,13 @@ class ServiceContractController extends Controller
 							$pushDetails = [];
 							
 							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['SLCode']= $destinationBranch->borrowHO;
 							$pushDetails['amount']= $row->sell_price;
 							$pushDetails['detail_particulars']="To record transfer of ".$row->item_name." from ".$value['transferFrom']." to ".$value['transferTo'];
 							array_push($acctgDetails, $pushDetails);
 							
 							$pushDetails['entry_type']="DR";
-							$pushDetails['SLCode']= $destinationBranch->borrowHO;
+							$pushDetails['SLCode']= $row->SLCode;
 							$pushDetails['amount']= $row->sell_price;
 							$pushDetails['detail_particulars']="To record transfer of ".$row->item_name." from ".$value['transferFrom']." to ".$value['transferTo'];
 							array_push($acctgDetails, $pushDetails);
@@ -1831,7 +1831,7 @@ class ServiceContractController extends Controller
 		try {
 			$signee = FisMemberData::find($clientid);
 			
-			if($signee->profile_type=='Signee')
+			if($signee->profile_type=='Signee' || $signee->profile_type=='Walkin')
 			{
 				
 				$contracts = DB::select(DB::raw("select contract_id, contract_no, contract_date, contract_amount, contract_balance, status from _fis_service_contract where signee=$clientid and fun_branch='".$branch."'"));
