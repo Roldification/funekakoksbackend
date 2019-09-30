@@ -20,17 +20,18 @@ class AccountingHelper extends Model
 			foreach ($details as $row)
 			{
 				if($row['entry_type']=='CR')
-					$amountCredit+=$row['amount'];
+					$amountCredit+=(float)$row['amount'];
 				else if($row['entry_type']=='DR')
-					$amountDebit+=$row['amount'];
+					$amountDebit+=(float)$row['amount'];
 				
 			}
 			
 			
-			if($amountCredit!=$amountDebit)
+			if(number_format($amountCredit, 2)!=number_format($amountDebit, 2))
 				return [
 					'status'=>'acctg. error',
-					'message'=>'Unbalanced Transaction'
+					'message'=>'Unbalanced Transaction',
+					'details'=>$details
 				];
 			
 			

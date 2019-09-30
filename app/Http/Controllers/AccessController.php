@@ -217,7 +217,9 @@ class AccessController extends Controller
 
 				}
 
-				if ($value['profile_type'] == 'Signee') {
+
+				if ($value['profile_type'] == 'Signee' || $value['profile_type'] == 'Walkin') {
+
 					$signeeValue = (array)json_decode($request->post()['memberdata']);
 					$signeeProfile = FisSignee::create([
 				      'fb_account' => $signeeValue['fb_account'],
@@ -484,6 +486,7 @@ class AccessController extends Controller
 	   		 * 3rd step, record services get,
 	   		 * 4th step,  record inventory of items.
 	   		 * 5th step contract posting?
+	   		 * 
 	   		 */
 	   		
 	   		//$isInventoryValid = \Illuminate\Support\Facades\Validator::make($value, $this->validatorsField('fisItemInventory'));
@@ -1360,7 +1363,7 @@ class AccessController extends Controller
 						
 						
 						$pushDetails['entry_type']="CR";
-						$pushDetails['SLCode']= $row->income_SLCode;
+						$pushDetails['SLCode']= "4-1-410-03-001"; //--charge everything to miscellaneous income
 						$pushDetails['amount']= $row->tot_price;
 						$pushDetails['detail_particulars']="Income ".$row->item_name." frm Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
 						
@@ -1499,7 +1502,7 @@ class AccessController extends Controller
 						else
 						{
 							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['SLCode'] = "4-1-410-03-001"; //--charge everything to miscellaneous income
 							$pushDetails['amount']= $row->tot_price;
 							$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
 							
@@ -1963,9 +1966,31 @@ class AccessController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['userdata']);
 	
-			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and UserName='".$value['username']."'"));
 
-			foreach ($user_check as $row){
+			
+			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and username='".$value['username']."' and password='".$value['password']."'"));
+			
+			if($user_check)
+			{
+				//create an access token for the user
+				$accessToken = AccessTokens::create([
+						'username'=>$value['username'],
+						'api_token'=>substr(md5(uniqid(mt_rand(), true)), 0, 30),
+						'date_issued'=>date('Y-m-d H:i:s'),
+						'date_expire'=>date('Y-m-d H:i:s', strtotime(date("Y-m-d H:i:s"). ' + 5 days')),
+						'updated_at'=>date('Y-m-d'),
+						'created_at'=>date('Y-m-d'),
+				]);
+				
+				return [
+						'status'=>'saved',
+						'accesstoken'=>$accessToken,
+						'user'=> $user_check
+				];
+			}
+			
+			/*foreach ($user_check as $row){
+
 				
 					if (Hash::check($value['password'], $row->Password)) {
 					//create an access token for the user
@@ -1985,7 +2010,10 @@ class AccessController extends Controller
 					];
 					}
 		
-			}
+
+			} */
+
+			
 					/*$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and UserName='".$value['username']."' and Password='".$value['password']."'"));
 
 
@@ -2004,10 +2032,15 @@ class AccessController extends Controller
 						'user'=> $user_check
 					];*/
 
-			return [
-				'status'=>'error',
-				'message'=>'Invalid Username/Password or Account Disabled.'
-			];
+
+			else
+			{
+				return [
+						'status'=>'error',
+						'message'=>'Invalid Username/Password or Account Disabled.'
+				];
+				
+			}
 			
 		} catch (\Exception $e) {
 			return [
@@ -2601,11 +2634,11 @@ class AccessController extends Controller
 		try {
 		$info = DB::select(DB::raw("
 		SELECT P.id, P.customer_id,(P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, 
-		P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, 'Signee' as profile_type,
+		P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, P.profile_type as profile_type,
 		S.id as signee_id, S.fk_profile_id, S.fb_account, S.email_address
 		from _fis_profileHeader as P LEFT JOIN _fis_signeeInfo AS S on P.id = S.fk_profile_id
 		LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
-		WHERE PL.profile_type = 'Signee'
+		WHERE PL.profile_type in ('Signee','Walkin')
 		"));	
 
 			if($info)
