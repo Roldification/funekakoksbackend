@@ -217,7 +217,9 @@ class AccessController extends Controller
 
 				}
 
+
 				if ($value['profile_type'] == 'Signee' || $value['profile_type'] == 'Walkin') {
+
 					$signeeValue = (array)json_decode($request->post()['memberdata']);
 					$signeeProfile = FisSignee::create([
 				      'fb_account' => $signeeValue['fb_account'],
@@ -239,6 +241,22 @@ class AccessController extends Controller
 					];
 				}
 			
+				if ($value['profile_type'] == 'Walkin') {
+					$signeeValue = (array)json_decode($request->post()['memberdata']);
+					$profileLogs= FisProfileLogs::create([
+				      'fk_profile_id' => $memberProfile->id,
+				      'profile_type' => $value['profile_type'],
+				      'isActive' => 1,
+				      'date_created' =>  date('Y-m-d'),
+				      'createdBy' => $value['transactedBy']
+					]);
+
+					return [
+					'status'=>'saved',
+					'message'=>$memberProfile, $profileLogs
+					];
+				}
+
 				if (($value['profile_type']) == 'Informant') {
 					$informantValue = (array)json_decode($request->post()['memberdata']);
 
@@ -1719,7 +1737,7 @@ class AccessController extends Controller
 			
 			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.package_class_id
+					d.birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, sc.package_class_id
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -1832,11 +1850,12 @@ class AccessController extends Controller
 		$value="";
 		
 		
-		$appendix = isset($request->post()['typesearch']) ? "profile_type in ('Walkin', 'Signee') " : "profile_type='Signee'";
+		$appendix = isset($request->post()['typesearch']) ? "PL.profile_type in ('Walkin', 'Signee') " : "PL.profile_type='Signee'";
 		
 		try {
-			$user_check = DB::select(DB::raw("SELECT top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_profileheader
-			where ".$appendix." and (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
+			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label  from _fis_profileheader AS PH
+			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
+			where ".$appendix." and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
 			
 		if($user_check)
 		return	$user_check;
@@ -1856,8 +1875,9 @@ class AccessController extends Controller
 		$value="";
 		
 		try {
-			$user_check = DB::select(DB::raw("SELECT top 5 id as value, (lastname + ', ' + firstname + ' ' + middlename)label  from _fis_ProfileHeader
-			where profile_type='Decease' and (lastname + ', ' + firstname + ' ' + middlename) like '".$request->post()['name']."%'"));
+			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label  from _fis_ProfileHeader AS PH
+			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
+			where PL.profile_type='Decease' and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
 			
 			if($user_check)
 				return	$user_check;
@@ -1946,6 +1966,7 @@ class AccessController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['userdata']);
 	
+
 			
 			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and username='".$value['username']."' and password='".$value['password']."'"));
 			
@@ -1969,8 +1990,9 @@ class AccessController extends Controller
 			}
 			
 			/*foreach ($user_check as $row){
+
 				
-				if (Hash::check($value['password'], $row->Password)) {
+					if (Hash::check($value['password'], $row->Password)) {
 					//create an access token for the user
 					$accessToken = AccessTokens::create([
 						'username'=>$value['username'],
@@ -1988,7 +2010,28 @@ class AccessController extends Controller
 					];
 					}
 		
+
 			} */
+
+			
+					/*$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and UserName='".$value['username']."' and Password='".$value['password']."'"));
+
+
+					$accessToken = AccessTokens::create([
+						'username'=>$value['username'],
+						'api_token'=>substr(md5(uniqid(mt_rand(), true)), 0, 30),
+						'date_issued'=>date('Y-m-d H:i:s'),
+						'date_expire'=>date('Y-m-d H:i:s', strtotime(date("Y-m-d H:i:s"). ' + 5 days')),
+						'updated_at'=>date('Y-m-d'),
+						'created_at'=>date('Y-m-d'),
+					]);
+							
+					return [
+						'status'=>'saved',
+						'accesstoken'=>$accessToken,
+						'user'=> $user_check
+					];*/
+
 
 			else
 			{
@@ -2164,10 +2207,24 @@ class AccessController extends Controller
 		try {
 				$value = (array)json_decode($request->post()['passswordUpdate']);
 				$password = FisPassword::find($value['UserName']);
+
+
+				
+				/*if (Hash::check($value['old_password'], $password->Password)){
+					$password->update([
+	   						'Password'=>bcrypt($value['new_password'])
+	   					]);
+
+					return [
+						'status'=>'saved',
+						'message'=>$password
+					];
+				}*/
+
 				if ($value['old_password'] == $password->Password) {
-					$password->update(
-	   					['Password'=>$value['new_password']]
-	   				);
+					$password->update([
+	   						'Password'=>bcrypt($value['new_password'])
+	   					]);
 
 					return [
 						'status'=>'saved',
@@ -2632,6 +2689,30 @@ class AccessController extends Controller
 		from _fis_profileHeader as P 
 		LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
 		WHERE PL.profile_type = 'Informant'	
+		"));
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getWalkinDetails(Request $request) {
+		$value = "";
+		try {
+
+		$info = DB::select(DB::raw("
+		SELECT P.id, P.customer_id,(P.lastname + ', ' + P.firstname + ' ' + P.middlename) member_name, 
+		P.firstname, P.lastname, P.middlename, P.contact_no, P.address, P.is_member, 'Walkin' as profile_type
+		from _fis_profileHeader as P 
+		LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
+		WHERE PL.profile_type = 'Walkin'	
 		"));
 
 			if($info)

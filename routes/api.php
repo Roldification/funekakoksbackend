@@ -209,6 +209,7 @@ Route::get('get-all-chapel-packages', 'InventoryController@getAllChapelPackages'
 Route::get('get-signee-details', 'AccessController@getSigneeDetails')->middleware('cors');
 Route::get('get-deceased-details', 'AccessController@getDeceasedDetails')->middleware('cors');
 Route::get('get-informant-details', 'AccessController@getInformantDetails')->middleware('cors');
+Route::get('get-walkin-details', 'AccessController@getWalkinDetails')->middleware('cors');
 // accounts
 Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
 Route::get('get-all-item-services', 'CaresController@getAllItemServ')->middleware('cors');

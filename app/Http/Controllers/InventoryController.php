@@ -81,7 +81,7 @@ class InventoryController extends Controller
 					
 					$rr = FisRReport::create([
 						'supplier_id' => $value['supplier_id'],
-						'date_received' => $value['date_received'],
+						'date_received' =>date('Y-m-d', strtotime($value['date_received'])),
 						'transactedBy' => $value['transactedBy'],
 						'total_amount'=> $value['total_amount'],
 						'branchCode'=> $row->branch_id,
