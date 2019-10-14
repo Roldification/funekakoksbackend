@@ -190,9 +190,10 @@ class AccessController extends Controller
 
 				if(($value['profile_type']) == 'Decease'){
 				$deceaseValue = (array)json_decode($request->post()['memberdata']);
+				$value['date_died'] = date_format(date_create($value['date_died']), 'Y-m-d H:i:s');
 				$deceaseProfile = FisDeceased::create([
 				  'birthday' => date('Y-m-d', strtotime($deceaseValue['birthday'])),
-				  'date_died' => date('Y-m-d', strtotime($deceaseValue['date_died'])),
+				  'date_died' => $value['date_died'],
 			      'causeOfDeath' => $deceaseValue['causeOfDeath'],
 			      'deathPlace' => $deceaseValue['deathPlace'],
 			      'religion' => $deceaseValue['religion'],
@@ -2748,9 +2749,10 @@ class AccessController extends Controller
 					
 
 				if(($value['change_profile_type']) == 'Decease'){
+				$value['date_died'] = date_format(date_create($value['date_died']), 'Y-m-d H:i:s');
 				$memberProfile = FisDeceased::create([
 				  'birthday' => date('Y-m-d', strtotime($value['birthday'])),
-				  'date_died' => date('Y-m-d', strtotime($value['date_died'])),
+				  'date_died' => $value['date_died'],
 			      'causeOfDeath' => $value['causeOfDeath'],
 			      'deathPlace' => $value['deathPlace'],
 			      'religion' => $value['religion'],
