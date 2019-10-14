@@ -52,9 +52,9 @@ class ServiceContractController extends Controller
 				inner join _fis_services s on s.id = ss.fk_service_id
 				where fk_contract_id=".$request->post()['contract_id']));
 				
-				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee,
-					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, sc.status, sc.signee as signee_id
+				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch,  CONVERT(VARCHAR(30),contract_date,101)contract_date, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee,
+					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, CONVERT(VARCHAR(30),sc.burial_time,22)burial_time, CONVERT(VARCHAR(30),sc.discount,0)discount, CONVERT(VARCHAR(30),sc.grossPrice,0)grossPrice, CONVERT(VARCHAR(30),sc.contract_amount,0)contract_amount, CONVERT(VARCHAR(30),sc.contract_balance,0)contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					CONVERT(VARCHAR(30),d.birthday,101)birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, sc.status, sc.signee as signee_id
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -103,9 +103,9 @@ class ServiceContractController extends Controller
 						"));
 					
 					
-					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid,  sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, sc.package_class_id
+					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch,  CONVERT(VARCHAR(30),contract_date,101)contract_date, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee,
+					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, CONVERT(VARCHAR(30),sc.burial_time,22)burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					CONVERT(VARCHAR(30),d.birthday,101)birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, sc.status, sc.signee as signee_id
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph

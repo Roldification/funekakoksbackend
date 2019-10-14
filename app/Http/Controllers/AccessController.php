@@ -1736,9 +1736,9 @@ class AccessController extends Controller
 				where (left(item_code,2)<>'01' or quantity>=1)
 				order by item_code asc, quantity "));
 			
-			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, sc.package_class_id
+			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, CONVERT(VARCHAR(30),contract_date,101)contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, CONVERT(VARCHAR(30),sc.burial_time,22)burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					CONVERT(VARCHAR(30),d.birthday,101)birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, sc.package_class_id
 					from _fis_service_contract sc 
 					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -1968,30 +1968,9 @@ class AccessController extends Controller
 			$value = (array)json_decode($request->post()['userdata']);
 	
 
+			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and username='".$value['username']."'"));
 			
-			$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and username='".$value['username']."' and password='".$value['password']."'"));
-			
-			if($user_check)
-			{
-				//create an access token for the user
-				$accessToken = AccessTokens::create([
-						'username'=>$value['username'],
-						'api_token'=>substr(md5(uniqid(mt_rand(), true)), 0, 30),
-						'date_issued'=>date('Y-m-d H:i:s'),
-						'date_expire'=>date('Y-m-d H:i:s', strtotime(date("Y-m-d H:i:s"). ' + 5 days')),
-						'updated_at'=>date('Y-m-d'),
-						'created_at'=>date('Y-m-d'),
-				]);
-				
-				return [
-						'status'=>'saved',
-						'accesstoken'=>$accessToken,
-						'user'=> $user_check
-				];
-			}
-			
-			/*foreach ($user_check as $row){
-
+			foreach ($user_check as $row){
 				
 					if (Hash::check($value['password'], $row->Password)) {
 					//create an access token for the user
@@ -2010,9 +1989,19 @@ class AccessController extends Controller
 						'user'=> $user_check
 					];
 					}
+
+					
+					else
+					{
+						return [
+								'status'=>'error',
+								'message'=>'Invalid Username/Password or Account Disabled.'
+						];
+						
+					}
 		
 
-			} */
+			} 
 
 			
 					/*$user_check = DB::select(DB::raw("SELECT * from SystemUser inner join institutionparameter on 1=1 where UserStatus = 1 and UserName='".$value['username']."' and Password='".$value['password']."'"));
@@ -2031,17 +2020,17 @@ class AccessController extends Controller
 						'status'=>'saved',
 						'accesstoken'=>$accessToken,
 						'user'=> $user_check
-					];*/
+					];
 
 
-			else
-			{
-				return [
-						'status'=>'error',
-						'message'=>'Invalid Username/Password or Account Disabled.'
-				];
-				
-			}
+					else
+					{
+						return [
+								'status'=>'error',
+								'message'=>'Invalid Username/Password or Account Disabled.'
+						];
+						
+					}*/
 			
 		} catch (\Exception $e) {
 			return [
