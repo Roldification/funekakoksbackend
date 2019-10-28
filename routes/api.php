@@ -77,6 +77,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('delete-chapel-inc', 'InventoryController@deleteChapelInc');
 
 	// TC Cares
+	Route::post('insert-plan-contract', 'CaresController@insertPlanContract');
 	Route::post('insert-plan-profile', 'CaresController@insertPlanProfile');
 	Route::post('update-plan', 'CaresController@updatePlan');
 	Route::post('insert-plan-package', 'CaresController@insertPlanPackage');
@@ -93,8 +94,9 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('get-plan-inclusions-details', 'CaresController@getPlanInclusionsDetails');
 	Route::post('update-cares-package', 'CaresController@updateCaresPackage');
 	Route::post('update-pay', 'CaresController@updatePay');
-
+	Route::post('transfer-plan', 'CaresController@transferPlan');
 	Route::post('insert-plan-inclusions-items', 'CaresController@insertPlanInclusionsItems');
+	Route::post('get-transaction-history', 'CaresController@getTransHistory');
 
 	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
@@ -142,6 +144,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 //though not suggested, you are welcome to just put GET requests here, request here does not need authentication.
 Route::get('get-signee', 'AccessController@getSignee')->middleware('cors');
+Route::get('get-contract-decease', 'AccessController@getContractDecease')->middleware('cors');
 Route::get('get-informant', 'AccessController@getInformant')->middleware('cors');
 Route::get('transfer-item-details', 'ServiceContractController@transferItemDetails')->middleware('cors');
 Route::get('get-the-items', 'ServiceContractController@getTheItems')->middleware('cors');
@@ -174,6 +177,7 @@ Route::get('get-accounts', 'AccessController@getAccounts')->middleware('cors');
 Route::get('get-details-of-contract', 'ServiceContractController@getDetailsOfContract')->middleware('cors');
 
 // TC Cares
+Route::get('get-plan-contract', 'CaresController@getPlanContract')->middleware('cors');
 Route::get('get-member-plan-info', 'CaresController@getMemberPlanInfo')->middleware('cors');
 Route::get('get-plan-package', 'CaresController@getPlanPackage')->middleware('cors');
 Route::get('get-cares-package', 'CaresController@getCaresPackage')->middleware('cors');
@@ -213,6 +217,8 @@ Route::get('get-walkin-details', 'AccessController@getWalkinDetails')->middlewar
 Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
 Route::get('get-all-item-services', 'CaresController@getAllItemServ')->middleware('cors');
 Route::get('get-profile-settings', 'AccessController@getProfileSettings')->middleware('cors');
+
+Route::get('get-plan-profile', 'CaresController@getPlanProfile')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

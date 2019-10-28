@@ -1857,8 +1857,39 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		
 		try {
 			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label  from _fis_profileheader AS PH
-			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
+			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_pr
+			ofile_id
 			where ".$appendix." and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
+			
+		if($user_check)
+		return	$user_check;
+		else return []; 
+			
+		} catch (\Exception $e) {
+			return [
+				'status'=>'error',
+				'message'=>$e->getMessage()
+			];
+		}
+	}
+
+
+	public function getContractDecease(Request $request)
+	{
+		$value="";
+		
+	
+		try {
+			$user_check = DB::select(DB::raw("
+			SELECT top 5 SC.contract_id as value,  (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, 
+			SC.contract_no as sublabel, PC.package_name, CONVERT(VARCHAR(30),SC.package_amount,0) AS package_amount
+			FROM _fis_service_contract AS SC
+			INNER JOIN _fis_ProfileHeader AS PH ON SC.deceased_id = PH.id
+			INNER JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
+			INNER JOIN _fis_package AS PC ON SC.package_class_id = PC.package_code
+			WHERE PL.profile_type = 'Decease'
+			AND SC.status not in ('CANCELLED', 'DRAFT') AND
+			(PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
 			
 		if($user_check)
 		return	$user_check;
@@ -2349,13 +2380,13 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	{
 		try {
 				$value = (array)json_decode($request->post()['incentivesData']);
-			
 				$incentives = FisIncentives::find($value['id']);
 					$incentives->update(
 	   					['status'=> 'CLAIMED',
 	   					'incentives'=> $value['incentives'],
 	   					'remarks'=> $value['remarks'],
-	   					'date_claim'=> date('Y-m-d')
+	   					'date_claim'=> date('Y-m-d'),
+	   					'transactedClaimedBy'=> $value['transactedBy']
 	   				]);
 				
 	   				
@@ -2603,7 +2634,12 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		$value = (array)json_decode($request->post()['dataIncentives']);
 		try {
 			$user_check = DB::select(DB::raw("
-				SELECT * FROM _fis_informantInfo WHERE fk_profile_id = '".$value['fk_profile_id']."'
+				SELECT id,informant_id, decease_id, decease_name, contract_no, package_name, CONVERT(VARCHAR(30),package_amount,0) AS package_amount,
+				CONVERT(VARCHAR(30),date_inform,22) AS date_inform,
+				pull_out, remarks, CONVERT(VARCHAR(30),percentage,0) AS percentage, 
+				CONVERT(VARCHAR(30),commission,0) AS commission, CONVERT(VARCHAR(30),incentives,0) AS incentives, 
+				status, CONVERT(VARCHAR(30),date_claim,22) AS date_claim
+				FROM _fis_informantInfo WHERE informant_id = '".$value['fk_profile_id']."'
 				"));
 				
 			if($user_check)
@@ -2621,13 +2657,36 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 
 	public function AddIncentives(Request $request) {
 		try {
+
 			$value = (array)json_decode($request->post()['incentivesData']);
+
+			if ($value['contract_no']!="") {
+			$info = FisInformant::where(['contract_no'=>$value['contract_no']])->first();
+
+				if($info)
+				{
+					return [
+						'status'=>'unsaved',
+						'message'=>'Deceased Already Exist.'
+					];	
+				}
+			}
+
 					$memberProfile = FisInformant::create([
-				      'incentives' => $value['incentives_new'],
-				      'remarks' => $value['remarks_new'],
-				      'date_inform' =>  date('Y-m-d'),
+					  'informant_id' => $value['informant_id'],
+					  'decease_id' => $value['decease_id'],
+				      'decease_name' => $value['decease_name'],
+				      'contract_no' => $value['contract_no'],
+				      'package_name' => $value['package_name'],
+				      'package_amount' => $value['package_amount'],
+				      'date_inform' =>  date('Y-m-d H:i:s', strtotime($value['date_inform'])),
+				      'pull_out' =>  $value['pull_out'],
+				      'remarks' =>  $value['remarks'],
+				      'percentage' =>  $value['percentage'],
+				      'commission' =>  $value['basic_commission'],
+				      'incentives' =>  $value['incentives'],
 				      'status' => 'UNCLAIMED',
-				      'fk_profile_id' => $value['fk_profile_id']
+				      'createdBy' =>  $value['createdBy']
 				  	]);
 			return [
 				'status'=>'saved',
