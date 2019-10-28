@@ -730,6 +730,11 @@ class ServiceContractController extends Controller
 							 'transferFrom'=>$value['']
 							 ]); */
 							
+							$forInventoryCount = FisProductList::where([
+									'fk_item_id'=>$row->item_code,
+									'isEncumbered'=>1,
+									'branch'=>$value['transferFrom']
+							])->count();
 							
 							
 							
@@ -741,7 +746,7 @@ class ServiceContractController extends Controller
 											'dr_no'=>'-',
 											'rr_no'=>'-',
 											'process'=>'OUT',
-											'remaining_balance'=>0,
+											'remaining_balance'=>$forInventoryCount - 1,
 											'product_id'=>$row->item_code,
 											'quantity'=>1,
 											'item_price'=>$row->sell_price,
