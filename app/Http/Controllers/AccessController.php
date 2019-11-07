@@ -818,17 +818,19 @@ class AccessController extends Controller
 				inner join _fis_services s on s.id = ss.fk_service_id
 				where fk_contract_id=".$value['sc_id']));
 	   				
-	   				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.status, sc.signee as signee_id
+	   				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, 
+					(s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc
-					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.* from _fis_profileheader ph inner join _fis_ProfileLogs  pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
-								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
-								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+					inner join _fis_ProfileLogs pl on ph.id = pl.fk_profile_id
+					where pl.profile_type='Decease')d on sc.deceased_id = d.id
 					inner join _fis_package p on sc.package_class_id = p.package_code
 					inner join ClientReligion cr on d.religion = cr.ReligionID
-					where contract_id=".$value['sc_id']));
+					where contract_id =".$value['sc_id']));
 	   				
 	   				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
 					on a.account_id = sp.accountType
@@ -1739,17 +1741,19 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				where (left(item_code,2)<>'01' or quantity>=1)
 				order by item_code asc, quantity "));
 			
-			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, CONVERT(VARCHAR(30),contract_date,101)contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, CONVERT(VARCHAR(30),sc.burial_time,22)burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					CONVERT(VARCHAR(30),d.birthday,101)birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, sc.package_class_id
-					from _fis_service_contract sc 
-					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, 
+					(s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					from _fis_service_contract sc
+					inner join (select ph.* from _fis_profileheader ph inner join _fis_ProfileLogs  pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
-								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
-								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+					inner join _fis_ProfileLogs pl on ph.id = pl.fk_profile_id
+					where pl.profile_type='Decease')d on sc.deceased_id = d.id
 					inner join _fis_package p on sc.package_class_id = p.package_code
 					inner join ClientReligion cr on d.religion = cr.ReligionID
-					where contract_id=".$serviceContract->contract_id)); 
+					where contract_id =".$serviceContract->contract_id)); 
 			    
 		   
 			    $services = DB::select(DB::raw("select * from
@@ -1858,8 +1862,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		
 		try {
 			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label  from _fis_profileheader AS PH
-			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_pr
-			ofile_id
+			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
 			where ".$appendix." and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
 			
 		if($user_check)
@@ -2638,8 +2641,8 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				SELECT id,informant_id, decease_id, decease_name, contract_no, package_name, CONVERT(VARCHAR(30),package_amount,0) AS package_amount,
 				CONVERT(VARCHAR(30),date_inform,22) AS date_inform,
 				pull_out, remarks, CONVERT(VARCHAR(30),percentage,0) AS percentage, 
-				CONVERT(VARCHAR(30),commission,0) AS commission, CONVERT(VARCHAR(30),incentives,0) AS incentives, 
-				status, CONVERT(VARCHAR(30),date_claim,22) AS date_claim
+				CONVERT(VARCHAR(30),casket_price,0) AS casket_price, CONVERT(VARCHAR(30),incentives,0) AS incentives, 
+				status, CONVERT(VARCHAR(30),date_claim,22) AS date_claim, member_type
 				FROM _fis_informantInfo WHERE informant_id = '".$value['fk_profile_id']."'
 				"));
 				
@@ -2683,8 +2686,9 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				      'date_inform' =>  date('Y-m-d H:i:s', strtotime($value['date_inform'])),
 				      'pull_out' =>  $value['pull_out'],
 				      'remarks' =>  $value['remarks'],
+				      'member_type' =>  $value['list'],
 				      'percentage' =>  $value['percentage'],
-				      'commission' =>  $value['basic_commission'],
+				      'casket_price' =>  $value['casket_price'],
 				      'incentives' =>  $value['incentives'],
 				      'status' => 'UNCLAIMED',
 				      'createdBy' =>  $value['createdBy']
@@ -2994,6 +2998,30 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				'message'=>$e->getMessage()
 			];	
 		}
+	}
+
+	public function generateIncentives(Request $request)
+	{
+		 $type = $request->post()['type'];
+		 $date = $request->post()['date'];
+
+		if ($type == 'MONTHLY') {
+			$report = DB::select(DB::raw("
+			SELECT I.informant_id, I.decease_id, I. decease_name, I.contract_no,  CONVERT(VARCHAR(30),I.package_amount,0) AS package_amount, 
+			CONVERT(VARCHAR(30),I.incentives,0) AS incentives,
+			(PH.lastname+', '+PH.firstname+ ' '+PH.middlename)AS informant_name, I.date_inform
+			FROM _fis_informantInfo AS I
+			LEFT JOIN _fis_ProfileHeader AS PH ON I.informant_id = PH.id
+			WHERE MONTH(date_inform) = MONTH('".$date."') AND YEAR(date_inform) = YEAR('".$date."') AND  package_amount > '10000'
+			"));
+
+			$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+			$mpdf->WriteHTML(view('incentives_report', ['report'=>$report, 'date'=>$date]));
+			$mpdf->use_kwt = true; 
+			$mpdf->Output();
+			
+		}
+			
 	}
 
 }

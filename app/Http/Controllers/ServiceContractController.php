@@ -208,7 +208,7 @@ class ServiceContractController extends Controller
 	{
 		
 		$id = $request->post()['id'];
-		$packageid = $request->post()['package_id'];
+		$packageid = $request->post()['package_code'];
 		try {
 		 
 			
@@ -2037,17 +2037,19 @@ class ServiceContractController extends Controller
 				inner join _fis_services s on s.id = ss.fk_service_id
 				where fk_contract_id=".$value['contract_id']));
 				
-				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
+				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, 
+					(s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
 					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc
-					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.* from _fis_profileheader ph inner join _fis_ProfileLogs  pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
-								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
-								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+					inner join _fis_ProfileLogs pl on ph.id = pl.fk_profile_id
+					where pl.profile_type='Decease')d on sc.deceased_id = d.id
 					inner join _fis_package p on sc.package_class_id = p.package_code
 					inner join ClientReligion cr on d.religion = cr.ReligionID
-					where contract_id=".$value['contract_id']));
+					where contract_id =".$value['contract_id']));
 				
 				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
 					on a.account_id = sp.accountType
@@ -2085,16 +2087,17 @@ class ServiceContractController extends Controller
 					
 					
 					$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, (s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
-					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid,  sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.package_class_id
+					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
 					from _fis_service_contract sc
-					inner join (select * from _fis_profileheader where profile_type='Signee')s on sc.signee = s.id
+					inner join (select ph.* from _fis_profileheader ph inner join _fis_ProfileLogs  pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
-								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
-								where profile_type='Decease')d on sc.deceased_id = d.id
+					inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
+					inner join _fis_ProfileLogs pl on ph.id = pl.fk_profile_id
+					where pl.profile_type='Decease')d on sc.deceased_id = d.id
 					inner join _fis_package p on sc.package_class_id = p.package_code
 					inner join ClientReligion cr on d.religion = cr.ReligionID
-					where contract_id=".$value['contract_id']));
+					where contract_id =".$value['contract_id']));
 					
 					
 					$services = DB::select(DB::raw("SELECT * FROM
@@ -2168,11 +2171,14 @@ class ServiceContractController extends Controller
 					where contract_id=$contract"));
 			
 			
-			$signee_info = DB::select(DB::raw("SELECT id, (lastname + ', ' + firstname + ' ' + middlename) as name
-			    FROM dbo._fis_ProfileHeader WHERE (profile_type = 'Signee') and id=".$sc_details[0]->signee));
+			$signee_info = DB::select(DB::raw("SELECT PH.id, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) as name FROM dbo._fis_ProfileHeader AS PH
+				LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_Id
+				WHERE (PL.profile_type = 'Signee') and PH.id=".$sc_details[0]->signee));
 			
-			$deceased_info = DB::select(DB::raw("SELECT id, (lastname + ', ' + firstname + ' ' + middlename) as name
-				FROM dbo._fis_ProfileHeader WHERE (profile_type = 'Decease') and id=".$sc_details[0]->deceased_id));
+			$deceased_info = DB::select(DB::raw("SELECT PH.id, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) as name
+				FROM dbo._fis_ProfileHeader AS PH
+				LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_Id
+				WHERE (PL.profile_type = 'Decease') and PH.id =".$sc_details[0]->deceased_id));
 			
 			return [
 					'status'=>'success',

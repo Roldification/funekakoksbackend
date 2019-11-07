@@ -14,89 +14,12 @@ use App\TransferPlan;
 
 class CaresController extends Controller
 {
-	public function transferPlan(Request $request) {
-		try {
-
-				$value = (array)json_decode($request->post()['transferData']);
-				
-				if ($value['membership_id']!="") {
-				$memcount = FisCaresPlan::where(['membership_id'=>$value['membership_id']])->first();
-
-					if($memcount)
-					{
-						return [
-							'status'=>'unsaved',
-							'message'=>'Member Already Exist.'
-						];	
-					}
-				}
-
-				$planProfile = FisCaresPlan::create([
-				'is_member'	=> $value['is_member'],
-				'membership_id'	=> $value['membership_id'],
-				'firstName'	=> $value['firstName'],
-        		'middleName'	=> $value['middleName'],
-		        'lastName'	=> $value['lastName'],
-		        'address'	=> $value['address'],
-		       	'contact_number' => '+63'.$value['contact_number'],
-		        'b_firstName'	=> $value['b_firstName'],
-		        'b_middleName' => $value['b_middleName'],
-		       	'b_lastName' => $value['b_lastName'],
-				'b_relationship' => $value['b_relationship'],
-				'b_contact_number' => '+63'.$value['b_contact_number'],
-				'date_created' => date('Y-m-d'),
-				'transactedBy' => $value['transactedBy']
-				]);
-
-			
-				if ($value['plan_owner']!="") {
-				$memcount = TransferPlan::where(['plan_owner'=>$value['plan_owner']])->first();
-
-					if($memcount)
-					{
-						return [
-							'status'=>'unsaved',
-							'message'=>'Plan already Transferred.'
-						];	
-					}
-				}
-
-				$transfer = TransferPlan::create([
-				'transfer_id' => $planProfile->id,
-		       	'plan_owner' => $value['plan_owner'],
-		       	'contract_id' => $value['fk_contract_id'],
-				'date_transfer' => date('Y-m-d'),
-				'transactedBy' => $value['transactedBy']
-				]);
-
-				$value['id'] = $value['fk_contract_id'];
-				$contract = FisContractProf::find($value['id']);
-	   			$contract->update([
-	   				'fk_profile_id' => $planProfile->id,
-		   			'isActive' => 'TRANSFERRED'
-			   	]);
-			
-			return [
-				'status'=>'saved',
-				'message'=>$planProfile,$transfer,$contract,
-			];
-		
-
-		} catch (\Exception $e) {
-			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
-		}
-	}
-
+	
     public function insertPlanProfile(Request $request) {
 		try {
 
 			$value = (array)json_decode($request->post()['plandata']);
-			$value['dateIssue'] = date_format(date_create($value['dateIssue']), 'Y-m-d H:i:s');
-			$value['dueDate'] = date_format(date_create($value['dueDate']), 'Y-m-d H:i:s');
-
+			
 			if ($value['membership_id']!="") {
 			$memcount = FisCaresPlan::where(['membership_id'=>$value['membership_id']])->first();
 
@@ -340,29 +263,10 @@ class CaresController extends Controller
 	   					'isActive' => 1,
 	   					'UpdateInclusionBy'=>$value['transactedBy']
 	   				]);
-			foreach ($value['inclusions'] as $row){
-			try {
-					$value['fk_package_id'] = $value['package_code'];
-					$inclusion = FisCaresInclusion::find($value['fk_package_id']);
-					$inclusion = FisCaresInclusion::updateOrCreate([
-					'fk_package_id'=> $value['package_code'],
-					'inclusion_name'=> $row->inventory_name,
-					'inclusion_ql'=> $row->inventory_ql,
-					'inclusion_uom'=> $row->inventory_uom,
-					'inclusion_price '=> $row->inventory_price,
-					'dateEncoded'=> date('Y-m-d')
-					]);	
-	
-			} catch (\Exception $e) {
-			return [
-				'message'=>$e->getMessage()
-			]; }
-			}
-
 
 			return [
 				'status'=>'saved',
-				'message'=>$inclusion, $packagePrice
+				'message'=>$packagePrice
 			];
 			
 		} catch (\Exception $e) {
@@ -420,8 +324,7 @@ class CaresController extends Controller
 	{
 		try {
 				$value = (array)json_decode($request->post()['inventorydelete']);
-				$value['fk_package_id'] = $value['package'];
-				$inc = FisCaresInclusion::find($value['fk_package_id']);
+				$inc = FisCaresInclusion::find($value['inclusion_id']);
 		   		$inc->delete();
 				
 			return [
@@ -594,21 +497,14 @@ class CaresController extends Controller
 		$value = (array)json_decode($request->post()['planData']);
 		try {
 		$info = DB::select(DB::raw("
-			SELECT P.id, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
-			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name,
-		 	CONVERT(VARCHAR(30),C.dateIssue,101) AS dateIssue, C.payingPeriod, C.modePayment, 
-			CONVERT(VARCHAR(30),C.contractPrice,0) AS contractPrice, CONVERT(VARCHAR(30),C.amountInstalment,0) AS amountInstalment, 
-			CONVERT(VARCHAR(30),C.firstPayment,0) AS firstPayment, CONVERT(VARCHAR(30),C.dueDate,0) AS dueDate, C.isActive, 
-			CONVERT(VARCHAR(30),C.balance,0) AS balance,
-			T.id as transaction_id, T.fk_contract_id, CONVERT(VARCHAR(30),T.dateSchedule,101) AS dateSchedule, 
-			CONVERT(VARCHAR(30),T.principal_balance,0) AS principal_balance, CONVERT(VARCHAR(30),T.amount_instalment,0) AS amount_instalment,
-			CONVERT(VARCHAR(30),T.principal_paid,0) AS principal_paid, T.isPaid, CONVERT(VARCHAR(30),T.date_pay,101) AS date_pay,
-			PC.package_name
-			FROM _fis_cares_profile AS P
-			LEFT JOIN _fis_cares_contract AS C ON C.FK_PROFILE_ID = P.ID
-			LEFT JOIN _fis_cares_transaction AS T ON T.FK_CONTRACT_ID = C.ID
-			LEFT JOIN _fis_cares_package AS PC ON PC.package_code = C.package_code
-			WHERE T.FK_CONTRACT_ID = '".$value['id']."'
+		SELECT C.id as contract_id, C.contractPrice, C.balance, C.isActive,
+		T.id as transaction_id, CONVERT(VARCHAR(30),T.dateSchedule,101) AS dateSchedule, 
+		CONVERT(VARCHAR(30),T.principal_balance,0) AS principal_balance, CONVERT(VARCHAR(30),T.amount_instalment,0) AS amount_instalment,
+		CONVERT(VARCHAR(30),T.principal_paid,0) AS principal_paid, T.isPaid, CONVERT(VARCHAR(30),T.date_pay,101) AS date_pay,
+		T.reference_no
+		FROM _fis_cares_contract AS C
+		LEFT JOIN _fis_cares_transaction AS T ON T.FK_CONTRACT_ID = C.ID
+		WHERE T.FK_CONTRACT_ID = '".$value['id']."'
 			"));	
 
 			if($info)
@@ -632,11 +528,9 @@ class CaresController extends Controller
 		 	CONVERT(VARCHAR, C.dateIssue, 101) AS dateIssue, C.payingPeriod, C.modePayment, 
 			CONVERT(VARCHAR(30),C.contractPrice,0) AS contractPrice, C.amountInstalment, C.firstPayment, 
 			CONVERT(VARCHAR, C.dueDate, 101) as dueDate, C.isActive, CONVERT(VARCHAR(30),C.balance,0) as balance,
-			PC.package_name, 
-			PT.plan_owner, PT.transfer_id, PT.contract_id, PT.date_transfer		
+			PC.package_name
 			FROM _fis_cares_contract  AS C
 			LEFT JOIN _fis_cares_profile AS P ON  C.FK_PROFILE_ID = P.ID
-			LEFT JOIN _fis_cares_plan_transfer AS PT ON  C.ID = PT.CONTRACT_ID
 			LEFT JOIN _fis_cares_package AS PC ON PC.package_code = C.package_code
 			WHERE C.id = '".$value['id']."'
 			"));	
@@ -653,23 +547,22 @@ class CaresController extends Controller
 		}
 	}
 
-	public function getTransHistory(Request $request) {
+
+
+	public function getPlanTransactionsThree(Request $request) {
 		$value = (array)json_decode($request->post()['planData']);
 		try {
 		$info = DB::select(DB::raw("
-			SELECT PT.plan_owner, PT.transfer_id, PT.contract_id,
-			P.id as profile_id, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
-			P.address, P.contact_number,
+			SELECT P.id as profile_id, C.id, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
 			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name,
-			P.b_relationship, P.b_contact_number, 
-			P2.id as trans_profile_id, (P2.lastName + ', ' + P2.firstName + ' ' + P2.middleName) trans_member_name, 
-			P2.address as trans_address, P2.contact_number as trans_contact_number,
-			(P2.b_lastName + ', ' + P2.b_firstName + ' ' + P2.b_middleName) trans_b_member_name,
-			P2.b_relationship as trans_b_relationship, P2.b_contact_number as trans_b_contact_number
-			FROM _fis_cares_plan_transfer AS PT
-			INNER JOIN _fis_cares_profile AS P ON PT.plan_owner = P.id
-			INNER JOIN _fis_cares_profile AS P2 ON PT.transfer_id = P2.id
-			WHERE PT.contract_id = '".$value['id']."'
+		 	CONVERT(VARCHAR, C.dateIssue, 101) AS dateIssue, C.payingPeriod, C.modePayment, 
+			CONVERT(VARCHAR(30),C.contractPrice,0) AS contractPrice, C.amountInstalment, C.firstPayment, 
+			CONVERT(VARCHAR, C.dueDate, 101) as dueDate, C.isActive, CONVERT(VARCHAR(30),C.balance,0) as balance,
+			PC.package_name
+			FROM _fis_cares_contract  AS C
+			LEFT JOIN _fis_cares_profile AS P ON  C.FK_PROFILE_ID = P.ID
+			LEFT JOIN _fis_cares_package AS PC ON PC.package_code = C.package_code
+			WHERE C.id = '".$value['id']."'
 			"));	
 
 			if($info)
@@ -743,7 +636,8 @@ class CaresController extends Controller
 
 			if ($value['amount'] == $value['amount_instalment']) {
 				$transaction->update([
-		   			'date_pay'=> date('Y-m-d'),
+		   			'date_pay'=> $value['datePay'],
+		   			'reference_no'=> $value['reference_no'],
 		   			'principal_paid'=>$value['amount'],
 		   			'principal_balance'=>$bal,
 		   			'isPaid'=>'YES'
@@ -752,7 +646,8 @@ class CaresController extends Controller
 
 			else{
 				$transaction->update([
-		   			'date_pay'=> date('Y-m-d'),
+		   			'date_pay'=> $value['datePay'],
+		   			'reference_no'=> $value['reference_no'],
 		   			'principal_paid'=>$value['amount'],
 		   			'principal_balance'=>$bal,
 		   			'isPaid'=>'PARTIAL'
@@ -762,7 +657,8 @@ class CaresController extends Controller
 			if ($value['isPaid'] == 'PARTIAL' ) {
 				$sum = $value['amount']+$value['principal_paid'];
 				$transaction->update([
-		   			'date_pay'=> date('Y-m-d'),
+		   			'date_pay'=> $value['datePay'],
+		   			'reference_no'=> $value['reference_no'],
 		   			'principal_paid'=>$sum,
 		   			'principal_balance'=>$bal,
 		   			'isPaid'=>'YES'
@@ -770,8 +666,7 @@ class CaresController extends Controller
 			}
 			
 			
-
-			$value['id'] = $value['fk_contract_id'];
+			$value['id'] = $value['c_id'];
 			$contract = FisContractProf::find($value['id']);
 	   		$contract->update([
 		   			'balance'=>$bal
@@ -781,6 +676,30 @@ class CaresController extends Controller
 			return [
 				'status'=>'saved',
 				'message'=>$transaction, $contract
+			];
+				
+		} catch (\Exception $e) {
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function withdrawAccount(Request $request)
+	{
+		try {	
+
+			$value = (array)json_decode($request->post()['withdrawData']);
+			$contract = FisContractProf::find($value['id']);
+			
+			$contract->update([
+		   			'isActive'=>'CLOSED',
+			   	]);
+
+			return [
+				'status'=>'saved',
+				'message'=>$contract
 			];
 				
 		} catch (\Exception $e) {
@@ -888,7 +807,8 @@ class CaresController extends Controller
 				   			'payingPeriod'=>$value['terms'],
 				   			'modePayment'=>$value['modePayment'],
 				   			'contractPrice'=>$value['salePrice'],
-				   			'amountInstalment'=>$value['amtinstalment'],
+				   			'amountInstalment'=>$value['amountInstalment'],
+				   			'reference_no'=>$value['reference_no'],
 				   			'firstPayment'=>$value['firstPayment'],
 				   			'dueDate'=>$value['dueDate'],
 				   			'isActive' =>'ACTIVE',
@@ -931,7 +851,8 @@ class CaresController extends Controller
 					      'fk_contract_id' => $contract->id,
 					      'dateSchedule' => $nextmonth,
 					      'principal_balance'=> $bal,
-			   			  'amount_instalment'=>$value['amtinstalment'],
+			   			  'amount_instalment'=>$value['amountInstalment'],
+			   			  'reference_no'=>$value['reference_no'],
 			   			  'principal_paid'=>$value['firstPayment'],
 					      'isPaid' =>'YES',
 					      'date_pay' => date('Y-m-d'),
@@ -943,7 +864,7 @@ class CaresController extends Controller
 					      'fk_contract_id' => $contract->id,
 					      'dateSchedule' => $nextmonth,
 					      'principal_balance'=>0,
-			   			  'amount_instalment'=>$value['amtinstalment'],
+			   			  'amount_instalment'=>$value['amountInstalment'],
 			   			  'principal_paid'=>0,
 					      'isPaid' =>'NO'
 						]);
@@ -979,7 +900,8 @@ class CaresController extends Controller
 				   			'payingPeriod'=>$value['terms'],
 				   			'modePayment'=>$value['modePayment'],
 				   			'contractPrice'=>$value['salePrice'],
-				   			'amountInstalment'=>$value['amtinstalment'],
+				   			'amountInstalment'=>$value['amountInstalment'],
+				   			'reference_no'=>$value['reference_no'],
 				   			'firstPayment'=>$value['firstPayment'],
 				   			'dueDate'=>$value['dueDate'],
 				   			'isActive' =>'ACTIVE',
@@ -1018,7 +940,8 @@ class CaresController extends Controller
 						      'fk_contract_id' => $contract->id,
 						      'dateSchedule' => $nextmonth,
 						      'principal_balance'=> $bal,
-				   			  'amount_instalment'=>$value['amtinstalment'],
+				   			  'amount_instalment'=>$value['amountInstalment'],
+				   			  'reference_no'=>$value['reference_no'],
 				   			  'principal_paid'=>$value['firstPayment'],
 						      'isPaid' =>'YES',
 						      'date_pay' => date('Y-m-d'),
@@ -1031,7 +954,7 @@ class CaresController extends Controller
 						      'fk_contract_id' => $contract->id,
 						      'dateSchedule' => $nextmonth,
 						      'principal_balance'=>0,
-				   			  'amount_instalment'=>$value['amtinstalment'],
+				   			  'amount_instalment'=>$value['amountInstalment'],
 				   			  'principal_paid'=>0,
 						      'isPaid' =>'NO'
 							]);
@@ -1065,7 +988,8 @@ class CaresController extends Controller
 				   			'payingPeriod'=>$value['terms'],
 				   			'modePayment'=>$value['modePayment'],
 				   			'contractPrice'=>$value['salePrice'],
-				   			'amountInstalment'=>$value['amtinstalment'],
+				   			'amountInstalment'=>$value['amountInstalment'],
+				   			'reference_no'=>$value['reference_no'],
 				   			'firstPayment'=>$value['firstPayment'],
 				   			'dueDate'=>$value['dueDate'],
 				   			'isActive' =>'ACTIVE',
@@ -1108,7 +1032,8 @@ class CaresController extends Controller
 					      'fk_contract_id' => $contract->id,
 					      'dateSchedule' => $nextmonth,
 					      'principal_balance'=> $bal,
-			   			  'amount_instalment'=>$value['amtinstalment'],
+			   			  'amount_instalment'=>$value['amountInstalment'],
+			   			  'reference_no'=>$value['reference_no'],
 			   			  'principal_paid'=>$value['firstPayment'],
 					      'isPaid' =>'YES',
 					      'date_pay' => date('Y-m-d'),
@@ -1120,7 +1045,7 @@ class CaresController extends Controller
 					      'fk_contract_id' => $contract->id,
 					      'dateSchedule' => $nextmonth,
 					      'principal_balance'=>0,
-			   			  'amount_instalment'=>$value['amtinstalment'],
+			   			  'amount_instalment'=>$value['amountInstalment'],
 			   			  'principal_paid'=>0,
 					      'isPaid' =>'NO'
 						]);
@@ -1137,6 +1062,7 @@ class CaresController extends Controller
 				   			'modePayment'=>$value['modePayment'],
 				   			'contractPrice'=>$value['salePrice'],
 				   			'amountInstalment'=>0,
+				   			'reference_no'=>$value['reference_no'],
 				   			'firstPayment'=>$value['firstPayment'],
 				   			'dueDate'=>date('Y-m-d'),
 				   			'isActive' =>'ACTIVE',
@@ -1150,6 +1076,7 @@ class CaresController extends Controller
 					      'dateSchedule' => $value['dateIssue'],
 					      'principal_balance'=> 0,
 			   			  'amount_instalment'=>$value['salePrice'],
+			   			  'reference_no'=>$value['reference_no'],
 			   			  'principal_paid'=>$value['firstPayment'],
 					      'isPaid' =>'YES',
 					      'date_pay' => date('Y-m-d'),

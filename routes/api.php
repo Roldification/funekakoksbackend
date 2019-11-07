@@ -91,12 +91,12 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-cares-info', 'CaresController@updateCaresInfo');
 	Route::post('get-plan-transactions', 'CaresController@getPlanTransactions');
 	Route::post('get-plan-transactions-two', 'CaresController@getPlanTransactionsTwo');
+	Route::post('get-plan-transactions-three', 'CaresController@getPlanTransactionsThree');
 	Route::post('get-plan-inclusions-details', 'CaresController@getPlanInclusionsDetails');
 	Route::post('update-cares-package', 'CaresController@updateCaresPackage');
 	Route::post('update-pay', 'CaresController@updatePay');
-	Route::post('transfer-plan', 'CaresController@transferPlan');
+	Route::post('withdraw-account', 'CaresController@withdrawAccount');
 	Route::post('insert-plan-inclusions-items', 'CaresController@insertPlanInclusionsItems');
-	Route::post('get-transaction-history', 'CaresController@getTransHistory');
 
 	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
@@ -189,6 +189,7 @@ Route::get('cares-agreement', 'CaresController@caresAgreement')->middleware('cor
 
 // Incentives
 Route::get('get-incentives', 'AccessController@getIncentives')->middleware('cors');
+Route::get('generate-incentives', 'AccessController@generateIncentives')->middleware('cors');
 
 // Inventory
 Route::get('get-item-package', 'InventoryController@getItemPackage')->middleware('cors');
