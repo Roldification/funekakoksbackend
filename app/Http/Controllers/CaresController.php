@@ -11,6 +11,7 @@ use App\FisCreateContract;
 use App\FisContractProf;
 use App\FisContractTransaction;
 use App\TransferPlan;
+use App\FisCaresLedger;
 
 class CaresController extends Controller
 {
@@ -67,16 +68,7 @@ class CaresController extends Controller
 		$value = "";
 		try {
 		$info = DB::select(DB::raw("
-			SELECT P.id, P.membership_id, P.is_member, (P.lastName + ', ' + P.firstName + ' ' + P.middleName) member_name, 
-			P.firstName, P.middleName, P.lastName,  P.address, P.contact_number,
-			(P.b_lastName + ', ' + P.b_firstName + ' ' + P.b_middleName) b_member_name, 
-			P.b_firstName, P.b_middleName, P.b_lastName,
-			P.b_relationship, P.b_contact_number,
-			C.id as c_id, C.package_code, C.fk_profile_id, CONVERT(VARCHAR(30),C.dateIssue,101) AS dateIssue , C.payingPeriod, C.modePayment, 
-			CONVERT(VARCHAR(30),C.contractPrice,0) AS contractPrice, CONVERT(VARCHAR(30),C.amountInstalment,0) AS amountInstalment, 
-			CONVERT(VARCHAR(30),C.firstPayment,0) AS firstPayment, CONVERT(VARCHAR(30),C.dueDate,0) AS dueDate,  CONVERT(VARCHAR(30),C.balance,0) AS balance, C.isActive
-			FROM _fis_cares_profile AS P
-			LEFT JOIN _fis_cares_contract AS C ON C.FK_PROFILE_ID = P.ID
+			SELECT (lastName + ', ' + firstName + ' ' + middleName) member_name, * FROM _fis_cares_profile
 			"));	
 
 			if($info)
@@ -500,8 +492,7 @@ class CaresController extends Controller
 		SELECT C.id as contract_id, C.contractPrice, C.balance, C.isActive,
 		T.id as transaction_id, CONVERT(VARCHAR(30),T.dateSchedule,101) AS dateSchedule, 
 		CONVERT(VARCHAR(30),T.principal_balance,0) AS principal_balance, CONVERT(VARCHAR(30),T.amount_instalment,0) AS amount_instalment,
-		CONVERT(VARCHAR(30),T.principal_paid,0) AS principal_paid, T.isPaid, CONVERT(VARCHAR(30),T.date_pay,101) AS date_pay,
-		T.reference_no
+		CONVERT(VARCHAR(30),T.principal_paid,0) AS principal_paid, T.isPaid, CONVERT(VARCHAR(30),T.date_pay,101) AS date_pay
 		FROM _fis_cares_contract AS C
 		LEFT JOIN _fis_cares_transaction AS T ON T.FK_CONTRACT_ID = C.ID
 		WHERE T.FK_CONTRACT_ID = '".$value['id']."'
@@ -637,33 +628,67 @@ class CaresController extends Controller
 			if ($value['amount'] == $value['amount_instalment']) {
 				$transaction->update([
 		   			'date_pay'=> $value['datePay'],
-		   			'reference_no'=> $value['reference_no'],
 		   			'principal_paid'=>$value['amount'],
 		   			'principal_balance'=>$bal,
 		   			'isPaid'=>'YES'
 			   	]);
+
+			   	$ledger = FisCaresLedger::create([
+				'fk_contract_id'=> $value['c_id'],
+				'principal_balance'	=> $bal,
+				'reference_no'	=> $value['reference_no'],
+        		'amount_instalment'	=> $value['amount_instalment'],
+		        'principal_paid'	=> $value['amount'],
+		        'isPaid'=>'YES',
+		       	'date_pay' => $value['datePay'],
+		        'transaction_id'	=> $value['transaction_id'],
+		        'transactedBy' => $value['transactedBy']
+				]);
+			}
+
+			else if ($value['isPaid'] == 'PARTIAL' ) {
+				$sum = $value['amount']+$value['principal_paid'];
+				$transaction->update([
+		   			'date_pay'=> $value['datePay'],
+		   			'principal_paid'=>$sum,
+		   			'principal_balance'=>$bal,
+		   			'isPaid'=>'YES'
+			   	]);
+
+			   	$ledger = FisCaresLedger::create([
+				'fk_contract_id'=> $value['c_id'],
+				'principal_balance'	=> $bal,
+        		'amount_instalment'	=> $value['amount_instalment'],
+		        'principal_paid'	=> $value['amount'],
+		        'isPaid'=>'YES',
+		        'reference_no'	=> $value['reference_no'],
+		       	'date_pay' => $value['datePay'],
+		        'transaction_id'	=> $value['transaction_id'],
+		        'transactedBy' => $value['transactedBy']
+				]);
 			}
 
 			else{
 				$transaction->update([
 		   			'date_pay'=> $value['datePay'],
-		   			'reference_no'=> $value['reference_no'],
 		   			'principal_paid'=>$value['amount'],
 		   			'principal_balance'=>$bal,
 		   			'isPaid'=>'PARTIAL'
 			   	]);
+
+			   	$ledger = FisCaresLedger::create([
+				'fk_contract_id'=> $value['c_id'],
+				'principal_balance'	=> $bal,
+				'reference_no'	=> $value['reference_no'],
+        		'amount_instalment'	=> $value['amount_instalment'],
+		        'principal_paid'	=> $value['amount'],
+		        'isPaid'=>'PARTIAL',
+		       	'date_pay' => $value['datePay'],
+		        'transaction_id'	=> $value['transaction_id'],
+		        'transactedBy' => $value['transactedBy']
+				]);
 			}
 
-			if ($value['isPaid'] == 'PARTIAL' ) {
-				$sum = $value['amount']+$value['principal_paid'];
-				$transaction->update([
-		   			'date_pay'=> $value['datePay'],
-		   			'reference_no'=> $value['reference_no'],
-		   			'principal_paid'=>$sum,
-		   			'principal_balance'=>$bal,
-		   			'isPaid'=>'YES'
-			   	]);
-			}
 			
 			
 			$value['id'] = $value['c_id'];
@@ -675,7 +700,7 @@ class CaresController extends Controller
 
 			return [
 				'status'=>'saved',
-				'message'=>$transaction, $contract
+				'message'=>$transaction, $contract, $ledger
 			];
 				
 		} catch (\Exception $e) {
@@ -808,7 +833,6 @@ class CaresController extends Controller
 				   			'modePayment'=>$value['modePayment'],
 				   			'contractPrice'=>$value['salePrice'],
 				   			'amountInstalment'=>$value['amountInstalment'],
-				   			'reference_no'=>$value['reference_no'],
 				   			'firstPayment'=>$value['firstPayment'],
 				   			'dueDate'=>$value['dueDate'],
 				   			'isActive' =>'ACTIVE',
@@ -852,11 +876,22 @@ class CaresController extends Controller
 					      'dateSchedule' => $nextmonth,
 					      'principal_balance'=> $bal,
 			   			  'amount_instalment'=>$value['amountInstalment'],
-			   			  'reference_no'=>$value['reference_no'],
 			   			  'principal_paid'=>$value['firstPayment'],
 					      'isPaid' =>'YES',
-					      'date_pay' => date('Y-m-d'),
+					      'date_pay' => $value['dateIssue'],
 					      'transactedBy' => $value['transactedBy']
+						]);
+
+						$ledger = FisCaresLedger::create([
+						'fk_contract_id'=> $contract->id,
+						'principal_balance'	=> $bal,
+						'reference_no'	=> $value['reference_no'],
+		        		'amount_instalment'	=> $value['amountInstalment'],
+				        'principal_paid'	=> $value['firstPayment'],
+				        'isPaid'	=> 'YES',
+				       	'date_pay' => $value['dateIssue'],
+				        'transaction_id'	=> $transaction->id,
+				        'transactedBy' => $value['transactedBy']
 						]);
 			   		}
 			   		else{
@@ -870,6 +905,8 @@ class CaresController extends Controller
 						]);
 			   		}
 			   		} // LOOP CLOSES
+
+			   		
 			} // if monthly
 
 			else if ($value['modePayment'] == 'Quarterly') {
@@ -901,7 +938,6 @@ class CaresController extends Controller
 				   			'modePayment'=>$value['modePayment'],
 				   			'contractPrice'=>$value['salePrice'],
 				   			'amountInstalment'=>$value['amountInstalment'],
-				   			'reference_no'=>$value['reference_no'],
 				   			'firstPayment'=>$value['firstPayment'],
 				   			'dueDate'=>$value['dueDate'],
 				   			'isActive' =>'ACTIVE',
@@ -941,11 +977,22 @@ class CaresController extends Controller
 						      'dateSchedule' => $nextmonth,
 						      'principal_balance'=> $bal,
 				   			  'amount_instalment'=>$value['amountInstalment'],
-				   			  'reference_no'=>$value['reference_no'],
 				   			  'principal_paid'=>$value['firstPayment'],
 						      'isPaid' =>'YES',
-						      'date_pay' => date('Y-m-d'),
+						      'date_pay' => $value['dateIssue'],
 						      'transactedBy' => $value['transactedBy']
+							]);
+
+							$ledger = FisCaresLedger::create([
+							'fk_contract_id'=> $contract->id,
+							'principal_balance'	=> $bal,
+							'reference_no'	=> $value['reference_no'],
+			        		'amount_instalment'	=> $value['amountInstalment'],
+					        'principal_paid'	=> $value['firstPayment'],
+					        'isPaid'	=> 'YES',
+					       	'date_pay' => $value['dateIssue'],
+					        'transaction_id'	=> $transaction->id,
+					        'transactedBy' => $value['transactedBy']
 							]);
 				   		}
 
@@ -989,7 +1036,6 @@ class CaresController extends Controller
 				   			'modePayment'=>$value['modePayment'],
 				   			'contractPrice'=>$value['salePrice'],
 				   			'amountInstalment'=>$value['amountInstalment'],
-				   			'reference_no'=>$value['reference_no'],
 				   			'firstPayment'=>$value['firstPayment'],
 				   			'dueDate'=>$value['dueDate'],
 				   			'isActive' =>'ACTIVE',
@@ -1033,11 +1079,22 @@ class CaresController extends Controller
 					      'dateSchedule' => $nextmonth,
 					      'principal_balance'=> $bal,
 			   			  'amount_instalment'=>$value['amountInstalment'],
-			   			  'reference_no'=>$value['reference_no'],
 			   			  'principal_paid'=>$value['firstPayment'],
 					      'isPaid' =>'YES',
-					      'date_pay' => date('Y-m-d'),
+					      'date_pay' => $value['dateIssue'],
 					      'transactedBy' => $value['transactedBy']
+						]);
+
+						$ledger = FisCaresLedger::create([
+						'fk_contract_id'=> $contract->id,
+						'principal_balance'	=> $bal,
+						'reference_no'	=> $value['reference_no'],
+		        		'amount_instalment'	=> $value['amountInstalment'],
+				        'principal_paid'	=> $value['firstPayment'],
+				        'isPaid'	=> 'YES',
+				       	'date_pay' => $value['dateIssue'],
+				        'transaction_id'	=> $transaction->id,
+				        'transactedBy' => $value['transactedBy']
 						]);
 			   		}
 			   		else{
@@ -1062,7 +1119,6 @@ class CaresController extends Controller
 				   			'modePayment'=>$value['modePayment'],
 				   			'contractPrice'=>$value['salePrice'],
 				   			'amountInstalment'=>0,
-				   			'reference_no'=>$value['reference_no'],
 				   			'firstPayment'=>$value['firstPayment'],
 				   			'dueDate'=>date('Y-m-d'),
 				   			'isActive' =>'ACTIVE',
@@ -1076,19 +1132,30 @@ class CaresController extends Controller
 					      'dateSchedule' => $value['dateIssue'],
 					      'principal_balance'=> 0,
 			   			  'amount_instalment'=>$value['salePrice'],
-			   			  'reference_no'=>$value['reference_no'],
 			   			  'principal_paid'=>$value['firstPayment'],
 					      'isPaid' =>'YES',
-					      'date_pay' => date('Y-m-d'),
+					      'date_pay' => $value['dateIssue'],
 					      'transactedBy' => $value['transactedBy']
 					]);
+
+					$ledger = FisCaresLedger::create([
+						'fk_contract_id'=> $contract->id,
+						'principal_balance'	=> 0,
+						'reference_no'	=> $value['reference_no'],
+		        		'amount_instalment'	=> $value['amountInstalment'],
+				        'principal_paid'	=> $value['firstPayment'],
+				        'isPaid'	=> 'YES',
+				       	'date_pay' => $value['dateIssue'],
+				        'transaction_id'	=> $transaction->id,
+				        'transactedBy' => $value['transactedBy']
+						]);
 			
 			} // if spot cash 
-				
-			
+
+
 			return [
 				'status'=>'saved',
-				'message'=>$contract,$transaction
+				'message'=>$contract,$transaction,$ledger
 			];
 		
 
@@ -1116,6 +1183,26 @@ class CaresController extends Controller
 
 			if($info)
 			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getPlanLedger(Request $request) {
+		try {
+		$value = (array)json_decode($request->post()['planData']);
+
+		$ledger = DB::select(DB::raw("
+			SELECT * FROM _fis_cares_ledger WHERE fk_contract_id = '".$value['id']."'
+			"));	
+
+			if($ledger)
+			return	$ledger;
 			else return [];
 				
 		} catch (\Exception $e) {

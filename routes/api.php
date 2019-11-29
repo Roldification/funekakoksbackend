@@ -97,6 +97,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-pay', 'CaresController@updatePay');
 	Route::post('withdraw-account', 'CaresController@withdrawAccount');
 	Route::post('insert-plan-inclusions-items', 'CaresController@insertPlanInclusionsItems');
+	Route::post('get-plan-ledger', 'CaresController@getPlanLedger');
 
 	Route::post('update-password', 'AccessController@updatePassword');
 	Route::post('update-relation', 'AccessController@updateRelation');
@@ -131,11 +132,13 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('get-incentives-id', 'AccessController@getIncentivesId');
 	Route::post('add-incentives', 'AccessController@AddIncentives');
 	Route::post('insert-profile', 'AccessController@insertProfile');
+	Route::post('get-ledger-data', 'AccessController@getLedgerData');
 
 	Route::post('deactivate-profile', 'AccessController@deactivateProfile');
 	Route::post('activate-profile', 'AccessController@activateProfile');
 
 	Route::post('adamin-update-inc', 'AccessController@adminUpdateInc');
+	Route::post('idle-password', 'AccessController@idlePassword');
 });
 
 

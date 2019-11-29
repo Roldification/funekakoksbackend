@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\DB;
-use App\SystemUser;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
+use App\SystemUser;
 use App\AccessTokens;
 use App\FisDeceased;
 use App\FisItems;
@@ -30,13 +32,13 @@ use App\FisSalesTransaction;
 use App\FisPaymentType;
 use App\FisSCPayments;
 use App\FisPackage;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\FisCharging;
 use App\FisIncentives;
 use App\FisPassword;
 use App\FisLocation;
 use App\FisProfileLogs;
-use Illuminate\Support\Facades\Hash;
+use App\FisIncentivesLedger;
+
 
 
 class AccessController extends Controller
@@ -1886,17 +1888,23 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		try {
 			$user_check = DB::select(DB::raw("
 			SELECT top 5 SC.contract_id as value,  (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, 
-			SC.contract_no as sublabel, PC.package_name, CONVERT(VARCHAR(30),SC.package_amount,0) AS package_amount
+			SC.contract_no as sublabel, PC.package_name, CONVERT(VARCHAR(30),SC.package_amount,0) AS package_amount,
+			SC.contract_id, 
+			CONVERT(VARCHAR(30),SALES.price,0) AS casket_price
 			FROM _fis_service_contract AS SC
 			INNER JOIN _fis_ProfileHeader AS PH ON SC.deceased_id = PH.id
 			INNER JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
 			INNER JOIN _fis_package AS PC ON SC.package_class_id = PC.package_code
+			INNER JOIN _fis_item_sales AS SALES ON SALES.contract_id = SC.contract_id
 			WHERE PL.profile_type = 'Decease'
-			AND SC.status not in ('CANCELLED', 'DRAFT') AND
-			(PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
+			AND SC.status not in ('CANCELLED', 'DRAFT') AND left(SALES.product_id,2)='01'
+			AND (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'
+			"));
+
+
 			
-		if($user_check)
-		return	$user_check;
+		if($user_check) 
+		return	$user_check;		
 		else return []; 
 			
 		} catch (\Exception $e) {
@@ -2384,20 +2392,119 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	{
 		try {
 				$value = (array)json_decode($request->post()['incentivesData']);
-				$incentives = FisIncentives::find($value['id']);
+
+				if ($value['amount'] == $value['inc_to_claim']) {
+					$incentives = FisIncentives::find($value['id']);
 					$incentives->update(
 	   					['status'=> 'CLAIMED',
-	   					'incentives'=> $value['incentives'],
+	   					'remarks'=> $value['remarks'],
+	   					'date_claim'=> date('Y-m-d'),
+	   					'balance' => 0,
+	   					'transactedClaimedBy'=> $value['transactedBy']
+	   				]);
+				
+		   			$incentives_trans = FisIncentivesLedger::create([
+					  'transaction_id' => $incentives->id,
+				      'informant_id' => $value['fk_profile_id'],
+				      'contract_no' => $value['contract_no'],
+				      'package_availed' => $value['package_amount'],
+				      'reference_no'=> $value['reference_no'],
+				      'incentives' => $value['inc_to_claim'],
+				      'date_claim'=> date('Y-m-d'),
+				      'status'=> 'CLAIMED',
+				      'balance' => 0,
+				      'amount'=> $value['amount'],
+				      'transactedBy'=> $value['transactedBy']
+					]);
+				}
+
+			
+				else if ($value['status'] == 'PARTIAL') {
+					if ($value['amount'] == $value['balance']) {
+						$bal =  $value['balance'] - $value['amount'];
+						$incentives = FisIncentives::find($value['id']);
+						$incentives->update(
+		   					['status'=> 'CLAIMED',
+		   					'balance' => $bal,
+		   					'remarks'=> $value['remarks'],
+		   					'date_claim'=> date('Y-m-d'),
+		   					'transactedClaimedBy'=> $value['transactedBy']
+		   				]);
+				
+			   			$incentives_trans = FisIncentivesLedger::create([
+						  'transaction_id' => $incentives->id,
+					      'informant_id' => $value['fk_profile_id'],
+					      'contract_no' => $value['contract_no'],
+					      'balance' => $bal,
+					      'amount'=> $value['amount'],
+					      'package_availed' => $value['package_amount'],
+					      'reference_no'=> $value['reference_no'],
+					      'incentives' => $value['inc_to_claim'],
+					      'date_claim'=> date('Y-m-d'),
+					      'status'=> 'CLAIMED',
+					      'transactedBy'=> $value['transactedBy']
+						]);
+					}
+
+					else {
+						$bal =   $value['balance'] - $value['amount'];
+						$incentives = FisIncentives::find($value['id']);
+						$incentives->update(
+		   					['status'=> 'PARTIAL',
+		   					'balance' => $bal,		
+		   					'remarks'=> $value['remarks'],
+		   					'date_claim'=> date('Y-m-d'),
+		   					'transactedClaimedBy'=> $value['transactedBy']
+		   				]);
+				
+			   			$incentives_trans = FisIncentivesLedger::create([
+						  'transaction_id' => $incentives->id,
+					      'informant_id' => $value['fk_profile_id'],
+					      'contract_no' => $value['contract_no'],
+					      'balance' => $bal,
+					      'amount'=> $value['amount'],
+					      'package_availed' => $value['package_amount'],
+					      'reference_no'=> $value['reference_no'],
+					      'incentives' => $value['inc_to_claim'],
+					      'date_claim'=> date('Y-m-d'),
+					      'status'=> 'PARTIAL',
+					      'transactedBy'=> $value['transactedBy']
+						]);
+					}
+					
+				}
+
+				else {
+					$bal =  $value['inc_to_claim'] - $value['amount'] ;
+					$incentives = FisIncentives::find($value['id']);
+					$incentives->update(
+	   					['status'=> 'PARTIAL',
+	   					'balance' => $bal,
 	   					'remarks'=> $value['remarks'],
 	   					'date_claim'=> date('Y-m-d'),
 	   					'transactedClaimedBy'=> $value['transactedBy']
 	   				]);
 				
-	   				
+		   			$incentives_trans = FisIncentivesLedger::create([
+					  'transaction_id' => $incentives->id,
+				      'informant_id' => $value['fk_profile_id'],
+				      'contract_no' => $value['contract_no'],
+				      'amount'=> $value['amount'],
+				      'balance' => $bal,
+				      'package_availed' => $value['package_amount'],
+				      'reference_no'=> $value['reference_no'],
+				      'incentives' => $value['inc_to_claim'],
+				      'date_claim'=> date('Y-m-d'),
+				      'status'=> 'PARTIAL',
+				      'transactedBy'=> $value['transactedBy']
+					]);
+				}
+
+					
 			
 			return [
 					'status'=>'saved',
-					'message'=>$incentives
+					'message'=>$incentives,$incentives_trans
 			];
 			
 		} catch (\Exception $e) {
@@ -2638,10 +2745,9 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		$value = (array)json_decode($request->post()['dataIncentives']);
 		try {
 			$user_check = DB::select(DB::raw("
-				SELECT id,informant_id, decease_id, decease_name, contract_no, package_name, CONVERT(VARCHAR(30),package_amount,0) AS package_amount,
+				SELECT id,informant_id, decease_id, decease_name, contract_no, package_name, CONVERT(VARCHAR(30),package_amount,0) AS package_amount, CONVERT(VARCHAR(30),balance,0) AS balance, 
 				CONVERT(VARCHAR(30),date_inform,22) AS date_inform,
-				pull_out, remarks, CONVERT(VARCHAR(30),percentage,0) AS percentage, 
-				CONVERT(VARCHAR(30),casket_price,0) AS casket_price, CONVERT(VARCHAR(30),incentives,0) AS incentives, 
+				pull_out, remarks, CONVERT(VARCHAR(30),casket_price,0) AS casket_price, CONVERT(VARCHAR(30),incentives,0) AS incentives, 
 				status, CONVERT(VARCHAR(30),date_claim,22) AS date_claim, member_type
 				FROM _fis_informantInfo WHERE informant_id = '".$value['fk_profile_id']."'
 				"));
@@ -2687,9 +2793,9 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				      'pull_out' =>  $value['pull_out'],
 				      'remarks' =>  $value['remarks'],
 				      'member_type' =>  $value['list'],
-				      'percentage' =>  $value['percentage'],
 				      'casket_price' =>  $value['casket_price'],
 				      'incentives' =>  $value['incentives'],
+				      'balance' =>  $value['incentives'],
 				      'status' => 'UNCLAIMED',
 				      'createdBy' =>  $value['createdBy']
 				  	]);
@@ -3002,26 +3108,141 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 
 	public function generateIncentives(Request $request)
 	{
-		 $type = $request->post()['type'];
-		 $date = $request->post()['date'];
-
+		$type = $request->post()['type'];
+		$date = $request->post()['date'];
+		
 		if ($type == 'MONTHLY') {
 			$report = DB::select(DB::raw("
-			SELECT I.informant_id, I.decease_id, I. decease_name, I.contract_no,  CONVERT(VARCHAR(30),I.package_amount,0) AS package_amount, 
+			SELECT top 5 I.informant_id, I.decease_id, I. decease_name, I.contract_no,  CONVERT(VARCHAR(30),I.package_amount,0) AS package_amount, 
 			CONVERT(VARCHAR(30),I.incentives,0) AS incentives,
 			(PH.lastname+', '+PH.firstname+ ' '+PH.middlename)AS informant_name, I.date_inform
 			FROM _fis_informantInfo AS I
 			LEFT JOIN _fis_ProfileHeader AS PH ON I.informant_id = PH.id
-			WHERE MONTH(date_inform) = MONTH('".$date."') AND YEAR(date_inform) = YEAR('".$date."') AND  package_amount > '10000'
+			WHERE MONTH(date_inform) = MONTH('".$date."') AND YEAR(date_inform) = YEAR('".$date."') AND  package_amount > '13000'
 			"));
 
-			$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
-			$mpdf->WriteHTML(view('incentives_report', ['report'=>$report, 'date'=>$date]));
-			$mpdf->use_kwt = true; 
-			$mpdf->Output();
-			
+			if(count($report)>=5) 
+			{
+				$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+				$mpdf->WriteHTML(view('incentives_report', ['report'=>$report, 'date'=>$date]));
+				$mpdf->use_kwt = true; 
+				$mpdf->Output();
+			}
+
+			else echo "Invalid Selection!";
 		}
 			
+	}
+
+	/*public function generateIncentives(Request $request)
+	{
+		 $type = $request->post()['type'];
+		 //$date = $request->post()['date'];
+
+		$incentives = (array)json_decode($request->post()['incentivesData']);
+		
+		$params = "";
+		
+		for($x=0; $x<count($incentives); $x++)
+		{
+			$params = $params.$incentives[$x];
+			
+			if($x + 1 != count($incentives))
+			{
+				$params = $params.",";
+			}
+			
+		}
+		
+
+		if ($type == 'MONTHLY') {
+			$report = DB::select(DB::raw("
+			SELECT top 5 I.informant_id, I.decease_id, I. decease_name, I.contract_no,  CONVERT(VARCHAR(30),I.package_amount,0) AS package_amount, 
+			CONVERT(VARCHAR(30),I.incentives,0) AS incentives,
+			(PH.lastname+', '+PH.firstname+ ' '+PH.middlename)AS informant_name, I.date_inform
+			FROM _fis_informantInfo AS I
+			LEFT JOIN _fis_ProfileHeader AS PH ON I.informant_id = PH.id
+			WHERE I.package_amount > '10000' and I.id in (".$params.")
+			"));
+
+
+			if(count($report)>=5) 
+			{
+
+			for($x=0; $x<5; $x++)
+			{
+				$user = FisIncentives::find($incentives[$x]);
+				$user->update(
+		   		['isTagged'=>1 ]);	
+			}
+
+
+
+			$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+			$mpdf->WriteHTML(view('incentives_report', ['report'=>$report]));
+			$mpdf->use_kwt = true; 
+			$mpdf->Output();
+
+			}
+
+			else echo "Invalid Selection!";
+			
+		}		
+	}*/
+
+
+	public function idlePassword(Request $request)
+	{
+		try {
+
+				$value_api = (array)json_decode($request->post()['userData']);
+				
+				$user = SystemUser::where(
+						[
+								'Password'=>$value_api['password_input'],
+								'UserName'=>$value_api['username'],
+								
+						])->firstOrFail();
+
+				if ($user) {
+					return [
+						'status'=>'saved',
+					];
+				}
+
+				else
+					{
+						return [
+								'status'=>'error',
+						];
+						
+					}
+
+			} catch (\Exception $e) {
+				return [
+						'status'=>'unsaved',
+				];
+			}
+		
+		
+	}
+
+	public function getLedgerData(Request $request) {
+		try {
+		$value = (array)json_decode($request->post()['dataIncentives']);
+
+		$user_check = DB::select(DB::raw("
+			SELECT * FROM  _fis_informant_ledger WHERE transaction_id = '".$value['trans_id']."'
+			"));
+			if($user_check)
+			return	$user_check;
+			else return [];		
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
 	}
 
 }

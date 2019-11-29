@@ -65,7 +65,7 @@
 	<div class="row">
 	<div class="sub-title" style="width: 50%; float: left;"> Name of Informant: <?php echo " ".$report[0]->informant_name ?></div>
 	<div class="sub-title" style="width: 50%; text-align: right;"> 
-		<?php echo "Date: ".date('F d, Y', strtotime($date)); ?></div>
+		<?php echo date('F d, Y') ?></div>
 	</div>
 
 	<table style="margin-top: 10px;">
