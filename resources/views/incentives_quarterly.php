@@ -60,7 +60,7 @@
 <body>
 
 <div id="wrapper">
-	<div class="main-title"><strong>MONTHLY CASH INCENTIVES</strong></div>
+	<div class="main-title"><strong>QUARTERLY CASH INCENTIVES</strong></div>
 
 	<div class="row">
 	<div class="sub-title" style="width: 50%; float: left;"> Name of Informant: <?php echo " ".$report[0]->informant_name ?></div>
@@ -70,58 +70,57 @@
 
 	<table style="margin-top: 10px;">
 		<tr>
-			<th style="width: 300px;">Name of Deceased</th>
-			<th style="width: 200px;">SC#</th>
-			<th style="width: 200px;">Package Availed</th>
-			<th style="width: 200px;">Incentives</th>
+			<th style="width: 300px;">Month</th>
+			<th style="width: 200px;">MCI No.</th>
+			<th style="width: 200px;">10% Incentives (Basic)</th>
+			<th style="width: 200px;">30% Monthly Incentives</th>
 		</tr>
 
 		<?php 
-		 $sumpackage = 0;
+		 $sumbasic = 0;
 		 $sumincentives = 0;
 		foreach ($report as $row) { 
-					$sumpackage = $sumpackage + $row->package_amount;
-					$sumincentives = $sumincentives + $row->incentives;
+					$sumbasic = $sumbasic + $row->basic_inc;
+					$sumincentives = $sumincentives + $row->amount;
 			?>
 		<tr>
 			<td>
-			<?php echo " ".$row->decease_name ?>
+			<?php echo date('F', strtotime($row->date))?>
 			</td>
 			<td>
-			<?php echo " ".$row->contract_no ?>
+			<?php echo " ".$row->mci_no ?>
 			</td>
 			<td>
-			<?php echo " ".$row->package_amount ?>
+			<?php echo " ".$row->basic_inc ?>
 			</td>
 			<td>
-			<?php echo " ".$row->incentives ?>
+			<?php echo " ".$row->amount ?>
 			</td>
 		</tr>
 		<?php } ?>
 	</table>
 
-
 	<table style="margin-top: 5px;">
 		<tr>
 		<td style="width: 300px;"></td>
 		<td style="width: 200px; text-align: right; font-size: 14px;"><strong> Total Incentives: </strong></td>
-		<td style="width: 200px; text-align: left; font-size: 14px;"><strong><?php echo number_format((double)$sumpackage, 2,'.','');?> </strong> </td>
+		<td style="width: 200px; text-align: left; font-size: 14px;"><strong><?php echo number_format((double)$sumbasic, 2,'.','');?> </strong> </td>
 
 		<td style="width: 200px; text-align: left; font-size: 14px;"><strong><?php echo number_format((double)$sumincentives, 2,'.','');?> </strong></td>
 		</tr>
 	</table>
-
+	
 	<table style="margin-top: 5px;">
 		<tr>
 		<td style="width: 500px; font-size: 14px;"><strong>Additional Monthly Cash Incentives Rate</strong></td>
-		<td style="width: 300px; font-size: 14px;"><strong>30%</strong></td>
+		<td style="width: 300px; font-size: 14px;"><strong>45%</strong></td>
 		</tr>
 
 		<tr>
 		<td style="width: 500px; font-size: 14px;"><strong>Additional Monthly Cash Incentives</td>
 		<?php 
 		$inc = 0;
-		$inc = $sumincentives * 0.3 ?>
+		$inc = $sumincentives * 0.45 ?>
 		<td style="width: 300px; font-size: 14px;"><strong><?php echo number_format((double)$inc, 2,'.','');?> </strong></td>
 		</tr>
 	</table>
@@ -161,16 +160,11 @@
 		</tr>
 	</table>
 
-
-
 	<div class="container">
-		<p style="text-align: right;font-size: 14px;">
-			MCI No. <u><?php echo " ".$mci ?></u>
+		<p style="text-align: right; font-size: 14px;">
+			QCI No. <u><?php echo " ".$qci ?></u>
 		</p>
 	</div>
-
-
-	
 
 </div>
 

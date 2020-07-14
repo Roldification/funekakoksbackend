@@ -34,12 +34,10 @@ use App\FisSCPayments;
 use App\FisPackage;
 use App\FisCharging;
 use App\FisPackageInclusions;
-use App\FisPackageServiceDelete;
-use App\FisPackageItemDelete;
+use App\FisPackageDelete;
 use App\FisChapelPackage;
 use App\FisChapelInclusions;
-use App\FisChapelServInc;
-use App\FisChapelItemInc;
+use App\FisChapelDelInc;
 
 class InventoryController extends Controller
 {
@@ -485,7 +483,7 @@ and left(item_code, 2)<>'01'"));
 	public function getInclusionList(Request $request) {
 		$value = (array)json_decode($request->post()['incList']);
 		try {
-		$inclusions = DB::select(DB::raw("SELECT PN.fk_package_id, PN.item_id, 
+		$inclusions = DB::select(DB::raw("SELECT PN.id as inclusion_id, PN.fk_package_id, PN.item_id, 
 			I.item_name, PN.quantity, PN.service_price, PN.total_amount, 
 			PN.type_duration, PN.duration, PN.inclusionType, P.package_code,
 			PN.inclusionType
@@ -495,7 +493,7 @@ and left(item_code, 2)<>'01'"));
 			WHERE PN.inclusionType='ITEM' and  
 			PN.fk_package_id = '".$value['item_code']."'
 			union all
-			SELECT PN.fk_package_id, PN.service_id, S.service_name, 
+			SELECT PN.id as inclusion_id, PN.fk_package_id, PN.service_id, S.service_name, 
 			PN.quantity, PN.service_price, 
 			PN.total_amount, PN.type_duration, PN.duration, PN.inclusionType, 
 			P.package_code, PN.inclusionType
@@ -803,32 +801,31 @@ and left(item_code, 2)<>'01'"));
 		}
 	}
 
-	public function deleteInc(Request $request)
-	{
-		try {
-				$value = (array)json_decode($request->post()['inventorydelete']);
 
-				if ($value['inventory_type'] == 'ITEM') {
-					$value['item_id'] = $value['inclusion_id'];
-					$inc = FisPackageItemDelete::find($value['item_id']);
-		   			$inc->delete();
-				}
-				else if ($value['inventory_type'] == 'SERV') {
-					$value['service_id'] = $value['inclusion_id'];
-					$inc = FisPackageServiceDelete::find($value['service_id']);
-		   			$inc->delete();
-				}
+	public function deleteInc(Request $request) {
+		$value = (array)json_decode($request->post()['inventorydelete']);
+		try {
+			if ($value['inventory_type'] == 'ITEM') {
+				$deleterow = DB::delete(DB::raw("
+				DELETE from _fis_package_inclusions WHERE fk_package_id = '".$value['package_id']."' 
+				AND item_id = '".$value['inventory_id']."'
+				"));
+			}
+			else if ($value['inventory_type'] == 'SERV') {
+				$deleterow = DB::delete(DB::raw("
+				DELETE from _fis_package_inclusions WHERE fk_package_id = '".$value['package_id']."' 
+				AND service_id = '".$value['inventory_id']."'
+				"));
+			}
 			return [
-					'status'=>'saved',
-					'message'=>$inc
+				'status'=>'saved',
+				'message'=>$deleterow
 			];
-			
 		} catch (\Exception $e) {
-			
 			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
+			'status'=>'unsaved',
+			'message'=>$e->getMessage()
+			];
 		}
 	}
 
@@ -934,7 +931,7 @@ and left(item_code, 2)<>'01'"));
 		$value = (array)json_decode($request->post()['incList']);
 		try {
 		$inclusions = DB::select(DB::raw("
-			SELECT CI.fk_chapel_id as fk_package_id, CI.item_id, CI.quantity,
+			SELECT CI.id as inclusion_id, CI.fk_chapel_id as fk_package_id, CI.item_id, CI.quantity,
 			CI.duration, CI.type_duration, CI.inclusionType, CI.transactedBy,
 			CI.service_price, CI.total_amount, I.item_name
 			FROM _fis_chapel_inclusions as CI
@@ -942,7 +939,7 @@ and left(item_code, 2)<>'01'"));
 			FULL OUTER JOIN _fis_chapel_package AS CP on CI.fk_chapel_id = CP.id
 			WHERE CI.inclusionType='ITEM' and  CI.fk_chapel_id = '".$value['item_code']."'
 			union all
-			SELECT CI.fk_chapel_id, CI.service_id, CI.quantity,
+			SELECT CI.id as inclusion_id, CI.fk_chapel_id, CI.service_id, CI.quantity,
 			CI.duration, CI.type_duration, CI.inclusionType, CI.transactedBy,
 			CI.service_price, CI.total_amount, S.service_name
 			FROM _fis_chapel_inclusions as CI
@@ -1021,32 +1018,31 @@ and left(item_code, 2)<>'01'"));
 		}
 	}
 
-	public function deleteChapelInc(Request $request)
-	{
-		try {
-				$value = (array)json_decode($request->post()['inventorydelete']);
 
-				if ($value['inventory_type'] == 'ITEM') {
-					$value['item_id'] = $value['inclusion_id'];
-					$inc = FisChapelItemInc::find($value['item_id']);
-		   			$inc->delete();
-				}
-				else if ($value['inventory_type'] == 'SERV') {
-					$value['service_id'] = $value['inclusion_id'];
-					$inc = FisChapelServInc::find($value['service_id']);
-		   			$inc->delete();
-				}
+	public function deleteChapelInc(Request $request) {
+		$value = (array)json_decode($request->post()['inventorydelete']);
+		try {
+			if ($value['inventory_type'] == 'ITEM') {
+				$deleterow = DB::delete(DB::raw("
+				DELETE from _fis_chapel_inclusions WHERE fk_chapel_id = '".$value['package_id']."' 
+				AND item_id = '".$value['inventory_id']."'
+				"));
+			}
+			else if ($value['inventory_type'] == 'SERV') {
+				$deleterow = DB::delete(DB::raw("
+				DELETE from _fis_chapel_inclusions WHERE fk_chapel_id = '".$value['package_id']."' 
+				AND service_id = '".$value['inventory_id']."'
+				"));
+			}
 			return [
-					'status'=>'saved',
-					'message'=>$inc
+				'status'=>'saved',
+				'message'=>$deleterow
 			];
-			
 		} catch (\Exception $e) {
-			
 			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
+			'status'=>'unsaved',
+			'message'=>$e->getMessage()
+			];
 		}
 	}
 

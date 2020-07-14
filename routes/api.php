@@ -106,6 +106,8 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-location', 'AccessController@updateLocation');
 	Route::post('update-incentives', 'AccessController@updateIncentives');
 
+	Route::post('insert-mci', 'AccessController@insertMCI');
+
 	Route::post('update-user-detail-info', 'AccessController@updateUserDetailInfo');
 	Route::post('update-account-role', 'AccessController@updateAccountRole');
 	Route::post('deactivate-user', 'AccessController@deactivateUser');
@@ -139,6 +141,16 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	Route::post('adamin-update-inc', 'AccessController@adminUpdateInc');
 	Route::post('idle-password', 'AccessController@idlePassword');
+
+	Route::post('get-monthly', 'AccessController@getMonthly');
+	Route::post('get-yearly', 'AccessController@getYearly');
+
+	Route::post('pending-contract', 'ServiceContractController@pendingContract');
+	Route::post('disapprove-contract', 'ServiceContractController@disapproveContract');
+
+	Route::post('insert-cancel-sales', 'ServiceContractController@insertCancelSales');
+
+	Route::post('disapprove-merchandise', 'ServiceContractController@disapproveMerchandise');
 });
 
 
@@ -220,9 +232,11 @@ Route::get('get-walkin-details', 'AccessController@getWalkinDetails')->middlewar
 // accounts
 Route::get('get-active-list', 'AccessController@getActiveAccount')->middleware('cors');
 Route::get('get-all-item-services', 'CaresController@getAllItemServ')->middleware('cors');
-Route::get('get-profile-settings', 'AccessController@getProfileSettings')->middleware('cors');
-
 Route::get('get-plan-profile', 'CaresController@getPlanProfile')->middleware('cors');
+Route::get('get-walkin', 'AccessController@getWalkin')->middleware('cors');
+
+Route::get('get-pending-contract', 'ServiceContractController@getPendingContract')->middleware('cors');
+Route::get('get-pending-merchandise', 'ServiceContractController@getPendingMerchandise')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

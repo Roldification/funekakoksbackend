@@ -1,40 +1,50 @@
 <!doctype html>
 <html>
 	<head>
-    	<style>
-    	 @page{
-    	 margin-top: 25px;
-    	 }
-    	 
-    	 .row{
+	<link href="https://fonts.googleapis.com/css?family=Raleway&display=swap" rel="stylesheet">
+    <style>
+   	body{
+   		font-family: 'Raleway', sans-serif;
+   	}
+   	h3{
+   		font-family: 'Raleway', sans-serif;
+   		font-weight: bold;
+   		font-size: 20px;
+   	}
+    .row{
     	 display:blocked;
-    	 margin:0px 25px 0px 25px; 
-    	 }
-    	 
-    	 font {
-    	  font-size:12px;
-    	 }
-    	</style>
+    	 margin:0px 40px 0px 40px; 
+    }
+
+    .padding-top{
+    	margin-top: 30px;
+    }
+
+    .heading-border{
+    	border-top: 2px solid #000000;
+    	border-bottom: 2px solid #000000;
+    }
+    </style>
     </head>
 	<body>
-	
-		<div style="height:90px;">
-         
-         </div>
-         
-         <div class="row">
+
+		<header>
+			<img src="../public/images/header-soa.jpg" style="width: 100%;">         
+   		</header>
+	         
+         <div class="row padding-top">
          	<table style="width:100%;">
          		<tr>
-         			<td style="text-align:center;"><font face="segoeui" style="font-size:17px;"><strong>STATEMENT OF ACCOUNT</strong></font></td>
+         			<td style="text-align:center;"><h3>STATEMENT OF ACCOUNT</h3></td>
          		</tr>
          		<tr>
-         			<td style="text-align:center;"><p><font face="segoeui" style="font-size:14px;"><strong>Name of Client: <?php echo $client ?></strong></font></p></td>
-         		</tr>
-         		<tr>
-         			<td style="text-align:center;"><p><font face="segoeui" style="font-size:14px;"><strong>as of: <?php echo date('Y-m-d'); ?></strong></font></p></td>
+         			<td style="text-align:center;">As of <?php echo date('F d, Y'); ?></td>
          		</tr>
          	</table>
-         	
+         </div>
+
+         <div class="row padding-top">
+         	Name of Client: <strong><?php echo $client ?></strong>
          </div>
          
          <?php 
@@ -60,26 +70,26 @@
          ?>
          
          <div class="row">
-         	<table style="width:100%;">
+         	<table style="width:100%; margin-top: 5px;">
          		<tr>
-	    	 			<td style="width:40%;"><font face="segoeui"><strong>Particulars</strong></font></td>
-	    	 			<td style="width:15%;"><font face="segoeui"><strong>Ref. No.</strong></font></td>
-	    	 			<td style="width:15%;"><font face="segoeui"><strong>Qty./Days</strong></font></td>
-	    	 			<td style="width:15%;"><font face="segoeui"><strong>Unit Price</strong></font></td>
-	    	 			<td style="width:15%;"><font face="segoeui"><strong>Total</strong></font></td>     	 			
+	    	 			<td style="width:30%;"  class="heading-border">Particulars</td>
+	    	 			<td style="width:20%;" class="heading-border">Ref. No</td>
+	    	 			<td style="width:15%;" class="heading-border">Qty./Days</td>
+	    	 			<td style="width:15%;" class="heading-border">Unit Price</td>
+	    	 			<td style="width:15%;" class="heading-border">Total</td>     	 			
 	    	 	</tr>
 	    	 	<tr>
-	    	 		<td colspan="4"><strong><font face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Package:</font></strong></td>
+	    	 		<td colspan="4"><strong><font face="segoeui">Casket Package:</font></strong></td>
 	    	 	</tr>
 	    	 	<?php foreach ($accounts as $row)
 					{	
 					?>
 					<tr>
-						<td><font face="segoeui"><?php echo $row->package_name ?></font></td>
-						<td><font face="segoeui"><?php echo $row->contract_no ?></font></td>
+						<td><?php echo $row->package_name ?></td>
+						<td><?php echo $row->contract_no ?></td>
 						<td>&nbsp;</td>
-						<td><font face="segoeui"><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',') ?></font></td>
-						<td><font face="segoeui"><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',')?></font></td>
+						<td><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',') ?></td>
+						<td><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',')?></td>
 					</tr>
 					<?php 
 					}
@@ -88,108 +98,90 @@
 	    	 	<td>&nbsp;</td>
 	    	 	</tr>
 				<tr>
-	    	 		<td colspan="4"><strong><font face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Additional Services:</font></strong></td>
+	    	 		<td colspan="4"><strong>Additional Services:</strong></td>
 	    	 	</tr>
 	    	 	<?php foreach ($addservices as $rowx)
 					{	
 					?>
 					<tr>
-						<td><font face="segoeui"><?php echo $rowx->inclusionname ?></font></td>
-						<td><font face="segoeui"><?php echo $rowx->contract_no ?></font></td>
-						<td><font face="segoeui"><?php echo $rowx->quantity ?></font></td>
-						<td><font face="segoeui"><?php echo number_format((double)$rowx->total_price, 2, '.', ',') ?></font></td>
-						<td><font face="segoeui"><?php echo number_format((double)$rowx->total_price, 2, '.', ',')?></font></td>
+						<td><?php echo $rowx->inclusionname ?></td>
+						<td><?php echo $rowx->contract_no ?></td>
+						<td style="font-size: 10px;"><?php echo $rowx->quantity ?></td>
+						<td><?php echo number_format((double)$rowx->total_price, 2, '.', ',') ?></td>
+						<td><?php echo number_format((double)$rowx->total_price, 2, '.', ',')?></td>
 					</tr>
 					<?php 
 					}
 					?>
 				 <tr>
-	    	 		<td><strong><font face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Total Bill</font></strong></td>
+	    	 		<td></td>
 	    	 	 	<td></td>
 					<td></td>
 					<td></td>
-					<td style="border-top:1px solid black;"><strong><font face="segoeui"><?php echo number_format((double)$totalPay, 2, '.', ',') ?></font></strong></td>
+					<td style="border-top:1px solid black;"><strong><font face="segoeui" ><?php echo number_format((double)$totalPay, 2, '.', ',') ?></font></strong></td>
 	    	 	 </tr>
-	    	 	 <tr>
-	    	 	  <td>&nbsp;</td>
-	    	 	 </tr>
-	    	 	 
+	    	</table>
+
+	    	<hr/>
+	    	<table style="width:100%; margin-top: 5px;">	 
 				 <tr>
-	    	 		<td colspan="4"><strong><font color="red" face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Less: Payment</font></strong></td>
+	    	 		<td class="heading-border"><strong><font color="#027be3">LESS:</font></strong></td>
 	    	 	</tr>
-	    	 	 <?php foreach ($transactions as $rowz)
-					{	
-					?>
+	    	</table>
+	    	<table style="width:100%; margin-top: 5px;">	
+	    	 	<?php foreach ($transactions as $rowz)
+				{?>
 					<tr>
-						<td><font color="red" face="segoeui"><?php echo $rowz->typename ?></font></td>
-						<td><font color="red" face="segoeui"><?php echo $rowz->reference_no ?></font></td>
-						<td>&nbsp;</td>
-						<td>&nbsp;</td>
-						<td><font color="red" face="segoeui"><?php echo number_format((double)$rowz->AR_Credit, 2, '.', ',') ?></font></td>
+						<td width="245px"><?php echo $rowz->typename ?></td>
+						<td width="380px"><?php echo $rowz->reference_no ?></td>
+						<td width="110px"><?php echo number_format((double)$rowz->AR_Credit, 2, '.', ',') ?></td>
 					</tr>
-					<?php 
-					}
-					?>
-				<tr>
-	    	 		<td><strong><font face="segoeui">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Total Payable</font></strong></td>
-	    	 	 	<td></td>
-					<td></td>
-					<td></td>
-					<td style="border-top:1px solid black;"><strong><font face="segoeui" style="font-size: 15px;"><?php echo number_format((double)$totalBalance, 2, '.', ',') ?></font></strong></td>
-	    	 	 </tr>
-	    	 	  <tr>
-	    	 	  <td>&nbsp;</td>
+				<?php } ?>
+			</table>
+			<table style="width:100%; margin-top: 5px;">
+					<tr>
+	    	 		<td width="245px"><strong>Total Payable</strong></td>
+	    	 	 	<td width="400px"></td>
+					<td width="110px" style="border-top:3px double #000000;"><strong><?php echo number_format((double)$totalBalance, 2, '.', ',') ?></strong></td>
+	    	 	 	</tr>
+	    	</table>
+	    	<table style="width:100%; margin-top: 5px;">
+	    	 	 <tr>
+	    	 	  <td></td>
 	    	 	 </tr>
 	    	 	 <tr>
-	    	 		<td colspan="4"><font face="segoeui"><strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Assigned Charging</strong></font></td>
-	    	 	</tr>
-	    	 	 <?php foreach ($accountcharging as $rowy)
-					{	
-					?>
-					<tr>
-						<td><font face="segoeui"><?php echo $rowy->account_type ?></font></td>
-						<td>&nbsp;</td>
-						<td>&nbsp;</td>
-						<td>&nbsp;</td>
-						<td><font face="segoeui"><?php echo number_format((double)$rowy->totalamt, 2, '.', ',') ?></font></td>
-					</tr>
-					<?php 
-					}
-					?>
+	    	 		<td><strong>Assigned Charging:</strong></td>
+	    	 	 </tr>
+	    	 	 <?php foreach ($accountcharging as $rowy) { ?>
+				 <tr>
+					<td width="645px"><?php echo $rowy->account_type ?></td>
+					<td width="110px"><?php echo number_format((double)$rowy->totalamt, 2, '.', ',') ?></td>
+				 </tr>
+				 <?php } ?>
 					
          	</table>
          	
          	<hr/>
+         	<div>Note: <span style="font-style: italic; font-weight:bold;">PLEASE SETTLE ON OR BEFORE THE INTERMENT DATE. THANK YOU.</span></div>
          
-         <table style="width:30%; margin-top:10px;">
+         <table style="width:100%; margin-top:30px;">
 	    	 		<tr>
-	    	 			<td><font face="segoeui"><strong>Prepared by:</strong></font></td>
-	    	 			   	 			
-	    	 		</tr>
-	    	 		<tr>
-	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;"><?php echo $user ?></font></td> 
+	    	 			<td>
+	    	 				<strong>Prepared by:</strong>
+	    	 				<br/><br/>
+	    	 				<?php echo $user ?>
+	    	 			</td>	 			
+
+	    	 			<td style="padding-left: 30px;">
+	    	 				<strong>Noted by:</strong>
+	    	 				<br/><br/>
+	    	 				<strong style="text-decoration: underline;">MS. MARIA APRIL V. BANDALA</strong>
+	    	 				<br/>
+	    	 				<span style="font-style: italic; font-size: 12px;">FuneCare Service Manager</span>
+	    	 			</td>	 			
 	    	 		</tr>
 	    	 		
-    	 </table>
-    	 
-         <table style="width:50%; margin-top:10px;">
-	    	 		<tr>
-	    	 			<td><font face="segoeui"><strong>Noted by:</strong></font></td>
-	    	 			   	 			
-	    	 		</tr>
-	    	 		<tr>
-	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">Maria April Villanueva</font></td> 
-	    	 		</tr>
-	    	 		<tr>
-	    	 			<td><font face="segoeui" style="text-align:center; font-size: 9px;">FuneCare Service Manager</font></td> 
-	    	 		</tr>
-    	 </table>
-    	 		
-         </div>
-         
-
-
-		
-
+    	 </table> 		
+         </div>         
 	</body>
 </html>

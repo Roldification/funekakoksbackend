@@ -278,6 +278,7 @@ class CaresController extends Controller
 				'inclusion_ql'=> $value['inventory_ql'],
 				'inclusion_uom'=> $value['inventory_uom'],
 				'inclusion_price '=> $value['inventory_price'],
+				'inclusion_id '=> $value['inclusion_id'],
 				'dateEncoded'=> date('Y-m-d')
 			]);	
 	
@@ -311,25 +312,22 @@ class CaresController extends Controller
 		}
 	}
 
-
-	public function deleteCaresInc(Request $request)
-	{
+	public function deleteCaresInc(Request $request) {
+		$value = (array)json_decode($request->post()['inventorydelete']);
 		try {
-				$value = (array)json_decode($request->post()['inventorydelete']);
-				$inc = FisCaresInclusion::find($value['inclusion_id']);
-		   		$inc->delete();
-				
+			$deleterow = DB::delete(DB::raw("
+				DELETE FROM _fis_cares_package_inclusion WHERE fk_package_id = '".$value['package_code']."' 
+				AND inclusion_id = '".$value['inclusion_id']."'
+				"));
 			return [
-					'status'=>'saved',
-					'message'=>$inc
+				'status'=>'saved',
+				'message'=>$deleterow
 			];
-			
 		} catch (\Exception $e) {
-			
 			return [
-				'status'=>'unsaved',
-				'message'=>$e->getMessage()
-			];	
+			'status'=>'unsaved',
+			'message'=>$e->getMessage()
+			];
 		}
 	}
 

@@ -38,6 +38,9 @@ use App\FisPassword;
 use App\FisLocation;
 use App\FisProfileLogs;
 use App\FisIncentivesLedger;
+use App\FisIncMonthly;
+use App\FisIncQuarterly;
+use App\FisIncYearly;
 
 
 
@@ -176,7 +179,6 @@ class AccessController extends Controller
 				}
 			}
 
-
 				$memberProfile = FisMemberData::create([
 				  'profile_type' => $value['profile_type'],
 			      'customer_id' => $value['customer_id'],
@@ -243,7 +245,7 @@ class AccessController extends Controller
 					];
 				}
 			
-				if (($value['profile_type']) == 'Walkin') {
+				if (($value['profile_type']) == 'Walk-in') {
 					$profileLogs= FisProfileLogs::create([
 				      'fk_profile_id' => $memberProfile->id,
 				      'profile_type' => $value['profile_type'],
@@ -429,7 +431,7 @@ class AccessController extends Controller
 				and left(tran_type,3)='PAY' and isCancelled=0"));
 		
 		$mpdf = new \Mpdf\Mpdf();
-		
+		$mpdf= new \Mpdf\Mpdf(['mode' => 'utf-8','format' => 'Letter','margin_left' => 0,'margin_right' => 0,'margin_top' => 0,'margin_bottom' => 0,'margin_header' => 0,'margin_footer' => 0]); //use this customization
 		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
 		$mpdf->WriteHTML(view('statement_printing', ['client'=>$request->post()['client'],'user'=>$request->post()['user'], 'accounts'=>$accounts, 'addservices'=>$additionalServices, 'accountcharging'=>$accountcharging, 'transactions'=>$transactions]));
 		$mpdf->showImageErrors = true;
@@ -1626,7 +1628,15 @@ class AccessController extends Controller
 			//$request->post()['name']
 			
 			$qry = DB::select(DB::raw("
-				SELECT status, contract_id, contract_no, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee, (d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date FROM _FIS_SERVICE_CONTRACT sc
+				SELECT status, contract_id, contract_no, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee, 
+				(d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date, package_name, 
+				 CONVERT(VARCHAR(30),contract_amount,0) AS contract_amount, 
+				 CONVERT(VARCHAR(30),contract_balance,0) AS contract_balance, 
+				 CONVERT(VARCHAR(30),package_amount,0) AS package_amount, 
+				 CONVERT(VARCHAR(30),grossPrice,0) AS grossPrice, 
+				 CONVERT(VARCHAR(30),sc.discount,0) AS discount
+				 FROM _FIS_SERVICE_CONTRACT sc
+				inner join _fis_package pk on sc.package_class_id = pk.package_code 
 inner join (select ph.* from _fis_profileheader ph
 inner join _fis_ProfileLogs pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee' )s on sc.signee = s.id
 inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -1746,7 +1756,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, 
 					(s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, p.package_code, sc.embalming_place
 					from _fis_service_contract sc
 					inner join (select ph.* from _fis_profileheader ph inner join _fis_ProfileLogs  pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -1860,12 +1870,16 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		$value="";
 		
 		
-		$appendix = isset($request->post()['typesearch']) ? "PL.profile_type in ('Walkin', 'Signee') " : "PL.profile_type='Signee'";
+		$appendix = isset($request->post()['typesearch']) ? "PL.profile_type in ('Walk-in', 'Signee') " : "PL.profile_type in ('Decease', 'Signee') ";
 		
 		try {
-			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label  from _fis_profileheader AS PH
+			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, isnull(SC.contract_no, SC_deceased.contract_no) as sublabel  from _fis_profileheader AS PH
 			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
-			where ".$appendix." and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
+			LEFT JOIN _fis_service_contract AS SC ON PH.id = SC.signee
+			LEFT JOIN _fis_service_contract AS SC_deceased on PH.id = SC_deceased.deceased_id
+			WHERE ".$appendix." and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '%".$request->post()['name']."%'"));
+
+
 			
 		if($user_check)
 		return	$user_check;
@@ -1946,6 +1960,27 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label  from _fis_ProfileHeader AS PH
 			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
 			where PL.profile_type='Decease' and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
+			
+			if($user_check)
+				return	$user_check;
+				else return [];
+				
+		} catch (\Exception $e) {
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getWalkin(Request $request)
+	{
+		$value="";
+		
+		try {
+			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, PH.firstname, PH.lastname, PH.middlename, PH.address, PH.contact_no  from _fis_ProfileHeader AS PH
+			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
+			where PL.profile_type='Walk-in' and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '%".$request->post()['name']."%'"));
 			
 			if($user_check)
 				return	$user_check;
@@ -2954,6 +2989,11 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				      'date_created' =>  date('Y-m-d'),
 				      'createdBy' => $value['transactedBy']
 					]);
+
+					return [
+					'status'=>'saved',
+					'message'=>$memberProfile, $profileLogs
+					];
 				}
 
 				else if (($value['change_profile_type']) == 'Signee') {
@@ -2970,17 +3010,14 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				      'date_created' =>  date('Y-m-d'),
 				      'createdBy' => $value['transactedBy']
 					]);
+
+					return [
+					'status'=>'saved',
+					'message'=>$memberProfile, $profileLogs
+					];
 				}
 			
 				else if (($value['change_profile_type']) == 'Informant') {
-					$memberProfile = FisInformant::create([
-				      'incentives' => $value['incentives'],
-				      'remarks' => $value['remarks'],
-				      'date_inform' =>  date('Y-m-d'),
-				      'status' => 'UNCLAIMED',
-				      'fk_profile_id' => $value['id']
-				  	]);
-
 				  	$profileLogs= FisProfileLogs::create([
 				      'fk_profile_id' => $value['id'],
 				      'profile_type' => $value['change_profile_type'],
@@ -2989,12 +3026,14 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				      'createdBy' => $value['transactedBy']
 					]);
 
+					return [
+					'status'=>'saved',
+					'message'=>$profileLogs
+				];
+
 				}
 			
-				return [
-					'status'=>'saved',
-					'message'=>$memberProfile, $profileLogs
-				];
+				
 		
 
 		} catch (\Exception $e) {
@@ -3002,27 +3041,6 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				'status'=>'unsaved',
 				'message'=>$e->getMessage()
 			];	
-		}
-	}
-
-	public function getProfileSettings(Request $request) {
-		$value = "";
-		try {
-		$info = DB::select(DB::raw("
-			SELECT PL.id, P.customer_id, (P.lastname+', '+P.firstname+' '+P.middlename)member_name, PL.profile_type, PL.isActive
-			FROM _fis_ProfileHeader AS P
-			INNER JOIN  _fis_ProfileLogs AS PL ON PL.fk_profile_id = P.id
-			"));	
-
-			if($info)
-			return	$info;
-			else return [];
-				
-		} catch (\Exception $e) {
-			return [
-			'status'=>'error',
-			'message'=>$e->getMessage()
-			];
 		}
 	}
 
@@ -3110,28 +3128,243 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	{
 		$type = $request->post()['type'];
 		$date = $request->post()['date'];
+		$id = $request->post()['id'];
+		$transactedBy = $request->post()['transactedBy'];
+
 		
 		if ($type == 'MONTHLY') {
+			$mci = $request->post()['mci'];
+
 			$report = DB::select(DB::raw("
 			SELECT top 5 I.informant_id, I.decease_id, I. decease_name, I.contract_no,  CONVERT(VARCHAR(30),I.package_amount,0) AS package_amount, 
 			CONVERT(VARCHAR(30),I.incentives,0) AS incentives,
 			(PH.lastname+', '+PH.firstname+ ' '+PH.middlename)AS informant_name, I.date_inform
 			FROM _fis_informantInfo AS I
 			LEFT JOIN _fis_ProfileHeader AS PH ON I.informant_id = PH.id
-			WHERE MONTH(date_inform) = MONTH('".$date."') AND YEAR(date_inform) = YEAR('".$date."') AND  package_amount > '13000'
+			WHERE informant_id = '".$id."' and MONTH(date_inform) = MONTH('".$date."') AND YEAR(date_inform) = YEAR('".$date."') AND  package_amount > '13000'
 			"));
 
 			if(count($report)>=5) 
 			{
-				$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
-				$mpdf->WriteHTML(view('incentives_report', ['report'=>$report, 'date'=>$date]));
-				$mpdf->use_kwt = true; 
-				$mpdf->Output();
+				$info = FisIncMonthly::whereMonth('date', date('m', strtotime($date)))->whereYear('date', date('Y', strtotime($date)))->where(['date_type'=>$type])->first();
+
+				if($info)
+				{
+					$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+					$mpdf->WriteHTML(view('incentives_report', ['report'=>$report, 'date'=>$date, 'mci'=>$mci]));
+					$mpdf->use_kwt = true; 
+					$mpdf->Output();		
+				}
+
+				else{
+					$sumincentives = 0;
+					foreach ($report as $row) {
+						$sumincentives = $sumincentives + $row->incentives;
+					}
+
+					$inc = 0;
+					$inc = $sumincentives * 0.3;
+
+					$monthly = FisIncMonthly::create([
+						'informant_id'=>$id,
+						'date_type'=>$type,
+						'date'=>$date,
+						'amount' => $inc,
+						'mci_no' => $mci,
+						'basic_inc' => $sumincentives,
+						'isTrigger' => 1,
+						'transactedBy'=>$transactedBy
+					]);
+
+					$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+					$mpdf->WriteHTML(view('incentives_report', ['report'=>$report, 'date'=>$date, 'mci'=>$mci]));
+					$mpdf->use_kwt = true; 
+					$mpdf->Output();
+				}	
+			}
+
+			else if (count($report)==0) {
+				echo "No Data!";
 			}
 
 			else echo "Invalid Selection!";
-		}
+		} // close for monthly
+
+		else if ($type == 'QUARTERLY') {
+			$code = (array)json_decode($request->post()['code']);
+			$qci = $request->post()['qci'];
+		
+			$params = "";
+		
+			for($x=0; $x<count($code); $x++)
+			{
+				$params = $params.$code[$x];
+				
+				if($x + 1 != count($code))
+				{
+					$params = $params.",";
+				}
+				
+			}
 			
+			echo $params;
+
+			$report = DB::select(DB::raw("
+			SELECT (PH.lastname+', '+PH.firstname+ ' '+PH.middlename)AS informant_name, I.date, CONVERT(VARCHAR(30),I.amount,0) AS amount,
+			I.mci_no, CONVERT(VARCHAR(30),I.basic_inc,0) AS basic_inc
+			FROM _fis_informant_monthly as I
+			LEFT JOIN _fis_ProfileHeader AS PH ON I.informant_id = PH.id
+			WHERE I.informant_id = '".$id."' and I.id in (".$params.")
+			"));
+
+			
+			if ($report>0) {
+				$info = FisIncQuarterly::whereMonth('date', date('m', strtotime($date)))->whereYear('date', date('Y', strtotime($date)))->first();
+
+				if($info)
+				{
+					$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+					$mpdf->WriteHTML(view('incentives_quarterly', ['report'=>$report, 'date'=>$date, 'qci'=>$qci]));
+					$mpdf->use_kwt = true; 
+					$mpdf->Output();		
+				}
+
+				else{
+
+					$sumbasic = 0;
+		 			$sumincentives = 0;
+					foreach ($report as $row) {
+						$sumbasic = $sumbasic + $row->basic_inc;
+						$sumincentives = $sumincentives + $row->amount;
+					}
+
+					$inc = 0;
+					$inc = $sumincentives * 0.45;
+
+					$monthly = FisIncQuarterly::create([
+						'informant_id'=>$id,
+						'date_type'=>$type,
+						'date'=>$date,
+						'amount' => $inc,
+						'basic_inc' => $sumbasic,
+						'qci_no' => $qci,
+						'isTrigger' => 1,
+						'transactedBy'=>$transactedBy
+					]);
+
+					$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+					$mpdf->WriteHTML(view('incentives_quarterly', ['report'=>$report, 'date'=>$date, 'qci'=>$qci]));
+					$mpdf->use_kwt = true; 
+					$mpdf->Output();
+				}
+			}
+
+			else {
+				echo "No Data!";
+			}
+						
+		} // quarteryly close
+
+		else if ($type == 'YEARLY') {
+			$code = (array)json_decode($request->post()['code']);
+			$ypb = $request->post()['ypb'];
+		
+			$params = "";
+		
+			for($x=0; $x<count($code); $x++)
+			{
+				$params = $params.$code[$x];
+				
+				if($x + 1 != count($code))
+				{
+					$params = $params.",";
+				}
+				
+			}
+			
+			echo $params;
+
+			$report = DB::select(DB::raw("
+			SELECT (PH.lastname+', '+PH.firstname+ ' '+PH.middlename)AS informant_name, I.date, CONVERT(VARCHAR(30),I.amount,0) AS amount,
+			I.qci_no, CONVERT(VARCHAR(30),I.basic_inc,0) AS basic_inc
+			FROM _fis_informant_quarterly as I
+			LEFT JOIN _fis_ProfileHeader AS PH ON I.informant_id = PH.id
+			WHERE I.informant_id = '".$id."' and I.id in (".$params.")
+			"));
+
+			
+			if ($report>0) {
+				$info = FisIncYearly::whereMonth('date', date('m', strtotime($date)))->whereYear('date', date('Y', strtotime($date)))->first();
+
+				if($info)
+				{
+					$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+					$mpdf->WriteHTML(view('incentives_yearly', ['report'=>$report, 'date'=>$date, 'ypb'=>$ypb]));
+					$mpdf->use_kwt = true; 
+					$mpdf->Output();		
+				}
+
+				else{
+
+					$sumbasic = 0;
+		 			$sumincentives = 0;
+					foreach ($report as $row) {
+						$sumbasic = $sumbasic + $row->basic_inc;
+						$sumincentives = $sumincentives + $row->amount;
+					}
+
+					$inc = 0;
+					$inc = $sumincentives * 0.45;
+
+					$monthly = FisIncYearly::create([
+						'informant_id'=>$id,
+						'date_type'=>$type,
+						'date'=>$date,
+						'amount' => $inc,
+						'basic_inc' => $sumbasic,
+						'ypb_no' => $ypb,
+						'isTrigger' => 1,
+						'transactedBy'=>$transactedBy
+					]);
+
+					$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LEGAL', [300, 300]]);
+					$mpdf->WriteHTML(view('incentives_yearly', ['report'=>$report, 'date'=>$date, 'ypb'=>$ypb]));
+					$mpdf->use_kwt = true; 
+					$mpdf->Output();
+				}
+			}
+
+			else {
+				echo "No Data!";
+			}
+						
+		} // yearly close
+
+			
+	}
+
+
+	public function insertMCI(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['mciData']);
+			
+				$rtd = FisIncMonthly::find($value['id']);
+	   			$rtd->update(
+	   					['mci_no'=>$value['mci_no']]);
+			
+			return [
+					'status'=>'saved',
+					'message'=>$rtd
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
 	}
 
 	/*public function generateIncentives(Request $request)
@@ -3244,5 +3477,47 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 			];
 		}
 	}
+
+
+	public function getMonthly(Request $request) {
+		$value = (array)json_decode($request->post()['dataIncentives']);
+		try {
+			$user_check = DB::select(DB::raw("
+				SELECT * FROM _fis_informant_monthly WHERE informant_id = '".$value['fk_profile_id']."'
+				"));
+				
+			if($user_check)
+				
+				return	$user_check;
+			else return [];
+
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getYearly(Request $request) {
+		$value = (array)json_decode($request->post()['dataIncentives']);
+		try {
+			$user_check = DB::select(DB::raw("
+				SELECT * FROM _fis_informant_quarterly WHERE informant_id = '".$value['fk_profile_id']."'
+				"));
+				
+			if($user_check)
+				
+				return	$user_check;
+			else return [];
+
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
 
 }
