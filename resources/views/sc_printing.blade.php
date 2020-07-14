@@ -37,7 +37,7 @@
     	 		<tr>
     	 			<td style="width:250px;"> </td>
     	 			<td style="width:300px;"> </td>
-    	 			<td><font face="segoeui"><strong>Date:</strong> May 6, 2019</font></td>
+    	 			<td><font face="segoeui"><strong>Date:</strong> <?php echo date('F d, Y') ?></font></td>
     	 		</tr>
     	 	</table>
     	

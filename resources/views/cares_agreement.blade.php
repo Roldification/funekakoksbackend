@@ -78,7 +78,7 @@
 
 	<table>
 		<tr style="padding: 20px;">
-			<th style="width: 350px;">Membership CID* NO:</th>
+			<th style="width: 350px;">Membership CID NO:</th>
 			<th style="width: 400px;">Date of Issue/Effectivity:</th>
 		</tr>
 		<tr>
