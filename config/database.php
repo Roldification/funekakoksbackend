@@ -77,7 +77,7 @@ return [
             'driver' => 'sqlsrv',
             'host' => '.',
             'port' => '1433',
-            'database' => 'FUN1',
+            'database' => 'ICFS_FUNECARE_07142020',
             'username' => 'sa',
             'password' => 'sa',
             'charset' => 'utf8',
