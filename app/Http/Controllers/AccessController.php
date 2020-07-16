@@ -813,7 +813,7 @@ class AccessController extends Controller
 	   					]);
 	   					
 	   					
-	   					if(strpos($row->service_name, "GIFT COUPON"))
+	   					if(strpos($row->service_name, "GIFT COUPON") !== false)
 	   					{
 	   						$pushDetails['entry_type']="CR";
 	   						$pushDetails['SLCode']= $currentBranch->borrowHO;
@@ -1032,9 +1032,19 @@ class AccessController extends Controller
 						$acctgHeader_pay['checkno'] = "";
 						
 						
+						$currentBranch = FisBranch::where([
+								'branchID'=>$contract->fun_branch
+						])->firstOrFail();
+						
+						
+						$debitSL = $paytype->sl_debit== "BRANCH" ? $currentBranch->borrowCode : $paytype->sl_debit;
+						
+						if($paytype->sl_debit== "BRANCH-HO")
+							$debitSL = $currentBranch->borrowHO;
+						
 						
 						$pushDetails_pay['entry_type']="DR";
-						$pushDetails_pay['SLCode']=$paytype->sl_debit;
+						$pushDetails_pay['SLCode']=$debitSL;
 						$pushDetails_pay['amount']=$row->amount;
 						$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
 						array_push($acctgDetails_pay, $pushDetails_pay);
@@ -1536,7 +1546,7 @@ class AccessController extends Controller
 								
 						]);
 						
-						if(strpos($row->service_name, "GIFT COUPON"))
+						if(strpos($row->service_name, "GIFT COUPON") !== false)
 						{
 							$pushDetails['entry_type']="CR";
 							$pushDetails['SLCode']= $currentBranch->borrowHO;
@@ -1808,7 +1818,6 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 					inner join ClientReligion cr on d.religion = cr.ReligionID
 					where contract_id =".$serviceContract->contract_id)); 
 			    
-		   
 			    $services = DB::select(DB::raw("select * from
 					(
 					SELECT fs.id, service_name, isnull(a.service_price, 0) as amount, 0 as less, isnull(duration, '') as duration, isnull(type_duration, '') as type_duration, isnull(a.service_price, 0) as tot_price, SLCode  FROM _fis_services fs
