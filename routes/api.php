@@ -169,6 +169,7 @@ Route::get('get-decease-dropdowns', 'AccessController@getDeceaseDropdowns')->mid
 Route::get('get-deceased', 'AccessController@getDeceased')->middleware('cors');
 Route::get('get-sc-locations', 'AccessController@getSCLocations')->middleware('cors');
 Route::get('service-contract', 'AccessController@samplepdf')->middleware('cors');
+Route::get('service-contract-dswd', 'AccessController@printDSWD')->middleware('cors');
 Route::get('get-charging', 'ServiceContractController@getCharging')->middleware('cors');
 Route::get('get-minimal-probabilities', 'AccessController@getMinimalProbabilities')->middleware('cors');
 Route::get('get-cc-locations', 'AccessController@getCCLocations')->middleware('cors');
