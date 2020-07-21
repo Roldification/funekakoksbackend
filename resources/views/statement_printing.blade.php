@@ -166,21 +166,21 @@
          	</table>
          	
          	<hr/>
-         	<div style="font-size: 12px; text-align: center;">Note: <span style="font-style: italic; font-weight:bold;">PLEASE SETTLE ON OR BEFORE THE INTERMENT DATE. THANK YOU.</span></div>
+         	<div style="font-size: 12px; text-align: left;">Note: <span style="font-style: italic; font-weight:bold;">PLEASE SETTLE ON OR BEFORE THE INTERMENT DATE. THANK YOU.</span></div>
          
          <table style="width:100%; margin-top:20px;">
 	    	 		<tr>
-	    	 			<td style="width:100px; font-size: 12px;"></td>
-	    	 			<td style="width:200px; font-size: 12px; text-align: left;">
+	    	 			<td style="width:300px; font-size: 12px; text-align: left;">
 	    	 				<strong>Prepared by:</strong>
 	    	 				<br/><br/>
-	    	 				<?php echo $user ?>
+	    	 				<strong><?php echo $user ?></strong>
+	    	 				<br/>
 	    	 			</td>	 			
-	    	 			<td style="width:50px; font-size: 12px;"></td>
-	    	 			<td style="width:350px; padding-left: 30px; font-size: 12px;">
+	    	 			<td style="width:50px;"></td>
+	    	 			<td style="width:350px; font-size: 12px;">
 	    	 				<strong>Noted by:</strong>
 	    	 				<br/><br/>
-	    	 				<strong style="text-decoration: underline;">MS. MARIA APRIL V. BANDALA</strong>
+	    	 				<strong>MS. MARIA APRIL V. BANDALA</strong>
 	    	 				<br/>
 	    	 				<span style="font-style: italic; font-size: 12px;">FuneCare Service Manager</span>
 	    	 			</td>	 			
