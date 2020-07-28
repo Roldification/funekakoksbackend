@@ -2884,7 +2884,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 
 			$value = (array)json_decode($request->post()['incentivesData']);
 
-			if ($value['contract_no']!="") {
+			/*if ($value['contract_no']!="") {
 			$info = FisInformant::where(['contract_no'=>$value['contract_no']])->first();
 
 				if($info)
@@ -2894,7 +2894,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 						'message'=>'Deceased Already Exist.'
 					];	
 				}
-			}
+			}*/
 
 					$memberProfile = FisInformant::create([
 					  'informant_id' => $value['informant_id'],
