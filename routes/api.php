@@ -105,6 +105,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-branch', 'AccessController@updateBranch');
 	Route::post('update-location', 'AccessController@updateLocation');
 	Route::post('update-incentives', 'AccessController@updateIncentives');
+	Route::post('update-incentives-details', 'AccessController@updateIncDetails');
 
 	Route::post('insert-mci', 'AccessController@insertMCI');
 

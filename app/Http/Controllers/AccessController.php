@@ -198,7 +198,8 @@ class AccessController extends Controller
 				$deceaseValue = (array)json_decode($request->post()['memberdata']);
 				$value['date_died'] = date_format(date_create($value['date_died']), 'Y-m-d H:i:s');
 				$deceaseProfile = FisDeceased::create([
-				  'birthday' => date('Y-m-d', strtotime($deceaseValue['birthday'])),
+				  /*'birthday' => date('Y-m-d', strtotime($deceaseValue['birthday'])),*/
+				  'birthday' => date_format(date_create($value['birthday']), 'Y-m-d H:i:s'),
 				  'date_died' => $value['date_died'],
 			      'causeOfDeath' => $deceaseValue['causeOfDeath'],
 			      'deathPlace' => $deceaseValue['deathPlace'],
@@ -2852,6 +2853,34 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		}
 	} 
 
+	public function updateIncDetails(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['incentivesData']);
+			
+	   		$incDetails = FisIncentives::find($value['id']);
+	   		$incDetails->update(
+	   			[ 'incentives' => $value['incentives'],
+			      'member_type' => $value['member_type'],
+			      'date_inform' => date_format(date_create($value['date_inform']), 'Y-m-d H:i:s'),
+			      'pull_out' => $value['pull_out'],
+			      'remarks' => $value['remarks']
+				]);
+	
+			
+			return [
+					'status'=>'saved',
+					'message'=>$incDetails
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
 
 	public function updateIncentives(Request $request)
 	{
@@ -3235,7 +3264,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 
 			$value = (array)json_decode($request->post()['incentivesData']);
 
-			if ($value['contract_no']!="") {
+			/*if ($value['contract_no']!="") {
 			$info = FisInformant::where(['contract_no'=>$value['contract_no']])->first();
 
 				if($info)
@@ -3245,7 +3274,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 						'message'=>'Deceased Already Exist.'
 					];	
 				}
-			}
+			}*/
 
 					$memberProfile = FisInformant::create([
 					  'informant_id' => $value['informant_id'],
@@ -3254,7 +3283,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				      'contract_no' => $value['contract_no'],
 				      'package_name' => $value['package_name'],
 				      'package_amount' => $value['package_amount'],
-				      'date_inform' =>  date('Y-m-d H:i:s', strtotime($value['date_inform'])),
+				      'date_inform' => date_format(date_create($value['date_inform']), 'Y-m-d H:i:s'),
 				      'pull_out' =>  $value['pull_out'],
 				      'remarks' =>  $value['remarks'],
 				      'member_type' =>  $value['list'],

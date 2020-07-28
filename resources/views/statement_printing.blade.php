@@ -17,7 +17,8 @@
     }
 
     .padding-top{
-    	margin-top: 30px;
+    	margin-top: 15px;
+    	margin-bottom: 15px;
     }
 
     .heading-border{
@@ -35,7 +36,7 @@
          <div class="row padding-top">
          	<table style="width:100%;">
          		<tr>
-         			<td style="text-align:center;"><h3>STATEMENT OF ACCOUNT</h3></td>
+         			<td style="text-align:center;"><h4>STATEMENT OF ACCOUNT</h4></td>
          		</tr>
          		<tr>
          			<td style="text-align:center;">As of <?php echo date('F d, Y'); ?></td>
@@ -72,43 +73,41 @@
          <div class="row">
          	<table style="width:100%; margin-top: 5px;">
          		<tr>
-	    	 			<td style="width:30%;"  class="heading-border">Particulars</td>
-	    	 			<td style="width:20%;" class="heading-border">Ref. No</td>
-	    	 			<td style="width:15%;" class="heading-border">Qty./Days</td>
-	    	 			<td style="width:15%;" class="heading-border">Unit Price</td>
-	    	 			<td style="width:15%;" class="heading-border">Total</td>     	 			
+	    	 			<td style="width:30%; font-size: 12px;" class="heading-border">Particulars</td>
+	    	 			<td style="width:20%; font-size: 12px;" class="heading-border">Ref. No</td>
+	    	 			<td style="width:15%; font-size: 12px;" class="heading-border">Qty./Days</td>
+	    	 			<td style="width:15%; font-size: 12px;" class="heading-border">Unit Price</td>
+	    	 			<td style="width:15%; font-size: 12px;" class="heading-border">Total</td>     	 			
 	    	 	</tr>
 	    	 	<tr>
-	    	 		<td colspan="4"><strong><font face="segoeui">Casket Package:</font></strong></td>
+	    	 		<td colspan="4" style="font-size: 12px;"><strong><font face="segoeui">Casket Package:</font></strong></td>
 	    	 	</tr>
 	    	 	<?php foreach ($accounts as $row)
 					{	
 					?>
 					<tr>
-						<td><?php echo $row->package_name ?></td>
-						<td><?php echo $row->contract_no ?></td>
+						<td style="font-size: 10px;"><?php echo $row->package_name ?></td>
+						<td style="font-size: 10px;"><?php echo $row->contract_no ?></td>
 						<td>&nbsp;</td>
-						<td><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',') ?></td>
-						<td><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',')?></td>
+						<td style="font-size: 10px;"><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',') ?></td>
+						<td style="font-size: 10px;"><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',')?></td>
 					</tr>
 					<?php 
 					}
 				?>
+
 				<tr>
-	    	 	<td>&nbsp;</td>
-	    	 	</tr>
-				<tr>
-	    	 		<td colspan="4"><strong>Additional Services:</strong></td>
+	    	 		<td colspan="4" style="font-size: 12px;"><strong>Additional Services:</strong></td>
 	    	 	</tr>
 	    	 	<?php foreach ($addservices as $rowx)
 					{	
 					?>
 					<tr>
-						<td><?php echo $rowx->inclusionname ?></td>
-						<td><?php echo $rowx->contract_no ?></td>
+						<td style="font-size: 10px;"><?php echo $rowx->inclusionname ?></td>
+						<td style="font-size: 10px;"><?php echo $rowx->contract_no ?></td>
 						<td style="font-size: 10px;"><?php echo $rowx->quantity ?></td>
-						<td><?php echo number_format((double)$rowx->total_price, 2, '.', ',') ?></td>
-						<td><?php echo number_format((double)$rowx->total_price, 2, '.', ',')?></td>
+						<td style="font-size: 10px;"><?php echo number_format((double)$rowx->total_price, 2, '.', ',') ?></td>
+						<td style="font-size: 10px;"><?php echo number_format((double)$rowx->total_price, 2, '.', ',')?></td>
 					</tr>
 					<?php 
 					}
@@ -118,31 +117,36 @@
 	    	 	 	<td></td>
 					<td></td>
 					<td></td>
-					<td style="border-top:1px solid black;"><strong><font face="segoeui" ><?php echo number_format((double)$totalPay, 2, '.', ',') ?></font></strong></td>
+					<td style="border-top:1px solid black; font-size: 12px;"><strong><font face="segoeui" ><?php echo number_format((double)$totalPay, 2, '.', ',') ?></font></strong></td>
 	    	 	 </tr>
 	    	</table>
 
-	    	<hr/>
-	    	<table style="width:100%; margin-top: 5px;">	 
+	    	<table style="width:100%;">	 
 				 <tr>
-	    	 		<td class="heading-border"><strong><font color="#027be3">LESS:</font></strong></td>
+	    	 		<td style="font-size: 12px;"><strong>LESS:</strong></td>
 	    	 	</tr>
 	    	</table>
-	    	<table style="width:100%; margin-top: 5px;">	
+	    	<table style="width:100%;">	
 	    	 	<?php foreach ($transactions as $rowz)
 				{?>
 					<tr>
-						<td width="245px"><?php echo $rowz->typename ?></td>
-						<td width="380px"><?php echo $rowz->reference_no ?></td>
-						<td width="110px"><?php echo number_format((double)$rowz->AR_Credit, 2, '.', ',') ?></td>
+						<td style="width:245px; font-size: 10px;"><?php echo $rowz->typename ?></td>
+						<td style="width:380px; font-size: 10px;"><?php echo $rowz->reference_no ?></td>
+						<td style="width:110px; font-size: 10px;"><?php echo number_format((double)$rowz->AR_Credit, 2, '.', ',') ?></td>
 					</tr>
 				<?php } ?>
-			</table>
-			<table style="width:100%; margin-top: 5px;">
 					<tr>
-	    	 		<td width="245px"><strong>Total Payable</strong></td>
-	    	 	 	<td width="400px"></td>
-					<td width="110px" style="border-top:3px double #000000;"><strong><?php echo number_format((double)$totalBalance, 2, '.', ',') ?></strong></td>
+						<td width="245px"></td>
+						<td width="380px"></td>
+						<td style="border-top:1px solid black; font-size: 12px;"><strong><font face="segoeui" ><?php echo number_format((double)$paidAmount, 2, '.', ',') ?></font></strong></td>
+					</tr>
+			</table>
+			<hr/>
+			<table style="width:100%;">
+					<tr>
+	    	 		<td style="width:245px; font-size: 12px;"><strong>Total Payable</strong></td>
+	    	 	 	<td style="width:400px; font-size: 12px;"></td>
+					<td style="width:110px; font-size: 12px; border-bottom:3px double #000000;"><strong><?php echo number_format((double)$totalBalance, 2, '.', ',') ?></strong></td>
 	    	 	 	</tr>
 	    	</table>
 	    	<table style="width:100%; margin-top: 5px;">
@@ -150,32 +154,33 @@
 	    	 	  <td></td>
 	    	 	 </tr>
 	    	 	 <tr>
-	    	 		<td><strong>Assigned Charging:</strong></td>
+	    	 		<td style="font-size: 12px;"><strong>Assigned Charging:</strong></td>
 	    	 	 </tr>
 	    	 	 <?php foreach ($accountcharging as $rowy) { ?>
 				 <tr>
-					<td width="645px"><?php echo $rowy->account_type ?></td>
-					<td width="110px"><?php echo number_format((double)$rowy->totalamt, 2, '.', ',') ?></td>
+					<td style="width:645px; font-size: 12px;"><?php echo $rowy->account_type ?></td>
+					<td style="width:110px; font-size: 12px;"><?php echo number_format((double)$rowy->totalamt, 2, '.', ',') ?></td>
 				 </tr>
 				 <?php } ?>
 					
          	</table>
          	
          	<hr/>
-         	<div>Note: <span style="font-style: italic; font-weight:bold;">PLEASE SETTLE ON OR BEFORE THE INTERMENT DATE. THANK YOU.</span></div>
+         	<div style="font-size: 12px; text-align: left;">Note: <span style="font-style: italic; font-weight:bold;">PLEASE SETTLE ON OR BEFORE THE INTERMENT DATE. THANK YOU.</span></div>
          
-         <table style="width:100%; margin-top:30px;">
+         <table style="width:100%; margin-top:20px;">
 	    	 		<tr>
-	    	 			<td>
+	    	 			<td style="width:300px; font-size: 12px; text-align: left;">
 	    	 				<strong>Prepared by:</strong>
 	    	 				<br/><br/>
-	    	 				<?php echo $user ?>
+	    	 				<strong><?php echo $user ?></strong>
+	    	 				<br/>
 	    	 			</td>	 			
-
-	    	 			<td style="padding-left: 30px;">
+	    	 			<td style="width:50px;"></td>
+	    	 			<td style="width:350px; font-size: 12px;">
 	    	 				<strong>Noted by:</strong>
 	    	 				<br/><br/>
-	    	 				<strong style="text-decoration: underline;">MS. MARIA APRIL V. BANDALA</strong>
+	    	 				<strong>MS. MARIA APRIL V. BANDALA</strong>
 	    	 				<br/>
 	    	 				<span style="font-style: italic; font-size: 12px;">FuneCare Service Manager</span>
 	    	 			</td>	 			

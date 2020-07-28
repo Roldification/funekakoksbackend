@@ -71,15 +71,15 @@ class InventoryController extends Controller
 		try {
 			$value = (array)json_decode($request->post()['rrData']);	
 			
-			$value['date_received'] = date('Y-m-d', strtotime($value['date_received']));
+/*			$value['date_received'] = date('Y-m-d', strtotime($value['date_received']));
 					
-			
+			*/
 			foreach ($value['rr_items'] as $row){
 			try {
 					
 					$rr = FisRReport::create([
 						'supplier_id' => $value['supplier_id'],
-						'date_received' =>date('Y-m-d', strtotime($value['date_received'])),
+						'date_received' => date_format(date_create($value['date_received']), 'Y-m-d H:i:s'),
 						'transactedBy' => $value['transactedBy'],
 						'total_amount'=> $value['total_amount'],
 						'branchCode'=> $row->branch_id,

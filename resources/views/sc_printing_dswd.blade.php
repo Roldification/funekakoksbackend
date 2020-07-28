@@ -263,20 +263,20 @@
 	    		<div style="margin-top: 10px;">
 	    			<font face="segoeui" style="font-size: 10px;"><strong>Approved by:</strong></font>
 	    		</div>
-	    		<div style="border-bottom:1px solid black;">
-	   					<div 
-	   					style="position: absolute;
-	   					text-align: center;
-				        top: 100px;">
-	    					<img src="../public/images/vivs fronteras signature.png" style="width: 20%;">
-	    				</div>
-	    				<div style="font-family:segoeui; font-size: 14px;margin-top: -50px; text-align:center;">
+	    		<div style="border-bottom:1px solid black; margin-top: 10px; text-align:center;"">
+	    				<font face="segoeui" style="font-family:segoeui; font-size: 14px;>
 	    				VIVELYN D. FRONTERAS
-	    				</div>
+	    				</font>
 	    		</div>
 	    		<div style="text-align:center;">
 	    			<font face="segoeui" style="font-size: 9px;">Chief Operations Officer</font>
 	    		</div>
+	    		<div 
+	   				style="position: absolute;
+	   				text-align: center;
+	   				margin-top: -75px">
+	    			<img src="../public/images/vivs fronteras signature.png" style="width:10%;">
+	    		</div>	
 	    	</div>
 
 
