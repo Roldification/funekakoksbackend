@@ -189,7 +189,9 @@ class AccessController extends Controller
 			      'address' => $value['address'],
 			      'contact_no' => '+63'.$value['contact_no'],
 			      'date_entry' => date('Y-m-d'),
-			      'transactedBy' => $value['transactedBy']
+			      'transactedBy' => $value['transactedBy'],
+				  'is_senior_or_disabled' => $value['is_senior_or_disabled'],
+				  'is_taxable' => $value['is_taxable'],
 				]);
 
 				if(($value['profile_type']) == 'Decease'){
@@ -580,6 +582,15 @@ class AccessController extends Controller
 	   			
 	   			
 	   			$sc = ServiceContract::find($value['sc_id']);
+	   			
+	   			if($sc->has_tax==1)
+	   			{
+	   				$tax_deferred = ((float)$value['sc_net_amount'] / 1.12) * 0.12;
+	   				$value['tax_deferred'] = number_format($tax_deferred, 2, '.', '');
+	   			}
+	   			
+	   			else $value['tax_deferred'] = 0;
+	   			
 	   			$sc->update(
 	   					['contract_amount'=>$value['sc_net_amount'], 
 	   					 'grossPrice'=>	$value['sc_net_amount'] + $contract_discount,
@@ -591,7 +602,9 @@ class AccessController extends Controller
 	   					 'chapel_selected'=>$value['sc_chapel_selected'],
 	   					 'discount'=>$value['sc_discount'],
 	   					 'date_posted'=>date('Y-m-d'),
-	   					 'isPosted'=>1
+	   					 'isPosted'=>1,
+	   					 'tax_deferred'=> $value['tax_deferred'],
+	   					 'tax_deferred_balance' => $value['tax_deferred']
 	   					]
 	   					);
 	   			
@@ -611,6 +624,8 @@ class AccessController extends Controller
 	   					'isPosted'=>1,
 	   					'remarks'=>'SC Contract Posting',
 	   					'tran_type'=>'RELEASE',
+	   					'tax_contribution'=> 0,
+	   					'tax_balance' => $value['tax_deferred']
 	   			]);
 	   			
 	   			
@@ -629,7 +644,7 @@ class AccessController extends Controller
 	   				array_push($acctgDetails, $pushDetails);
 	   			}
 	   			
-	   			
+	   			$total_taxed_items = 0;
 	   			
 	   			foreach($value['item_inclusions'] as $row)
 	   			{	   	
@@ -679,12 +694,53 @@ class AccessController extends Controller
 	   							);
 	   					
 	   					
-	   					$pushDetails['entry_type']="CR";
-	   					$pushDetails['SLCode']= $row->income_SLCode;
-	   					$pushDetails['amount']= $row->tot_price;
-	   					$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 	   					
-	   					array_push($acctgDetails, $pushDetails);
+	   					
+	   					
+	   					
+	   					if($sc->has_tax==1)
+	   					{	
+	   						$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+	   						$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+	   						
+	   						$total_taxed_items += $output_tax;
+	   						
+	   						while( (float)$total_taxed_items > (float)$value['tax_deferred'])
+	   						{
+	   							$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
+	   							$total_taxed_items -= $output_tax;
+	   							$output_tax = $new_output_tax;
+	   							$total_taxed_items += $output_tax;
+	   							
+	   							$income_deducted = $row->tot_price - $output_tax;
+	   						}
+	   						
+	   						$pushDetails['entry_type']="CR";
+	   						$pushDetails['SLCode']= $row->income_SLCode;
+	   						$pushDetails['amount']= $income_deducted;
+	   						$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					
+	   						array_push($acctgDetails, $pushDetails);
+	   						
+	   						$pushDetails['entry_type']="CR";
+	   						$pushDetails['SLCode']= '7-4-000-01'; //-->output tax
+	   						$pushDetails['amount']= $output_tax;
+	   						$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					
+	   						array_push($acctgDetails, $pushDetails);
+	   					}
+	   					
+	   					else
+	   					{
+	   						$pushDetails['entry_type']="CR";
+	   						$pushDetails['SLCode']= $row->income_SLCode;
+	   						$pushDetails['amount']= $row->tot_price;
+	   						$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					
+	   						array_push($acctgDetails, $pushDetails);
+	   					}
+	   					
+	   					
 	   					
 	   					
 	   					
@@ -813,26 +869,84 @@ class AccessController extends Controller
 	   					]);
 	   					
 	   					
-	   					if(strpos($row->service_name, "GIFT COUPON") !== false)
-	   					{
-	   						$pushDetails['entry_type']="CR";
-	   						$pushDetails['SLCode']= $currentBranch->borrowHO;
-	   						$pushDetails['amount']= $row->tot_price;
-	   						$pushDetails['detail_particulars']="To record Membership fee from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   					
+	 
+	   					//for tax
+	   					if($sc->has_tax==1)
+	   					{	
+	   						$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+	   						$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+							
+	   						$total_taxed_items += $output_tax;
 	   						
+	   						while( (float)$total_taxed_items > (float)$value['tax_deferred'])
+	   						{
+	   							$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
+	   							$total_taxed_items -= $output_tax;
+	   							$output_tax = $new_output_tax;
+	   							$total_taxed_items += $output_tax;
+	   							
+	   							$income_deducted = $row->tot_price - $output_tax;
+	   						}
+	   						
+	   						
+	   						if(strpos($row->service_name, "GIFT COUPON") !== false)
+	   						{
+	   							$pushDetails['entry_type']="CR";
+	   							$pushDetails['SLCode']= $currentBranch->borrowHO;
+	   							$pushDetails['amount']= $income_deducted;
+	   							$pushDetails['detail_particulars']="New entry";
+	   							
+	   						}
+	   						
+	   						else
+	   						{
+	   							$pushDetails['entry_type']="CR";
+	   							$pushDetails['SLCode']= $row->SLCode;
+	   							$pushDetails['amount']= $income_deducted;
+	   							$pushDetails['detail_particulars']="New entry";
+	   							
+	   						}
+	   						
+	   						array_push($acctgDetails, $pushDetails);
+	   						
+	   						$pushDetails['entry_type']="CR";
+	   						$pushDetails['SLCode']= '7-4-000-01'; //-->output tax
+	   						$pushDetails['amount']= $output_tax;
+	   						$pushDetails['detail_particulars']="New entry";
+	   						
+	   						array_push($acctgDetails, $pushDetails);
 	   					}
 	   					
 	   					else
 	   					{
-	   						$pushDetails['entry_type']="CR";
-	   						$pushDetails['SLCode']= $row->SLCode;
-	   						$pushDetails['amount']= $row->tot_price;
-	   						$pushDetails['detail_particulars']="Income of service_name from SC #".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+	   						if(strpos($row->service_name, "GIFT COUPON") !== false)
+	   						{
+	   							$pushDetails['entry_type']="CR";
+	   							$pushDetails['SLCode']= $currentBranch->borrowHO;
+	   							$pushDetails['amount']= $row->tot_price;
+	   							$pushDetails['detail_particulars']="New entry";
+	   							
+	   						}
 	   						
+	   						else
+	   						{
+	   							$pushDetails['entry_type']="CR";
+	   							$pushDetails['SLCode']= $row->SLCode;
+	   							$pushDetails['amount']= $row->tot_price;
+	   							$pushDetails['detail_particulars']="New entry";
+	   							
+	   						}
+	   						
+	   						
+	   						array_push($acctgDetails, $pushDetails);
 	   					}
 	   					
 	   					
-	   					array_push($acctgDetails, $pushDetails);
+	   					//end for tax
+	   					
+	   					
+	   					//array_push($acctgDetails, $pushDetails);
 	   					
 	   					
 	   					
@@ -866,7 +980,7 @@ class AccessController extends Controller
 	   				$sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, 
 					(s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, sc.has_tax, sc.tax_deferred, sc.tax_deferred_balance
 					from _fis_service_contract sc
 					inner join (select ph.* from _fis_profileheader ph inner join _fis_ProfileLogs  pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -877,12 +991,12 @@ class AccessController extends Controller
 					inner join ClientReligion cr on d.religion = cr.ReligionID
 					where contract_id =".$value['sc_id']));
 	   				
-	   				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
+	   				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, isnull(tax_contribution, 0)tax_contribution, isnull(tax_balance, 0)tax_balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
 					on a.account_id = sp.accountType
 					where contract_id=".$value['sc_id']));
 	   				
 	   				
-	   				
+	   				$sc_details[0]->has_tax = $sc_details[0]->has_tax == 1 ? true : false;
 	   				
 	   				return [
 	   						'status'=>'saved',
@@ -937,6 +1051,9 @@ class AccessController extends Controller
 						 * 3.ACCTG. ENTRY
 						 */
 						
+						if($row->amount<0)
+							break;
+						
 						try {
 							$charging = FisCharging::where([
 							  'fk_scID'=>$row->id,
@@ -989,12 +1106,45 @@ class AccessController extends Controller
 							];
 						}
 						
+						$tax_dedication = 0;
+						
+						if($contract->has_tax==1)
+						{
+							$taxamt = ((float)$row->amount / 1.12) * 0.12;
+							$tax_dedication = number_format($taxamt, 2, '.', '');
+							
+						}
+
 						$remainingbalance = $contract->contract_balance - $row->amount;
+						
+						if($remainingbalance==0)
+						{
+							//do this trick if and only if shortage is less than 0.1 !!!
+							if($contract->tax_deferred_balance - $tax_dedication < 0.1)
+								$tax_dedication = $contract->tax_deferred_balance;
+						}
+						
+						
+						$remainingtaxbalance = $contract->tax_deferred_balance - $tax_dedication;
+						
+						//if remaining tax balance is below zero, deduct to excess to tax dedication
+						while($remainingtaxbalance<0)
+						{
+							$tax_dedication = $tax_dedication - ($remainingtaxbalance * -1);
+							$remainingtaxbalance = $contract->tax_deferred_balance - $tax_dedication;
+						}
+						
+					
+						
+						
 						
 						$contract->update([
 								'contract_balance'=> $remainingbalance,
+								'tax_deferred_balance'=>$remainingtaxbalance,
 								'status'=> $remainingbalance == 0 ? 'CLOSED' : $contract->status
 						]);
+						
+					
 						
 						$scpayment = FisSCPayments::create([
 						 'contract_id'=>$row->id,
@@ -1012,6 +1162,8 @@ class AccessController extends Controller
 						 'isPosted'=>1,
 						 'remarks'=>$value['bill_header']->remarks,
 						 'tran_type'=>$remainingbalance== 0 ? 'PAYCLOSE' : 'PAYPARTIAL',
+						 'tax_contribution'=>$tax_dedication,
+						 'tax_balance'=>$remainingtaxbalance
 						]);
 						
 						
@@ -1049,11 +1201,30 @@ class AccessController extends Controller
 						$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
 						array_push($acctgDetails_pay, $pushDetails_pay);
 						
+						
 						$pushDetails_pay['entry_type']="CR";
 						$pushDetails_pay['SLCode']=$paytype->sl_credit;
 						$pushDetails_pay['amount']=$row->amount;
 						$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
 						array_push($acctgDetails_pay, $pushDetails_pay);
+						
+						if($contract->has_tax==1)
+						{
+							//debit deferred tax
+							$pushDetails_pay['entry_type']="DR";
+							$pushDetails_pay['SLCode']='7-4-000-01';
+							$pushDetails_pay['amount']=$tax_dedication;
+							$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
+							array_push($acctgDetails_pay, $pushDetails_pay);
+							
+							//credit output tax
+							$pushDetails_pay['entry_type']="CR";
+							$pushDetails_pay['SLCode']='7-4-000-01';
+							$pushDetails_pay['amount']=$tax_dedication;
+							$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
+							array_push($acctgDetails_pay, $pushDetails_pay);	
+						}
+						
 						
 						$saveacctg = AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
 						
@@ -1089,15 +1260,45 @@ class AccessController extends Controller
 							];
 						}
 						
+						
+						$tax_merchandise_dedication = 0;
+						
+					/*	if($salesheader->has_tax==1)
+						{
+							$taxamt = ((float)$row->amount / 1.12) * 0.12;
+							$tax_merchandise_dedication= number_format($taxamt, 2, '.', '');
+							
+							
+						} */
+						
+						
+						
 						$remainingbalance_sales = $salesheader->balance - $row->amount;
 						
+						/*if($remainingbalance_sales==0)
+						{
+							//do this trick if and only if shortage is less than 0.1 !!!
+							if($salesheader->tax_deferred_balance - $tax_merchandise_dedication< 0.1)
+								$tax_merchandise_dedication = $salesheader->tax_deferred_balance;
+						} */
+						
+						$remaining_sales_taxbalance = 0;
+						//$remaining_sales_taxbalance = $salesheader->tax_deferred_balance - $tax_merchandise_dedication;
+						
+						
+						//if remaining tax balance is below zero, deduct to excess to tax dedication
+						/*while($remaining_sales_taxbalance<0)
+						{
+							$tax_merchandise_dedication= $tax_merchandise_dedication- ($remainingbalance_sales * -1);
+							$remaining_sales_taxbalance= $salesheader->tax_deferred_balance - $tax_merchandise_dedication;
+						} */
+
 						$salesheader->update([
 								'balance'=> $remainingbalance_sales,
+								'tax_deferred_balance'=> $remaining_sales_taxbalance,
 								'status'=> $remainingbalance_sales == 0 ? 'CLOSED' : $salesheader->status
 						]);
-						
-						
-						
+
 						$transaction_sale = FisSalesTransaction::create([
 								'sales_id'=>$salesheader->id,
 								'accountType'=>$row->charge_account, //2 is for peronal. see _fis_account table
@@ -1114,6 +1315,8 @@ class AccessController extends Controller
 								'isPosted'=>1,
 								'remarks'=>$value['bill_header']->remarks,
 								'tran_type'=>$remainingbalance_sales == 0 ? 'PAYCLOSE' : 'PAYPARTIAL',
+								'tax_distribution'=> $tax_merchandise_dedication,
+								'tax_balance'=> $remaining_sales_taxbalance
 						]);
 						
 						$acctgHeader_pay = [];
@@ -1145,6 +1348,24 @@ class AccessController extends Controller
 						$pushDetails_pay['amount']=$row->amount;
 						$pushDetails_pay['detail_particulars']="Payment from Merch Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
 						array_push($acctgDetails_pay, $pushDetails_pay);
+						
+						
+						/*if($salesheader->has_tax==1)
+						{
+							//debit deferred tax
+							$pushDetails_pay['entry_type']="DR";
+							$pushDetails_pay['SLCode']='7-4-000-01';
+							$pushDetails_pay['amount']=$tax_merchandise_dedication;
+							$pushDetails_pay['detail_particulars']="Payment from Merch Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
+							array_push($acctgDetails_pay, $pushDetails_pay);
+							
+							//credit output tax
+							$pushDetails_pay['entry_type']="CR";
+							$pushDetails_pay['SLCode']='7-4-000-01';
+							$pushDetails_pay['amount']=$tax_merchandise_dedication;
+							$pushDetails_pay['detail_particulars']="Payment from Merch Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
+							array_push($acctgDetails_pay, $pushDetails_pay);
+						} */
 						
 						$saveacctg = AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
 						if($saveacctg['status']!='saved')
@@ -1232,6 +1453,15 @@ class AccessController extends Controller
 				$sc_count = FisItemsalesHeader::where('fun_branch', $value['sales_header']->branch)->count();
 				
 				$value['merchandise_no'] = "M".date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
+				$value['tax_deferred'] = 0;
+				if($value['sales_header']->has_tax==1 || $value['sales_header']->has_tax=='1')
+				{
+					$tax_deferred = ((float)$value['grand_total'] / 1.12) * 0.12;
+					$value['tax_deferred'] = number_format($tax_deferred, 2, '.', '');
+					
+				}
+				
+				
 				
 				$salesHead = FisItemsalesHeader::create([
 					'OR_no'=>$value['merchandise_no'],
@@ -1245,7 +1475,13 @@ class AccessController extends Controller
 					'total_amount'=>$value['grand_total'],
 					'balance'=>$value['grand_total'],
 					'status'=>'ACTIVE',
-					'fun_branch'=>$value['sales_header']->branch
+					'fun_branch'=>$value['sales_header']->branch,
+					'is_member'=>$value['sales_header']->is_member,
+					'is_senior_or_disabled'=>$value['sales_header']->is_senior_or_disabled,
+					'has_tax'=>$value['sales_header']->has_tax,
+					'tax_deferred'=>$value['tax_deferred'],
+					'tax_deferred_balance'=>$value['tax_deferred'],
+						
 				]);
 				
 				$acctgHeader = [];
@@ -1315,12 +1551,44 @@ class AccessController extends Controller
 					}
 					
 					
+					
+					
+					$tax_dedication = 0;
+					
+					if($value['sales_header']->has_tax==1)
+					{
+						$taxamt = ((float)$value['sales_header']->amount_pay / 1.12) * 0.12;
+						$tax_dedication = number_format($taxamt, 2, '.', '');
+					}
+
+					$remainingbalance = $salesHead->balance - $value['sales_header']->amount_pay;
+					
+					if($remainingbalance==0)
+					{
+						//do this trick if and only if shortage is less than 0.1 !!!
+						if($value['tax_deferred']- $tax_dedication< 0.1)
+							$tax_dedication = $value['tax_deferred'];
+					}
+					
+					$remainingtaxbalance = $value['tax_deferred'] - $tax_dedication;
+					
+					//if remaining tax balance is below zero, deduct to excess to tax dedication
+					while($remainingtaxbalance<0)
+					{
+						$tax_dedication = $tax_dedication - ($remainingtaxbalance * -1);
+						$remainingtaxbalance = $value['tax_deferred']- $tax_dedication;
+					}
+					
+					
+					
+					
+					
 					$transactionsale = FisSalesTransaction::create([
 							'sales_id'=>$salesHead->id,
 							'accountType'=>2, //2 is for peronal. see _fis_account table
 							'AR_Debit'=>0,
 							'AR_Credit'=>$value['sales_header']->amount_pay,
-							'balance'=>$salesHead->balance - $value['sales_header']->amount_pay,
+							'balance'=>$remainingbalance,
 							'reference_no'=>$value['sales_header']->reference,
 							'payment_date'=>date('Y-m-d'),
 							'transactedBy'=>$salesHead->transactedBy,
@@ -1330,12 +1598,15 @@ class AccessController extends Controller
 							'remittedTo'=>'',
 							'isPosted'=>1,
 							'remarks'=>'merchandising payment',
+							'tax_distribution'=> $tax_dedication,
+							'tax_balance' => $remainingtaxbalance,
 							'tran_type'=>$salesHead->balance - $value['sales_header']->amount_pay == 0 ? 'PAYCLOSE' : 'PAYPARTIAL',
 					]);
 					
 					
 					$salesHead->update([
 							'balance' => $transactionsale->balance,
+							'tax_deferred_balance' => $remainingtaxbalance,
 							'status'=> $transactionsale->balance == 0 ? 'CLOSED' : 'ACTIVE'
 					]);
 					
@@ -1367,11 +1638,15 @@ class AccessController extends Controller
 					$pushDetails_pay['detail_particulars']="To payment from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
 					array_push($acctgDetails_pay, $pushDetails_pay);
 					
+					
+					
 				}
 				
+				$total_taxed_items = 0;
 				
 				foreach($value['item_inclusions'] as $row)
 				{
+					
 					
 					try {
 						
@@ -1417,13 +1692,60 @@ class AccessController extends Controller
 								]
 								);
 						
+						if($value['sales_header']->has_tax==1 || $value['sales_header']->has_tax=='1')
+						{
+							$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+							$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+							
+							
+							
+							$total_taxed_items += $output_tax;
+							
+							while( (float)$total_taxed_items > (float)$value['tax_deferred'])
+							{	
+								$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
+								$total_taxed_items -= $output_tax;
+								$output_tax = $new_output_tax;
+								$total_taxed_items += $output_tax;
+								
+								$income_deducted = $row->tot_price - $output_tax;
+							}
+							
+							
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= "4-1-410-03-001"; //--charge everything to miscellaneous income
+							$pushDetails['amount']= $income_deducted;
+							$pushDetails['detail_particulars']="Income ".$row->item_name." frm Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							
+							array_push($acctgDetails, $pushDetails);
+							
+							
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= "7-4-000-01"; //--deferred output tax
+							$pushDetails['amount']= $output_tax;
+							$pushDetails['detail_particulars']="Income ".$row->item_name." frm Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							
+							
+							
+							
+							
+							array_push($acctgDetails, $pushDetails);
+							
+							
+						}
 						
-						$pushDetails['entry_type']="CR";
-						$pushDetails['SLCode']= "4-1-410-03-001"; //--charge everything to miscellaneous income
-						$pushDetails['amount']= $row->tot_price;
-						$pushDetails['detail_particulars']="Income ".$row->item_name." frm Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+						else
+						{
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= "4-1-410-03-001"; //--charge everything to miscellaneous income
+							$pushDetails['amount']= $row->tot_price;
+							$pushDetails['detail_particulars']="Income ".$row->item_name." frm Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							
+							array_push($acctgDetails, $pushDetails);
+						}
 						
-						array_push($acctgDetails, $pushDetails);
+						
+						
 						
 						
 					} catch (\Exception $e) {
@@ -1519,6 +1841,8 @@ class AccessController extends Controller
 				foreach($value['service_inclusions'] as $row)
 				{
 					
+					
+					
 					try {
 						
 						FisServiceSales::create([
@@ -1546,24 +1870,80 @@ class AccessController extends Controller
 								
 						]);
 						
-						if(strpos($row->service_name, "GIFT COUPON") !== false)
-						{
-							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode']= $currentBranch->borrowHO;
-							$pushDetails['amount']= $row->tot_price;
-							$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
-						}
 						
+						
+						if($value['sales_header']->has_tax==1 || $value['sales_header']->has_tax=='1')
+						{
+							$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+							$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+							
+							
+							$total_taxed_items += $output_tax;
+							
+							while( (float)$total_taxed_items > (float)$value['tax_deferred'])
+							{
+								$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
+								$total_taxed_items -= $output_tax;
+								$output_tax = $new_output_tax;
+								$total_taxed_items += $output_tax;
+								
+								$income_deducted = $row->tot_price - $output_tax;
+							}
+							
+							
+							if(strpos($row->service_name, "GIFT COUPON") !== false)
+							{
+								$pushDetails['entry_type']="CR";
+								$pushDetails['SLCode']= $currentBranch->borrowHO;
+								$pushDetails['amount']= $income_deducted;
+								$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							}
+							
+							
+							else
+							{
+								$pushDetails['entry_type']="CR";
+								$pushDetails['SLCode'] = "4-1-410-03-001"; //--charge everything to miscellaneous income
+								$pushDetails['amount']= $income_deducted;
+								$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+								
+							}
+							
+							array_push($acctgDetails, $pushDetails);
+							
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= "7-4-000-01"; //--deferred output tax
+							$pushDetails['amount']= $output_tax;
+							$pushDetails['detail_particulars']="deferred output tax";
+							
+							array_push($acctgDetails, $pushDetails);
+							
+							
+						}
 						
 						else
 						{
-							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode'] = "4-1-410-03-001"; //--charge everything to miscellaneous income
-							$pushDetails['amount']= $row->tot_price;
-							$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							if(strpos($row->service_name, "GIFT COUPON") !== false)
+							{
+								$pushDetails['entry_type']="CR";
+								$pushDetails['SLCode']= $currentBranch->borrowHO;
+								$pushDetails['amount']= $row->tot_price;
+								$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+							}
 							
+							
+							else
+							{
+								$pushDetails['entry_type']="CR";
+								$pushDetails['SLCode'] = "4-1-410-03-001"; //--charge everything to miscellaneous income
+								$pushDetails['amount']= $row->tot_price;
+								$pushDetails['detail_particulars']="Income of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+								
+							}
+							array_push($acctgDetails, $pushDetails);
 						}
-						array_push($acctgDetails, $pushDetails);
+						
+						
 						
 						
 					} catch (\Exception $e) {
@@ -1646,14 +2026,14 @@ class AccessController extends Controller
 		try {
 			//$request->post()['name']
 			
-			$qry = DB::select(DB::raw("SELECT commodity, id, reference, charge_account, 'PERSONAL' as charge_label, pay_type, 'Cash Payment' as pay_label, balance, amount FROM
+			$qry = DB::select(DB::raw("SELECT commodity, id, reference, charge_account, 'PERSONAL' as charge_label, pay_type, 'Cash Payment' as pay_label, balance, amount, has_tax FROM
 					(
-					select signee, 'SERVICE CONTRACT' as commodity, contract_id as id, contract_no as reference, 2 as charge_account, 1 as pay_type, contract_balance as balance, 0 as amount from _fis_service_contract where status='ACTIVE' and contract_balance>0
+					select signee, 'SERVICE CONTRACT' as commodity, contract_id as id, contract_no as reference, 2 as charge_account, 1 as pay_type, contract_balance as balance, 0 as amount, isnull(has_tax, 0) as has_tax from _fis_service_contract where status='ACTIVE' and contract_balance>0
 					and fun_branch='".$request->post()['funbranch']."'
 					UNION ALL
 					select signee_id as signee, 'ADDTL. PURCHASES' as commodity, id, OR_no as reference, 2 as charge_account, 1 as pay_type,
 					balance,
-					0 as amount
+					0 as amount, isnull(has_tax, 0) as has_tax
 					from _fis_itemsales_header sh where status='ACTIVE'
 					and fun_branch='".$request->post()['funbranch']."'
 					)SDFA
@@ -1807,7 +2187,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 			    $sc_details = DB::select(DB::raw("select sc.contract_id, contract_no, fun_branch, contract_date, 
 					(s.firstname + ', ' + s.middlename + ' ' + s.lastname)signee,
 					s.address as signeeaddress, sc.remarks, sc.burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, p.package_code, sc.embalming_place
+					d.birthday, d.address, d.causeOfDeath, sc.mort_viewing, cr.ReligionName, p.package_name, p.package_code, sc.embalming_place, sc.has_tax, sc.tax_deferred, sc.tax_deferred_balance
 					from _fis_service_contract sc
 					inner join (select ph.* from _fis_profileheader ph inner join _fis_ProfileLogs  pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -1846,6 +2226,8 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 						order by columnid"));
 			    
 			    $chapel_rentals = DB::select(DB::raw("select id as value, chapel_name as label from _fis_chapel_package"));
+			    
+			    $sc_details[0]->has_tax = $sc_details[0]->has_tax == 1 ? true : false;
 			    
 			return [
 						'status'=>'saved',
@@ -1920,13 +2302,11 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		$value="";
 		
 		
-		$appendix = isset($request->post()['typesearch']) ? "PL.profile_type in ('Walk-in', 'Signee') " : "PL.profile_type in ('Decease', 'Signee') ";
+		$appendix = isset($request->post()['typesearch']) ? "PL.profile_type in ('Walk-in', 'Signee') " : "PL.profile_type in ('Walk-in', 'Signee') ";
 		
 		try {
-			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, isnull(SC.contract_no, SC_deceased.contract_no) as sublabel  from _fis_profileheader AS PH
+			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, (select cast(count(*) as varchar(2)) + ' CONTRACT/S AVAILED' AS contractsavailed from _fis_service_contract where signee=PH.id) as sublabel  from _fis_profileheader AS PH
 			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
-			LEFT JOIN _fis_service_contract AS SC ON PH.id = SC.signee
-			LEFT JOIN _fis_service_contract AS SC_deceased on PH.id = SC_deceased.deceased_id
 			WHERE ".$appendix." and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '%".$request->post()['name']."%'"));
 
 
@@ -2007,7 +2387,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		$value="";
 		
 		try {
-			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label  from _fis_ProfileHeader AS PH
+			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, isnull(is_taxable, 0) taxable  from _fis_ProfileHeader AS PH
 			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
 			where PL.profile_type='Decease' and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '".$request->post()['name']."%'"));
 			

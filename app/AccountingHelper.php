@@ -30,7 +30,7 @@ class AccountingHelper extends Model
 			if(number_format($amountCredit, 2)!=number_format($amountDebit, 2))
 				return [
 					'status'=>'acctg. error',
-					'message'=>'Unbalanced Transaction',
+					'message'=>'Unbalanced Transaction Debit: '.$amountDebit.' '.'Credit: '.$amountCredit,
 					'details'=>$details
 				];
 			
@@ -116,6 +116,18 @@ class AccountingHelper extends Model
 				'message'=>$e->getMessage()
 			];
 		}
+	}
+	
+	
+	public static function fixShortageOfEntry($paid_amount, $remaining_tax_balance) : float
+	{
+		if($paid_amount < $remaining_tax_balance)
+		{
+			return $remaining_tax_balance;
+		}
+		
+		else return $paid_amount;
+		
 	}
 	
 }
