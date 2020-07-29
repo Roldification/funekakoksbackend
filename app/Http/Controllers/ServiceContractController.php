@@ -36,7 +36,7 @@ use App\FisCancelMerchandise;
 
 class ServiceContractController extends Controller
 {
-    //
+
     
 	public function getDetailsOfContract(Request $request)
 	{
@@ -57,7 +57,7 @@ class ServiceContractController extends Controller
 
 				$sc_details = DB::select(DB::raw("SELECT sc.contract_id, contract_no, fun_branch, CONVERT(VARCHAR(30),contract_date,101)contract_date, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee,
 					s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, CONVERT(VARCHAR(30),sc.burial_time,22)burial_time, CONVERT(VARCHAR(30),sc.discount,0)discount, CONVERT(VARCHAR(30),sc.grossPrice,0)grossPrice, CONVERT(VARCHAR(30),sc.contract_amount,0)contract_amount, CONVERT(VARCHAR(30),sc.contract_balance,0)contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-					CONVERT(VARCHAR(30),d.birthday,101)birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, p.package_code, sc.status, sc.signee as signee_id
+					CONVERT(VARCHAR(30),d.birthday,101)birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, p.package_code, sc.status, sc.signee as signee_id, sc.has_tax, sc.tax_deferred, sc.tax_deferred_balance
 					from _fis_service_contract sc 
 					inner join (select ph.* from _fis_profileheader ph inner join _fis_ProfileLogs pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
@@ -80,7 +80,7 @@ class ServiceContractController extends Controller
 					inner join ClientReligion cr on d.religion = cr.ReligionID
 					where contract_id=".$service_contract->contract_id));*/
 				
-				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
+				$sc_transaction = DB::select(DB::raw("select payment_id, account_type, AR_Debit, AR_Credit, balance, isnull(tax_contribution, 0)tax_contribution, isnull(tax_balance, 0)tax_balance, tran_type, reference_no, payment_date, payment_mode, transactedBy, remarks, isCancelled from _fis_sc_payments sp inner join _fis_account a
 					on a.account_id = sp.accountType
 					where contract_id=".$service_contract->contract_id));
 				
@@ -89,6 +89,7 @@ class ServiceContractController extends Controller
 				inner join _fis_services s on s.id = ss.fk_service_id
 				where fk_contract_id=".$request->post()['contract_id'])); */
 				
+				$sc_details[0]->has_tax = $sc_details[0]->has_tax == 1 ? true : false;
 				
 				return [
 						'status'=>'success_posted',
@@ -133,7 +134,7 @@ class ServiceContractController extends Controller
 
 					$sc_details = DB::select(DB::raw("SELECT sc.contract_id, contract_no, fun_branch,  CONVERT(VARCHAR(30),contract_date,101)contract_date, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee,
 						s.address as signeeaddress, s.customer_id as signee_cid, d.customer_id as deceased_cid, sc.remarks, CONVERT(VARCHAR(30),sc.burial_time,22)burial_time, sc.discount, sc.grossPrice, sc.contract_amount, sc.contract_balance, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)deceased, dbo._ComputeAge(d.birthday, getdate())deceasedage,
-						CONVERT(VARCHAR(30),d.birthday,101)birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, p.package_code, sc.status, sc.signee as signee_id
+						CONVERT(VARCHAR(30),d.birthday,101)birthday, d.address, d.causeOfDeath, sc.embalming_place, cr.ReligionName, p.package_name, p.package_code, sc.status, sc.signee as signee_id, sc.has_tax, sc.tax_deferred, sc.tax_deferred_balance
 						from _fis_service_contract sc 
 						inner join (select ph.* from _fis_profileheader ph
 						inner join _fis_ProfileLogs pl on ph.id = pl.fk_profile_id where pl.profile_type='Signee')s on sc.signee = s.id
@@ -174,7 +175,9 @@ class ServiceContractController extends Controller
 						order by columnid"));
 					
 					$chapel_rentals = DB::select(DB::raw("select id as value, chapel_name as label from _fis_chapel_package"));
-						
+					
+					$sc_details[0]->has_tax = $sc_details[0]->has_tax == 1 ? true : false;
+					
 						return [
 								'status'=>'success_unposted',
 								'message'=> [
@@ -911,7 +914,7 @@ class ServiceContractController extends Controller
 			}
 			
 			
-			$salesDetails = DB::select(DB::raw("select total_amount, balance, status, isPosted, fun_branch, '-' as sc_deceased, id, OR_no, client from _fis_itemsales_header
+			$salesDetails = DB::select(DB::raw("select total_amount, balance, status, isPosted, fun_branch, '-' as sc_deceased, id, OR_no, client, has_tax, tax_deferred from _fis_itemsales_header
 					where id=".$value_api['sales_id']));
 			
 			$value['total_amount']	= $salesDetails[0]->total_amount;
@@ -1012,6 +1015,7 @@ class ServiceContractController extends Controller
 			array_push($acctgDetails, $pushDetails);
 			
 			//no discount "yet"
+			$total_taxed_items = 0;
 			
 			foreach($value['item_inclusions'] as $row)
 			{
@@ -1023,14 +1027,60 @@ class ServiceContractController extends Controller
 							'isCancelled'=>1
 					]);
 					
+					//start of accounting cancellation
+					
+					if($salesDetails[0]->has_tax==1 || $salesDetails[0]->has_tax=='1')
+					{
+						$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+						$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+						
+						
+						
+						$total_taxed_items += $output_tax;
+						
+						while( (float)$total_taxed_items > (float)$salesDetails[0]->tax_deferred)
+						{
+							$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$salesDetails[0]->tax_deferred);
+							$total_taxed_items -= $output_tax;
+							$output_tax = $new_output_tax;
+							$total_taxed_items += $output_tax;
+							
+							$income_deducted = $row->tot_price - $output_tax;
+						}
+						
+						$pushDetails['entry_type']="DR";
+						$pushDetails['SLCode']= "4-1-410-03-001"; //--charge everything to miscellaneous income
+						$pushDetails['amount']= $income_deducted;
+						$pushDetails['detail_particulars']="Reversal of Merchandise";
+						
+						array_push($acctgDetails, $pushDetails);
+						
+						
+						$pushDetails['entry_type']="DR";
+						$pushDetails['SLCode']= "7-4-000-01"; //--deferred output tax
+						$pushDetails['amount']= $output_tax;
+						$pushDetails['detail_particulars']="Reversal of Merchandise";
+						
+						
+						
+						
+						
+						array_push($acctgDetails, $pushDetails);
+						
+						
+					}
+					//end of accounting cancellation
+					
+					else {
+						$pushDetails['entry_type']="DR";
+						$pushDetails['SLCode']= "4-1-410-03-001";
+						$pushDetails['amount']= $row->tot_price;
+						$pushDetails['detail_particulars']="Income ".$row->item_name." from Merch. Purchase #".$value['OR_no']." Signee: ".$value['client'];
+						
+						array_push($acctgDetails, $pushDetails);
+					}
 					
 					
-					$pushDetails['entry_type']="DR";
-					$pushDetails['SLCode']= $row->income_SLCode;
-					$pushDetails['amount']= $row->tot_price;
-					$pushDetails['detail_particulars']="Income ".$row->item_name." from Merch. Purchase #".$value['OR_no']." Signee: ".$value['client'];
-					
-					array_push($acctgDetails, $pushDetails);
 					
 					
 					
@@ -1133,22 +1183,74 @@ class ServiceContractController extends Controller
 							'isCancelled'=>1
 					]);
 					
-					if(strpos($row->service_name, "GIFT COUPON")!== false)
+					//start of cancellation
+					if($salesDetails[0]->has_tax==1 || $salesDetails[0]->has_tax=='1')
 					{
+						$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+						$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+						
+						
+						$total_taxed_items += $output_tax;
+						
+						while( (float)$total_taxed_items > (float)$salesDetails[0]->tax_deferred)
+						{
+							$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$salesDetails[0]->tax_deferred);
+							$total_taxed_items -= $output_tax;
+							$output_tax = $new_output_tax;
+							$total_taxed_items += $output_tax;
+							
+							$income_deducted = $row->tot_price - $output_tax;
+						}
+						
+						
+						if(strpos($row->service_name, "GIFT COUPON")!== false)
+						{
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							$pushDetails['amount']= $income_deducted;
+							$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+						}
+						
+						else
+						{
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['amount']= $income_deducted;
+							$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from Merch. Ref #".$value['OR_no']." Signee: ".$value['client'];
+						}
+						
+						array_push($acctgDetails, $pushDetails);
+						
 						$pushDetails['entry_type']="DR";
-						$pushDetails['SLCode']= $currentBranch->borrowHO;
-						$pushDetails['amount']= $row->tot_price;
-						$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+						$pushDetails['SLCode']= "7-4-000-01"; //--deferred output tax
+						$pushDetails['amount']= $output_tax;
+						$pushDetails['detail_particulars']="deferred output tax";
+						
+						array_push($acctgDetails, $pushDetails);
+						
+						
 					}
+					//end of cancellation
 					
 					else
 					{
-						$pushDetails['entry_type']="DR";
-						$pushDetails['SLCode']= $row->SLCode;
-						$pushDetails['amount']= $row->tot_price;
-						$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from Merch. Ref #".$value['OR_no']." Signee: ".$value['client'];
+						if(strpos($row->service_name, "GIFT COUPON")!== false)
+						{
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $currentBranch->borrowHO;
+							$pushDetails['amount']= $row->tot_price;
+							$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
+						}
+						
+						else
+						{
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $row->SLCode;
+							$pushDetails['amount']= $row->tot_price;
+							$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from Merch. Ref #".$value['OR_no']." Signee: ".$value['client'];
+						}
+						array_push($acctgDetails, $pushDetails);
 					}
-					array_push($acctgDetails, $pushDetails);
 					
 					
 					
@@ -1486,6 +1588,19 @@ class ServiceContractController extends Controller
 			$pushDetails_pay['detail_particulars']="To record cancellation payment from SC Ref#".$payment->reference_no;
 			array_push($acctgDetails_pay, $pushDetails_pay);
 			
+			//start of tax acctg
+			$pushDetails_pay['entry_type']="DR";
+			$pushDetails_pay['SLCode']=$paytype->sl_credit;
+			$pushDetails_pay['amount']=$payment->AR_Credit;
+			$pushDetails_pay['detail_particulars']="To record cancellation payment from SC Ref#".$payment->reference_no;
+			array_push($acctgDetails_pay, $pushDetails_pay);
+			//end of tax acctg
+			
+			
+			
+			
+			
+			
 			$saveacctg = AccountingHelper::processAccounting($acctgHeader_pay, $acctgDetails_pay);
 			
 			if($saveacctg['status']!='saved')
@@ -1550,7 +1665,7 @@ class ServiceContractController extends Controller
 					where contract_id=".$value_api['contract_id']));
 			
 			$contractDetails = DB::select(DB::raw("select contract_amount, contract_balance, grossPrice, sc.status, sc.isPosted, fun_branch, (d.lastname + ', ' + d.firstname + ' ' + d.middlename)sc_deceased, (discount + chapel_discount) as sc_discount, contract_id as sc_id, contract_no as sc_number,
-					(s.lastname + ', ' + s.firstname + ' ' + s.middlename)sc_signee, date_posted
+					(s.lastname + ', ' + s.firstname + ' ' + s.middlename)sc_signee, date_posted, has_tax, tax_deferred
 					from _fis_service_contract sc 
 					inner join (select ph.*, birthday, date_died, causeOfDeath, religion, primary_branch, servicing_branch, deathPlace, relationToSignee from _fis_profileheader ph
 								inner join _fis_Deceaseinfo di on ph.id = di.fk_profile_id
@@ -1663,7 +1778,7 @@ class ServiceContractController extends Controller
 			
 			$pushDetails = [];
 			
-
+				
 				
 				
 				$sc = ServiceContract::find($value['sc_id']);
@@ -1690,7 +1805,7 @@ class ServiceContractController extends Controller
 					array_push($acctgDetails, $pushDetails);
 				}
 				
-				
+				$total_taxed_items = 0;
 				
 				foreach($value['item_inclusions'] as $row)
 				{
@@ -1701,15 +1816,53 @@ class ServiceContractController extends Controller
 						$itemSales->update([
 								'isCancelled'=>1
 						]);
-
+						
+						//start of tax accounting
+						if($contractDetails[0]->has_tax==1)
+						{
+							$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+							$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+							
+							$total_taxed_items += $output_tax;
+							
+							while( (float)$total_taxed_items > (float)$contractDetails[0]->tax_deferred)
+							{
+								$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
+								$total_taxed_items -= $output_tax;
+								$output_tax = $new_output_tax;
+								$total_taxed_items += $output_tax;
+								
+								$income_deducted = $row->tot_price - $output_tax;
+							}
+							
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $row->income_SLCode;
+							$pushDetails['amount']= $income_deducted;
+							$pushDetails['detail_particulars']="Reversal of Income (VAT)";
+							
+							array_push($acctgDetails, $pushDetails);
+							
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= '7-4-000-01'; //-->output tax
+							$pushDetails['amount']= $output_tax;
+							$pushDetails['detail_particulars']="Reversal of Income (VAT)";
+							
+							array_push($acctgDetails, $pushDetails);
+						}
+						
+						else
+						{
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= $row->income_SLCode;
+							$pushDetails['amount']= $row->tot_price;
+							$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
+							
+							array_push($acctgDetails, $pushDetails);
+						}
+						//end of tax accounting
 						
 						
-						$pushDetails['entry_type']="DR";
-						$pushDetails['SLCode']= $row->income_SLCode;
-						$pushDetails['amount']= $row->tot_price;
-						$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 						
-						array_push($acctgDetails, $pushDetails);
 						
 						
 						
@@ -1810,23 +1963,76 @@ class ServiceContractController extends Controller
 						$serviceSales->update([
 								'isCancelled'=>1
 						]);
-
-						if(strpos($row->service_name, "GIFT COUPON")!== false)
+						
+						//start of tax accounting
+						if($contractDetails[0]->has_tax==1)
 						{
-							$pushDetails['entry_type']="DR";
-							$pushDetails['SLCode']= $currentBranch->borrowHO;
-							$pushDetails['amount']= $row->tot_price;
-							$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from SC #".$value['sc_number']."-".$value['sc_signee']." for the Late: ".$value['sc_deceased'];
+							$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+							$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+							
+							$total_taxed_items += $output_tax;
+							
+							while( (float)$total_taxed_items > (float)$contractDetails[0]->tax_deferred)
+							{
+								$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
+								$total_taxed_items -= $output_tax;
+								$output_tax = $new_output_tax;
+								$total_taxed_items += $output_tax;
+								
+								$income_deducted = $row->tot_price - $output_tax;
+							}
+							
+							
+							if(strpos($row->service_name, "GIFT COUPON") !== false)
+							{
+								$pushDetails['entry_type']="DR";
+								$pushDetails['SLCode']= $currentBranch->borrowHO;
+								$pushDetails['amount']= $income_deducted;
+								$pushDetails['detail_particulars']="New entry";
+								
+							}
+							
+							else
+							{
+								$pushDetails['entry_type']="DR";
+								$pushDetails['SLCode']= $row->SLCode;
+								$pushDetails['amount']= $income_deducted;
+								$pushDetails['detail_particulars']="New entry";
+								
+							}
+							
+							array_push($acctgDetails, $pushDetails);
+							
+							$pushDetails['entry_type']="CR";
+							$pushDetails['SLCode']= '7-4-000-01'; //-->output tax
+							$pushDetails['amount']= $output_tax;
+							$pushDetails['detail_particulars']="New entry";
+							
+							array_push($acctgDetails, $pushDetails);
 						}
 						
 						else
 						{
-							$pushDetails['entry_type']="DR";
-							$pushDetails['SLCode']= $row->SLCode;
-							$pushDetails['amount']= $row->tot_price;
-							$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from SC #".$value['sc_number']."-".$value['sc_signee']." for the Late: ".$value['sc_deceased'];
+							if(strpos($row->service_name, "GIFT COUPON")!== false)
+							{
+								$pushDetails['entry_type']="DR";
+								$pushDetails['SLCode']= $currentBranch->borrowHO;
+								$pushDetails['amount']= $row->tot_price;
+								$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from SC #".$value['sc_number']."-".$value['sc_signee']." for the Late: ".$value['sc_deceased'];
+							}
+							
+							else
+							{
+								$pushDetails['entry_type']="DR";
+								$pushDetails['SLCode']= $row->SLCode;
+								$pushDetails['amount']= $row->tot_price;
+								$pushDetails['detail_particulars']="Cancellation of ".$row->service_name." from SC #".$value['sc_number']."-".$value['sc_signee']." for the Late: ".$value['sc_deceased'];
+							}
+							array_push($acctgDetails, $pushDetails);
 						}
-						array_push($acctgDetails, $pushDetails);
+						//end of tax accounting
+
+						
 						
 						
 						

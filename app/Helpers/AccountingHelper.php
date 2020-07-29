@@ -93,7 +93,8 @@ class AccountingHelper extends Model
 						'PARTICULARNO'=> $particularsID + 1,
 						'MISCTRANLINK'=>$transNo['MiscTrnNo'],
 						'ENTRYNOLINK'=>$rownumber,
-						'PARTICULARS'=>$row['detail_particulars']
+						'PARTICULARS'=>$row['detail_particulars'],
+						'FKBRANCHCODE'=>$header['branch_code']
 				]);
 				
 				
