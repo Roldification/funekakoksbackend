@@ -6,22 +6,26 @@
     	 margin: 0px;
     	 }
     	 
+		 td {
+		  padding-bottom: -1;	 
+		 }
+		 
     	 .row{
     	 display:blocked;
     	 margin:0px 25px 0px 25px; 
     	 }
     	 
     	 font {
-    	  font-size:12px;
+    	  font-size:9px;
     	 }
     	 
     	 .subheader {
-    	 font-size:<?php echo count($inclusions) > 24 ? "10px" : "10px"; ?>;
+    	 font-size:<?php echo count($inclusions) > 24 ? "9px" : "9px"; ?>;
     	 }
     	 
     	 .tablevalue
     	 {
-    	 font-size:<?php echo count($inclusions) > 24 ? "9px" : "9px"; ?>;
+    	 font-size:<?php echo count($inclusions) > 24 ? "8px" : "8px"; ?>;
     	 }
 
     	 .left-box{
@@ -39,30 +43,35 @@
     	.main-box{
     		width: 100%;
     		margin-top: 10px;
-    		padding-right: 25px !important;
-    		padding-left: 25px;
+    		padding-right: 20px !important;
+    		padding-left: 29px;
     	}
+    	 
     	</style>
     </head>
     <body>
     			
-   
-         <div style="height:90px;">
-      
+		<div>
+		 <font style="font-size:5;">&nbsp;</font>
+		</div>
+         <div style="height:155px;">
+
+			
          </div>			    	 	  
     	 <div class="row" style="margin-top:5px;">
     	 	<table style="width:100%;">
     	 		<tr>
-    	 			<td style="width:250px;"> </td>
+    	 			<td style="width:180px;"><font face="arial" style="font-size:17; font-weight: bold;">SERVICE CONTRACT</font></td>
     	 			<td style="width:300px;"> </td>
-    	 			<td><font face="segoeui"><strong>Date:</strong> <?php echo date('F d, Y') ?></font></td>
+    	 			<td><font face="segoeui"><strong>Date:</strong> <?php echo date('F d, Y', strtotime($accounts[0]->contract_date)); ?></font></td>
+					<td><font style="font-size:15;" color="red"><?php echo $accounts[0]->contract_no ?></font></td>
     	 		</tr>
     	 	</table>
     	
     	 </div>
     	 
     	 
-    	 <div class="row"  style="margin-top:5px; padding:15px;">
+    	 <div class="row"  style="margin-top:0px; padding:15px;">
     	 	<table style="width:100%;">
     	 		<tr>
     	 			<td style="width:19%;"><font face="segoeui"><strong>Charge to Mr./Ms./Mrs.</strong></font></td>
@@ -96,7 +105,7 @@
 						<td style="width:7%;  text-align:right;"><font face="segoeui"><strong>Age:</strong></font></td>
 						<td style="width:7%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->deceased_age; ?></font></td>
 						<td style="width:16%;  text-align:right;"><font face="segoeui"><strong>Date of Birth:</strong></font></td>
-						<td style="width:15%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('Y-m-d', strtotime($accounts[0]->birthday)); ?></font></td>
+						<td style="width:15%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('F d, Y', strtotime($accounts[0]->birthday)); ?></font></td>
 					</tr>
 				</table>
 				
@@ -104,14 +113,14 @@
 					<tr>
 						<td style="width:9%;"><font face="segoeui"><strong>Address:</strong></font></td>
 						<td style="width:55%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->deceased_address; ?></font></td>
-						<td style="width:13%;"><font face="segoeui"><strong>Death:</strong></font></td>
+						<td style="width:13%;"><font face="segoeui"><strong>Cause of Death:</strong></font></td>
 						<td style="width:21%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->causeOfDeath; ?></font></td>
 					</tr>
 				</table>
 				<table style="width:100%;">
 					<tr>
 						<td style="width:10%;"><font face="segoeui"><strong>Date Died:</strong></font></td>
-						<td style="width:25%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('M d, Y', strtotime($accounts[0]->date_died)); ?></font></td>
+						<td style="width:25%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('F d, Y', strtotime($accounts[0]->date_died)); ?></font></td>
 						<td style="width:5%;"><font face="segoeui"><strong>Time:</strong></font></td>
 						<td style="width:10%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('h:i A', strtotime($accounts[0]->date_died)); ?></font></td>
 						<td style="width:15%; text-align:right;"><font face="segoeui"><strong>Place of Death:</strong></font></td>
@@ -137,9 +146,9 @@
 				<table style="width:100%;">
 					<tr>
 						<td style="width:15%;"><font face="segoeui"><strong>Date of Burial:</strong></font></td>
-						<td style="width:25%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('Y-m-d', strtotime($accounts[0]->burial_time)); ?></font></td>
+						<td style="width:25%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('F d, Y', strtotime($accounts[0]->burial_time)); ?></font></td>
 						<td style="width:5%;"><font face="segoeui"><strong>Time:</strong></font></td>
-						<td style="width:10%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('H:i:s', strtotime($accounts[0]->burial_time)); ?></font></td>
+						<td style="width:10%; border-bottom:1px solid black;"><font face="segoeui"><?php echo date('h:i A', strtotime($accounts[0]->burial_time)); ?></font></td>
 						<td style="width:10%; text-align:right;"><font face="segoeui"><strong>Church:</strong></font></td>
 						<td style="width:35%; border-bottom:1px solid black;"><font face="segoeui"><?php echo $accounts[0]->church; ?></font></td>
 					</tr>
@@ -162,7 +171,7 @@
     	 		<table style="width:100%;">
 	    	 		<tr>
 	    	 			<td style="width:50%;"><font face="segoeui"><strong>Particulars</strong></font></td>
-	    	 			<td style="width:20%;"><font face="segoeui"><strong>Particulars</strong></font></td>
+	    	 			<td style="width:20%;"><font face="segoeui"><strong>Description</strong></font></td>
 	    	 			<td style="width:10%;"><font face="segoeui"><strong>Unit Price</strong></font></td>
 	    	 			<td style="width:10%;"><font face="segoeui"><strong>Discount</strong></font></td>
 	    	 			<td style="width:10%;"><font face="segoeui"><strong>Total</strong></font></td>   	 			
@@ -241,34 +250,34 @@
     	 		</table>
     	 </div>
 
-    	<div class="main-box">
+    	 <div class="main-box">
 	    	<div class="left-box">
 	    		<div>
-	    			<font face="segoeui" style="font-size: 10px;"><strong>Prepared by:</strong></font>
+	    			<font face="segoeui" style="font-size: 9px;"><strong>Prepared by:</strong></font>
 	    		</div>
 	    		<div style="border-bottom:1px solid black; text-align:center;">
 	    			<font face="segoeui" style="font-size: 14px;"><?php echo $accounts[0]->created_by; ?></font>
 	    		</div>
 
 	    		<div style="margin-top: 10px;">
-	    			<font face="segoeui" style="font-size: 10px;"><strong>Noted by:</strong></font>
+	    			<font face="segoeui" style="font-size: 9px;"><strong>Noted by:</strong></font>
 	    		</div>
 	    		<div style="border-bottom:1px solid black; text-align:center;">
 	    			<font face="segoeui" style="font-size: 14px;">MARIA APRIL VILLANUEVA</font>
 	    		</div>
-	    		<div style="text-align:center;">
+	    		<div style="text-align:left;">
 	    			<font face="segoeui" style="font-size: 9px;">FuneCare Service Manager</font>
 	    		</div>
 
 	    		<div style="margin-top: 10px;">
-	    			<font face="segoeui" style="font-size: 10px;"><strong>Approved by:</strong></font>
+	    			<font face="segoeui" style="font-size: 9px;"><strong>Approved by:</strong></font>
 	    		</div>
-	    		<div style="border-bottom:1px solid black; margin-top: 10px; text-align:center;"">
-	    				<font face="segoeui" style="font-family:segoeui; font-size: 14px;>
+	    			<div style="border-bottom:1px solid black; margin-top: 10px; text-align:center;">
+	    				<font face="segoeui" style="font-family:segoeui; font-size: 14px;">
 	    				VIVELYN D. FRONTERAS
 	    				</font>
-	    		</div>
-	    		<div style="text-align:center;">
+	    			</div>
+	    		<div style="text-align:left;">
 	    			<font face="segoeui" style="font-size: 9px;">Chief Operations Officer</font>
 	    		</div>
 	    		<div 
@@ -283,17 +292,20 @@
 	    	<div class="right-box">
 	    		<div>
     	 		<font face="segoeui"><strong>TERMS</strong></font>
-    	 		<p style="margin-top:1px; text-align: justify; font-size: 8px; font-family: segoeui;">
-    	 			For the Burial and Funeral services rendered to the aforementioned deceased and to our full satisfaction. The undersigned agree to pay in FULL balance  the stated services or submit the mortuary requirements on or before the interment schedule. <i><b>NO PAYMENT NO INTERMENT.</b></i>
-    	 			<br/><br/>
-    	 			That any damages to the facilities and equipment used during the term of the signed contract shall be accounted by the contracting party.
-    	 			<br/><br/>
-    	 			For inquiries, update and complaint/s regarding the services rendered by <b>TAGUM COOPERATIVE FUNECARE</b>, the contracting party may contact immediately the office for appropriate action.
+    	 		<p align="justify" style="margin-top:2px;">
+    	 			<font face="segoeui" style="font-size: 9px;">For the Burial and Funeral services rendered to the aforementioned deceased and to our full satisfaction. The undersigned agree to pay in FULL balance  the stated services or submit the mortuary requirements on or before the interment schedule. <i><b>NO PAYMENT NO INTERMENT.</b></i>
+    	 			</font> <br/>
+    	 		
+    	 			<font face="segoeui" style="font-size: 9px;">That any damages to the facilities and equipment used during the term of the signed contract shall be accounted by the contracting party.</font> <br/>
+    	 		
+    	 			<font face="segoeui" style="font-size: 9px;">For inquiries, update and complaint/s regarding the services rendered by <b>TAGUM COOPERATIVE FUNECARE</b>, the contracting party may contact immediately the office for appropriate action.</font>
+    	 		</p>
+    	 		</font>
     	 		</p>
 	    	 	</div>
 				
-				<div>
-					<font face="segoeui" style="margin-top:5px;"><strong>In Conformity</strong></font>
+				<div style="width:100%; margin-top:-10px;">
+					<font face="segoeui"><strong>In Conformity</strong></font>
 					
 					<table style="width:100%; margin-top:10px;">
 		    	 		
@@ -320,5 +332,7 @@
 				</div>
 	    	</div>
 	    </div>
+
+    	<!-- end - -->
     </body>
 </html>
