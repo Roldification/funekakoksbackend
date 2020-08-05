@@ -12,6 +12,9 @@ class AccountingHelper extends Model
 	public static function processAccounting($header, $details)
 	{
 		try {
+			
+	
+
 			/*
 			 * First, check if amount is balanced.
 			 */
@@ -75,6 +78,9 @@ class AccountingHelper extends Model
 				$rownumber = 1;
 			foreach ($details as $row)
 			{
+				if($row['amount']==0 || $row['amount']=='0')
+				{continue; }
+				
 				MiscTransactionDetail::create([
 					'FKTransactionNumberMiscDet'=>$transNo[0]->MiscTrnNo,
 					'FKTransactionDateMiscDet'=>$header['transaction_date'],

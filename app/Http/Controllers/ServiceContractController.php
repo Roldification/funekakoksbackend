@@ -1520,10 +1520,12 @@ class ServiceContractController extends Controller
 			}
 			
 			$remainingbalance = $contract->contract_balance + $payment->AR_Credit;
+			$remainingtaxbalance = $contract->tax_deferred_balance + $payment->tax_contribution;
 			
 			$contract->update([
 					'contract_balance'=> $remainingbalance,
-					'status'=> 'ACTIVE'
+					'status'=> 'ACTIVE',
+					'tax_deferred_balance' => $remainingtaxbalance
 			]);
 			
 			$scpayment = FisSCPayments::create([
@@ -1542,6 +1544,8 @@ class ServiceContractController extends Controller
 					'isPosted'=>1,
 					'remarks'=>'Cancellation of',
 					'tran_type'=>$payment->tran_type == 'PAYPARTIAL' ? 'CANPAYPARTIAL' : 'CANPAYCLOSE',
+					'tax_contribution'=>0,
+					'tax_balance'=> $remainingtaxbalance
 			]);
 			
 			$payment->update([
@@ -1589,9 +1593,15 @@ class ServiceContractController extends Controller
 			array_push($acctgDetails_pay, $pushDetails_pay);
 			
 			//start of tax acctg
+			$pushDetails_pay['entry_type']="CR";
+			$pushDetails_pay['SLCode']='2-1-316-08-003';
+			$pushDetails_pay['amount']=$payment->tax_contribution;
+			$pushDetails_pay['detail_particulars']="To record cancellation payment from SC Ref#".$payment->reference_no;
+			array_push($acctgDetails_pay, $pushDetails_pay);
+			
 			$pushDetails_pay['entry_type']="DR";
-			$pushDetails_pay['SLCode']=$paytype->sl_credit;
-			$pushDetails_pay['amount']=$payment->AR_Credit;
+			$pushDetails_pay['SLCode']='2-1-317-01-001';
+			$pushDetails_pay['amount']=$payment->tax_contribution;
 			$pushDetails_pay['detail_particulars']="To record cancellation payment from SC Ref#".$payment->reference_no;
 			array_push($acctgDetails_pay, $pushDetails_pay);
 			//end of tax acctg
@@ -1805,8 +1815,8 @@ class ServiceContractController extends Controller
 					array_push($acctgDetails, $pushDetails);
 				}
 				
-				$total_taxed_items = 0;
-				
+				$total_taxed_items = 0 - $contract_discount;
+				$hasDiscountConsidered = false;
 				foreach($value['item_inclusions'] as $row)
 				{
 					
@@ -1820,14 +1830,28 @@ class ServiceContractController extends Controller
 						//start of tax accounting
 						if($contractDetails[0]->has_tax==1)
 						{
-							$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+							//if casket, deduct the discount to the sales
+							if(!$hasDiscountConsidered && substr($row->item_code, 0, 2)=='01')
+							{
+								$income_deducted = number_format(((float)$row->tot_price - $contract_discount) / 1.12, 2, '.', '');
+								$output_tax = number_format(($row->tot_price - $contract_discount) - $income_deducted, 2, '.', '');
+								
+								$income_deducted = $row->tot_price - $output_tax;
+								$hasDiscountConsidered = true;
+								
+							}
+							
+							else
+							{$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+							
 							$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+							}
 							
 							$total_taxed_items += $output_tax;
 							
 							while( (float)$total_taxed_items > (float)$contractDetails[0]->tax_deferred)
 							{
-								$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
+								$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$contractDetails[0]->tax_deferred);
 								$total_taxed_items -= $output_tax;
 								$output_tax = $new_output_tax;
 								$total_taxed_items += $output_tax;
@@ -1843,7 +1867,7 @@ class ServiceContractController extends Controller
 							array_push($acctgDetails, $pushDetails);
 							
 							$pushDetails['entry_type']="DR";
-							$pushDetails['SLCode']= '7-4-000-01'; //-->output tax
+							$pushDetails['SLCode']= '2-1-316-08-003'; //-->output tax
 							$pushDetails['amount']= $output_tax;
 							$pushDetails['detail_particulars']="Reversal of Income (VAT)";
 							
@@ -1967,6 +1991,25 @@ class ServiceContractController extends Controller
 						//start of tax accounting
 						if($contractDetails[0]->has_tax==1)
 						{
+							
+							//if chapel, deduct the discount to the sales
+							//if chapel, deduct the discount to the sales
+							if(!$hasDiscountConsidered && stripos($row->service_name, 'CHAPEL')!==false)
+							{
+								$income_deducted = number_format(((float)$row->tot_price - $contract_discount) / 1.12, 2, '.', '');
+								$output_tax = number_format(($row->tot_price - $contract_discount) - $income_deducted, 2, '.', '');
+								
+								$income_deducted = $row->tot_price - $output_tax;
+								$hasDiscountConsidered = true;
+								
+							}
+							
+							else
+							{ $income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+							
+								$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+							}
+							
 							$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
 							$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
 							
