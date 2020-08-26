@@ -18,7 +18,7 @@
 
     .padding-top{
     	margin-top: 15px;
-    	margin-bottom: 15px;
+    	margin-bottom: 5px;
     }
 
     .heading-border{
@@ -47,7 +47,21 @@
          <div class="row padding-top">
          	Name of Client: <strong><?php echo $client ?></strong>
          </div>
-         
+
+         <?php 
+         		$i = 0;
+				foreach ($decease_name as $row) {	
+					if ($i == 0) {
+		 ?>
+		         <div style="margin-left: 40px;">
+		         	Deceased Name: <strong><?php echo $row->firstname ?> <?php echo $row->middlename ?> <?php echo $row->lastname ?></strong>
+		         </div>
+         <?php 
+					break;
+					}
+				}
+			
+		 ?>
          <?php 
          	$totalPay = 0;
          	$paidAmount = 0;

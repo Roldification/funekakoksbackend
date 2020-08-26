@@ -2109,10 +2109,19 @@ class ServiceContractController extends Controller
 				if($row->profile_type=='Signee' || $row->profile_type=='Walk-in')
 				{
 					
-					$contracts = DB::select(DB::raw("
-						select contract_id, contract_no, CONVERT(VARCHAR(30),contract_date,101) AS contract_date, contract_amount, contract_balance, status 
+					/*$contracts = DB::select(DB::raw("
+						select contract_id, contract_no, CONVERT(VARCHAR(30),contract_date,101) AS contract_date, contract_amount, contract_balance, status, deceased_id 
 					from _fis_service_contract where signee=$clientid and fun_branch='".$branch."'
+					"));*/
+
+					$contracts = DB::select(DB::raw("
+						SELECT (''+PH.firstname+' '+PH.middlename+' '+PH.lastname) AS deceased_fullname, SC.contract_id, SC.contract_no, CONVERT(VARCHAR(30),SC.contract_date,101) AS contract_date, 
+						SC.contract_amount, SC.contract_balance, SC.status, SC.deceased_id 
+						FROM _fis_service_contract AS SC
+						INNER JOIN _fis_ProfileHeader AS PH ON sc.deceased_id = ph.id
+						WHERE SC.signee= $clientid AND SC.fun_branch='".$branch."'
 					"));
+
 					$merchandises = DB::select(DB::raw("select id, OR_no as reference_no, date as posting_date, total_amount as amount, balance, status from _fis_itemsales_header where signee_id=$clientid and fun_branch='".$branch."'"));
 					
 					return [
@@ -2492,6 +2501,30 @@ class ServiceContractController extends Controller
 		try {
 		$info = DB::select(DB::raw("
 			SELECT * FROM _fis_service_contract_status
+			"));	
+
+			if($info)
+			return	$info;
+			else return [];
+				
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getPendingContractCount(Request $request) {
+		$value = "";
+		try {
+		$info = DB::select(DB::raw("
+			SELECT SUM(pending) total_pending
+			FROM (
+				SELECT COUNT(*) as pending FROM _fis_service_contract_status WHERE STATUS = 'PENDING'
+				UNION ALL
+				SELECT COUNT(*) as pending FROM _fis_cancel_merchandise WHERE STATUS = 'PENDING'
+			) pending_tables
 			"));	
 
 			if($info)

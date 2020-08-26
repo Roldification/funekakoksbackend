@@ -240,6 +240,9 @@ Route::get('get-walkin', 'AccessController@getWalkin')->middleware('cors');
 Route::get('get-pending-contract', 'ServiceContractController@getPendingContract')->middleware('cors');
 Route::get('get-pending-merchandise', 'ServiceContractController@getPendingMerchandise')->middleware('cors');
 
+
+Route::get('get-pending-contract-count', 'ServiceContractController@getPendingContractCount')->middleware('cors');
+
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
