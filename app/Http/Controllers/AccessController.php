@@ -190,8 +190,8 @@ class AccessController extends Controller
 			      'contact_no' => '+63'.$value['contact_no'],
 			      'date_entry' => date('Y-m-d'),
 			      'transactedBy' => $value['transactedBy'],
-				  'is_senior_or_disabled' => $value['is_senior_or_disabled'],
-				  'is_taxable' => $value['is_taxable'],
+				  'is_senior_or_disabled' => isset($value['is_senior_or_disabled']) ? $value['is_senior_or_disabled'] : 0,
+						'is_taxable' => isset($value['is_taxable']) ? $value['is_taxable'] : 0,
 				]);
 
 				if(($value['profile_type']) == 'Decease'){
@@ -651,7 +651,7 @@ class AccessController extends Controller
 	   			}
 	   			
 	   			$total_taxed_items = 0;
-	   			
+	   			$hasDiscountConsidered = false;
 	   			foreach($value['item_inclusions'] as $row)
 	   			{	   	
 	   				
@@ -706,20 +706,38 @@ class AccessController extends Controller
 	   					
 	   					if($sc->has_tax==1)
 	   					{	
-	   						$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
-	   						$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+	   						//if casket, deduct the discount to the sales
+	   						if(!$hasDiscountConsidered && substr($row->item_code, 0, 2)=='01')
+	   						{
+	   							$income_deducted = number_format(((float)$row->tot_price - $contract_discount) / 1.12, 2, '.', '');
+	   							$output_tax = number_format(($row->tot_price - $contract_discount) - $income_deducted, 2, '.', '');
+	   							
+	   							$income_deducted = $row->tot_price - $output_tax;
+	   							$hasDiscountConsidered = true;
+	   							
+	   						}
+	   						
+	   						else
+	   						{$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+	   						
+	   						 $output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+	   						}
+	   				
 	   						
 	   						$total_taxed_items += $output_tax;
 	   						
+	   				
+	   						
 	   						while( (float)$total_taxed_items > (float)$value['tax_deferred'])
 	   						{
+
 	   							$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
 	   							$total_taxed_items -= $output_tax;
 	   							$output_tax = $new_output_tax;
 	   							$total_taxed_items += $output_tax;
 	   							
 	   							$income_deducted = $row->tot_price - $output_tax;
-	   						}
+	   						} 
 	   						
 	   						$pushDetails['entry_type']="CR";
 	   						$pushDetails['SLCode']= $row->income_SLCode;
@@ -729,7 +747,7 @@ class AccessController extends Controller
 	   						array_push($acctgDetails, $pushDetails);
 	   						
 	   						$pushDetails['entry_type']="CR";
-	   						$pushDetails['SLCode']= '7-4-000-01'; //-->output tax
+	   						$pushDetails['SLCode']= '2-1-316-08-003'; //-->output tax
 	   						$pushDetails['amount']= $output_tax;
 	   						$pushDetails['detail_particulars']="Income ".$row->item_name." from SC No.".$value['sc_number']." Signee: ".$value['sc_signee']."  for the Late : ".$value['sc_deceased'];
 	   					
@@ -880,7 +898,25 @@ class AccessController extends Controller
 	   					//for tax
 	   					if($sc->has_tax==1)
 	   					{	
-	   						$income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+	   						//if chapel, deduct the discount to the sales	   						
+	   						if(!$hasDiscountConsidered && stripos($row->service_name, 'CHAPEL')!==false)
+	   						{
+	   							$income_deducted = number_format(((float)$row->tot_price - $contract_discount) / 1.12, 2, '.', '');
+	   							$output_tax = number_format(($row->tot_price - $contract_discount) - $income_deducted, 2, '.', '');
+	   							
+	   							$income_deducted = $row->tot_price - $output_tax;
+	   							$hasDiscountConsidered = true;
+	   							
+	   						}
+	   						
+	   						else
+	   						{ $income_deducted = number_format((float)$row->tot_price / 1.12, 2, '.', '');
+	   						
+	   						  $output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
+	   						}
+	   						
+	   						
+	   						
 	   						$output_tax = number_format($row->tot_price - $income_deducted, 2, '.', '');
 							
 	   						$total_taxed_items += $output_tax;
@@ -917,7 +953,7 @@ class AccessController extends Controller
 	   						array_push($acctgDetails, $pushDetails);
 	   						
 	   						$pushDetails['entry_type']="CR";
-	   						$pushDetails['SLCode']= '7-4-000-01'; //-->output tax
+	   						$pushDetails['SLCode']= '2-1-316-08-003'; //-->output tax
 	   						$pushDetails['amount']= $output_tax;
 	   						$pushDetails['detail_particulars']="New entry";
 	   						
@@ -1218,14 +1254,14 @@ class AccessController extends Controller
 						{
 							//debit deferred tax
 							$pushDetails_pay['entry_type']="DR";
-							$pushDetails_pay['SLCode']='7-4-000-01';
+							$pushDetails_pay['SLCode']='2-1-316-08-003';
 							$pushDetails_pay['amount']=$tax_dedication;
 							$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
 							array_push($acctgDetails_pay, $pushDetails_pay);
 							
 							//credit output tax
 							$pushDetails_pay['entry_type']="CR";
-							$pushDetails_pay['SLCode']='7-4-000-01';
+							$pushDetails_pay['SLCode']='2-1-317-01-001';
 							$pushDetails_pay['amount']=$tax_dedication;
 							$pushDetails_pay['detail_particulars']="To payment from SC Ref#".$value['bill_header']->reference." Client: ".$value['bill_header']->client;
 							array_push($acctgDetails_pay, $pushDetails_pay);	
@@ -1727,7 +1763,7 @@ class AccessController extends Controller
 							
 							
 							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode']= "7-4-000-01"; //--deferred output tax
+							$pushDetails['SLCode']= "2-1-317-01-001"; //--deferred output tax
 							$pushDetails['amount']= $output_tax;
 							$pushDetails['detail_particulars']="Income ".$row->item_name." frm Merch. Ref#".$salesHead->OR_no." Client: ".$salesHead->client;
 							
@@ -1918,7 +1954,7 @@ class AccessController extends Controller
 							array_push($acctgDetails, $pushDetails);
 							
 							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode']= "7-4-000-01"; //--deferred output tax
+							$pushDetails['SLCode']= "2-1-317-01-001"; //--deferred output tax
 							$pushDetails['amount']= $output_tax;
 							$pushDetails['detail_particulars']="deferred output tax";
 							
