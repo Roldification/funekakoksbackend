@@ -248,7 +248,7 @@
 	    	 			   	 			
 	    	 		</tr>
 	    	 		<tr>
-	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">MARIA APRIL V.BANDALA</font></td> 
+	    	 			<td style="border-bottom:1px solid black; text-align:center;" ><font face="segoeui" style="font-size: 14px;">MARIA APRIL V. BANDALA</font></td> 
 	    	 		</tr>
 	    	 		<tr>
 	    	 			<td><font face="segoeui" style="font-size: 9px;">FuneCare Services Manager</font></td> 

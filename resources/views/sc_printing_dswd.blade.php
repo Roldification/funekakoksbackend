@@ -263,7 +263,7 @@
 	    			<font face="segoeui" style="font-size: 9px;"><strong>Noted by:</strong></font>
 	    		</div>
 	    		<div style="border-bottom:1px solid black; text-align:center;">
-	    			<font face="segoeui" style="font-size: 14px;">MARIA APRIL VILLANUEVA</font>
+	    			<font face="segoeui" style="font-size: 14px;">MARIA APRIL V. BANDALA</font>
 	    		</div>
 	    		<div style="text-align:left;">
 	    			<font face="segoeui" style="font-size: 9px;">FuneCare Service Manager</font>

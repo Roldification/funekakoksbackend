@@ -18,7 +18,7 @@
 
     .padding-top{
     	margin-top: 15px;
-    	margin-bottom: 5px;
+    	
     }
 
     .heading-border{
@@ -36,15 +36,15 @@
          <div class="row padding-top">
          	<table style="width:100%;">
          		<tr>
-         			<td style="text-align:center;"><h4>STATEMENT OF ACCOUNT</h4></td>
+         			<td style="text-align:center;"><h3>STATEMENT OF ACCOUNT</h3></td>
          		</tr>
          		<tr>
-         			<td style="text-align:center;">As of <?php echo date('F d, Y'); ?></td>
+         			<td style="padding-top: -1px; padding-bottom: 15px; text-align:center; font-size: 13px;">As of <?php echo date('F d, Y'); ?></td>
          		</tr>
          	</table>
          </div>
 
-         <div class="row padding-top">
+         <div class="row padding-top"  style="font-size: 13px;">
          	Name of Client: <strong><?php echo $client ?></strong>
          </div>
 
@@ -53,7 +53,7 @@
 				foreach ($decease_name as $row) {	
 					if ($i == 0) {
 		 ?>
-		         <div style="margin-left: 40px;">
+		         <div style="margin-left: 40px; font-size: 13px;">
 		         	Deceased Name: <strong><?php echo $row->firstname ?> <?php echo $row->middlename ?> <?php echo $row->lastname ?></strong>
 		         </div>
          <?php 
@@ -97,8 +97,14 @@
 	    	 		<td colspan="4" style="font-size: 12px;"><strong><font face="segoeui">Casket Package:</font></strong></td>
 	    	 	</tr>
 	    	 	<?php foreach ($accounts as $row)
-					{	
-					?>
+				{	
+
+					if ($row->package_name == 'NO PACKAGE') {
+						// remove no package from casket packages section
+					}
+					else {
+					
+				?>
 					<tr>
 						<td style="font-size: 10px;"><?php echo $row->package_name ?></td>
 						<td style="font-size: 10px;"><?php echo $row->contract_no ?></td>
@@ -106,16 +112,21 @@
 						<td style="font-size: 10px;"><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',') ?></td>
 						<td style="font-size: 10px;"><?php echo number_format((double)$row->packagePrice - $row->discount, 2, '.', ',')?></td>
 					</tr>
-					<?php 
-					}
+				<?php 
+					} // else close
+				}
 				?>
 
 				<tr>
 	    	 		<td colspan="4" style="font-size: 12px;"><strong>Additional Services:</strong></td>
 	    	 	</tr>
 	    	 	<?php foreach ($addservices as $rowx)
-					{	
-					?>
+				{	
+					if ($rowx->total_price == '0.00') {
+						// nothing to display
+					}
+					else {
+				?>
 					<tr>
 						<td style="font-size: 10px;"><?php echo $rowx->inclusionname ?></td>
 						<td style="font-size: 10px;"><?php echo $rowx->contract_no ?></td>
@@ -123,9 +134,10 @@
 						<td style="font-size: 10px;"><?php echo number_format((double)$rowx->total_price, 2, '.', ',') ?></td>
 						<td style="font-size: 10px;"><?php echo number_format((double)$rowx->total_price, 2, '.', ',')?></td>
 					</tr>
-					<?php 
+				<?php 
 					}
-					?>
+				}
+				?>
 				 <tr>
 	    	 		<td></td>
 	    	 	 	<td></td>
