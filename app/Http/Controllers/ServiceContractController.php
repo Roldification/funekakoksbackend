@@ -2017,7 +2017,7 @@ class ServiceContractController extends Controller
 							
 							while( (float)$total_taxed_items > (float)$contractDetails[0]->tax_deferred)
 							{
-								$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$value['tax_deferred']);
+								$new_output_tax = $output_tax - ((float)$total_taxed_items - (float)$contractDetails[0]->tax_deferred);
 								$total_taxed_items -= $output_tax;
 								$output_tax = $new_output_tax;
 								$total_taxed_items += $output_tax;
@@ -2046,8 +2046,8 @@ class ServiceContractController extends Controller
 							
 							array_push($acctgDetails, $pushDetails);
 							
-							$pushDetails['entry_type']="CR";
-							$pushDetails['SLCode']= '7-4-000-01'; //-->output tax
+							$pushDetails['entry_type']="DR";
+							$pushDetails['SLCode']= '2-1-316-08-003'; //-->output tax
 							$pushDetails['amount']= $output_tax;
 							$pushDetails['detail_particulars']="New entry";
 							
@@ -2090,7 +2090,6 @@ class ServiceContractController extends Controller
 					
 				}
 				
-		
 				
 				$saveAccounting =  AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
 				

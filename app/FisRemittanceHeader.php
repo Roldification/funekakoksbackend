@@ -4,14 +4,17 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
-class FisServiceSales extends Model
+class FisRemittanceHeader extends Model
 {
-	protected $table = '_fis_service_sales'; //table name of the model
+	protected $table = '_fis_cash_remittance_header'; //table name of the model
+	
 	protected $guarded = []; //set all the fields fillable. fillable means the ones to be supplied for inserting data
 	public $timestamps = false; //disable updated_at and created_at in tables.
 	
-	public function services()
+	
+	public function remittancedetails()
 	{
-		return $this->belongsTo('App\FisServices', 'fk_service_id', 'id');
+		return $this->hasMany('App\FisRemittanceDetails', 'fk_remittance_header_id');
 	}
-}
+
+}	

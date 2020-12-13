@@ -75,9 +75,9 @@ return [
 
         'sqlsrv' => [
             'driver' => 'sqlsrv',
-            'host' => '.',
+            'host' => '192.168.160.2',
             'port' => '1433',
-            'database' => 'FUNECARE_FOR_MIGRATION',
+            'database' => 'ICFS_FUNECARE',
             'username' => 'sa',
             'password' => 'sa',
             'charset' => 'utf8',

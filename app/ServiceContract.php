@@ -11,4 +11,14 @@ class ServiceContract extends Model
 	protected $guarded = []; //set all the fields fillable. fillable means the ones to be supplied for inserting data
 	public $timestamps = false; //disable updated_at and created_at in tables.
 
+	
+	public function itemsales()
+	{
+		return $this->hasMany('App\FisItemSales', 'contract_id', 'contract_id');
+	}
+	
+	public function servicesales()
+	{
+		return $this->hasMany('App\FisServiceSales', 'fk_contract_id', 'contract_id');
+	}
 }	
