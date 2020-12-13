@@ -206,6 +206,8 @@ class AccessController extends Controller
 			      'religion' => $deceaseValue['religion'],
 			      'primary_branch' => $deceaseValue['primary_branch'],
 			      'relationToSignee' => $deceaseValue['relationToSignee'],
+			      'gender' => $deceaseValue['gender'],
+			      'occupation' => $deceaseValue['occupation'],
 			      'fk_profile_id' => $memberProfile->id
 				]);
 
@@ -334,8 +336,8 @@ class AccessController extends Controller
 		}
 				
 				
-		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LETTER']);
-	
+		/*$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => [210, 1189]]);*/
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' =>'LETTER']);
 		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
 		$mpdf->WriteHTML(view('sc_printing', ['accounts'=>$accounts, 'inclusions'=>$inclusions, 'totalAdditionalAmount'=>$totalAdditionalAmount]));
 		$mpdf->use_kwt = true; 
@@ -450,11 +452,15 @@ class AccessController extends Controller
 				foreach ($extra as $rows)
 				{
 					array_push($additionalServices, $rows);
-				}
-			
-			
-			
+				}	
 		}
+
+		$decease_name = DB::select(DB::raw("
+					SELECT * FROM _fis_service_contract AS SC
+					LEFT JOIN _fis_ProfileHeader as PH ON PH.id = SC.deceased_id
+					LEFT JOIN _fis_deceaseInfo as DI ON DI.id = PH.id 
+					WHERE contract_id in (".$params.")
+					"));
 		
 		$accountcharging = DB::select(DB::raw("select sum(balance)totalamt, account_type from _fis_sc_charging
 				inner join _fis_account on accountType = account_id
@@ -477,7 +483,8 @@ class AccessController extends Controller
 		$mpdf = new \Mpdf\Mpdf();
 		$mpdf= new \Mpdf\Mpdf(['mode' => 'utf-8','format' => 'Letter','margin_left' => 0,'margin_right' => 0,'margin_top' => 0,'margin_bottom' => 0,'margin_header' => 0,'margin_footer' => 0]); //use this customization
 		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
-		$mpdf->WriteHTML(view('statement_printing', ['client'=>$request->post()['client'],'user'=>$request->post()['user'], 'accounts'=>$accounts, 'addservices'=>$additionalServices, 'accountcharging'=>$accountcharging, 'transactions'=>$transactions]));
+		$mpdf->WriteHTML(view('statement_printing', ['client'=>$request->post()['client'],'user'=>$request->post()['user'], 'accounts'=>$accounts, 'addservices'=>$additionalServices, 'accountcharging'=>$accountcharging, 'transactions'=>$transactions, 
+			'decease_name'=>$decease_name]));
 		$mpdf->showImageErrors = true;
 	
 		$mpdf->Output();  
@@ -2153,10 +2160,12 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	public function getAccounts()
 	{
 		$accounts = DB::select(DB::raw("select account_id as value, account_type as label from _fis_account"));
+		$accounts2 = DB::select(DB::raw("SELECT account_id as value, account_type as label FROM _fis_account WHERE account_type NOT IN('TC_MORTUARY') "));
 		$payment_type = DB::select(DB::raw("select typeid as value, typename as label from _fis_paymenttype"));
 		
 		return [
 			'accounts' => $accounts,
+			'accounts2' => $accounts2,
 			'payment_type' => $payment_type
 		];
 		
@@ -2201,9 +2210,22 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	public function insertContract(Request $request)
 	{
 		try {
-			
 			$value = (array)json_decode($request->post()['servicecontract']);
 			
+			$sc_number = ''.$value['fun_branch'].'-'.date("Y").'-'.$value['contract_no'];
+
+			if ($sc_number!="") {
+			$memcount = ServiceContract::where(['contract_no'=>$sc_number])->first();
+
+				if($memcount)
+				{
+					return [
+						'status'=>'unsaved',
+						'message'=>'Contact Number Already Exist.'
+					];	
+				}
+			}
+
 			$sc_count = ServiceContract::where('fun_branch', $value['fun_branch'])->count();
 			
 			//$value['contract_no'] = $value['fun_branch']."-".date('Y')."-".str_pad($sc_count, 5, '0', STR_PAD_LEFT);
@@ -2468,7 +2490,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		
 		try {
 			$user_check = DB::select(DB::raw("SELECT ReligionID as value, ReligionName as label from clientreligion"));
-			$branches = DB::select(DB::raw("SELECT branch_id as value, branch_name as label from _fis_settings_branches"));
+			$branches = DB::select(DB::raw("SELECT branch_code as value, branch_name as label from _fis_settings_branches"));
 			
 			if($user_check)
 				return	[
@@ -2662,7 +2684,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	public function getBranchValue(Request $request) {
 		$value = "";
 		try {
-		$user_check = DB::select(DB::raw("SELECT branch_id as value, branch_name as label from _fis_settings_branches"));
+		$user_check = DB::select(DB::raw("SELECT branch_code as value, branch_name as label from _fis_settings_branches"));
 
 		if($user_check)
 			return	$user_check;
@@ -2811,8 +2833,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	{
 		try {
 				$value = (array)json_decode($request->post()['branchdataupdate']);
-			
-				$branch = FisBranches::find($value['branch_id']);
+				$branch = FisBranches::find($value['branch_code']);
 	   			$branch->update(
 	   					['branch_name'=>$value['branch_name']]);
 			
@@ -3099,7 +3120,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		try {
 				$value = (array)json_decode($request->post()['branchdatadelete']);
 			
-				$branch = FisBranches::find($value['branch_id']);
+				$branch = FisBranches::find($value['branch_code']);
 	   			$branch->delete();
 			
 			return [
@@ -3147,7 +3168,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				$user = FisPassword::find($value['UserName']);
 			
 					$user->update(
-	   					['UserName'=> $value['UserName'],
+	   					['Position'=> $value['Position'],
 	   					'FirstName'=> $value['FirstName'],
 	   					'MiddleName'=> $value['MiddleName'],
 	   					'LastName'=> $value['LastName'],

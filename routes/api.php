@@ -242,9 +242,16 @@ Route::get('get-walkin', 'AccessController@getWalkin')->middleware('cors');
 Route::get('get-pending-contract', 'ServiceContractController@getPendingContract')->middleware('cors');
 Route::get('get-pending-merchandise', 'ServiceContractController@getPendingMerchandise')->middleware('cors');
 
+<<<<<<< HEAD
 Route::get('get-cash-transaction-of-user', 'UtilityController@getCashTransactionOfUser')->middleware('cors');
 Route::get('get-remittance-for-approval-header', 'UtilityController@getRemittanceForApprovalHeader')->middleware('cors');
 Route::get('get-cash-transaction-request-of-user', 'UtilityController@getCashTransactionRequestOfUser')->middleware('cors');
+=======
+
+Route::get('get-pending-contract-count', 'ServiceContractController@getPendingContractCount')->middleware('cors');
+Route::get('get-pending-service-contract-count', 'ServiceContractController@getPendingSContractCount')->middleware('cors');
+Route::get('get-pending-merchandise-contract-count', 'ServiceContractController@getPendingMContractCount')->middleware('cors');
+>>>>>>> e85143ecc976f64dd7ff44aff213b78dfdd14c1b
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
