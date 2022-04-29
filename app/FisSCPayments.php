@@ -21,6 +21,14 @@ class FisSCPayments extends Model
 	{
 		return $this->hasMany('App\FisRemittanceDetails', 'fk_sc_payment_id', 'payment_id');
 	}
+
+	public function paymenttype()
+	{
+		return $this->hasOne('App\FisPaymentType', 'typeid', 'accountType');
+	}
+
+
+
 	
 	
 	

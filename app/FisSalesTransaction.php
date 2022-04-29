@@ -20,4 +20,9 @@ class FisSalesTransaction extends Model
 	{
 		return $this->hasMany('App\FisRemittanceDetails', 'fk_misc_payment_id', 'id');
 	}
+
+	public function paymenttype()
+	{
+		return $this->hasOne('App\FisPaymentType', 'typeid', 'accountType');
+	}
 }

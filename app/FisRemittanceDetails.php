@@ -21,6 +21,11 @@ class FisRemittanceDetails extends Model
 		return $this->belongsTo('App\FisSalesTransaction', 'fk_misc_payment_id');
 	}
 
+	public function cashdeposits()
+	{
+		return $this->belongsTo('App\FisCashDeposit', 'fk_cash_deposit_id');
+	}
+
 	
 	
 }	
