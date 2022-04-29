@@ -2104,7 +2104,8 @@ class AccessController extends Controller
 			
 			$qry = DB::select(DB::raw("
 				SELECT status, contract_id, contract_no, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee, 
-				(d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date, package_name, 
+				(d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, package_name, 
+				CONVERT(VARCHAR(30),contract_date,101) AS contract_date, 
 				 CONVERT(VARCHAR(30),contract_amount,0) AS contract_amount, 
 				 CONVERT(VARCHAR(30),contract_balance,0) AS contract_balance, 
 				 CONVERT(VARCHAR(30),package_amount,0) AS package_amount, 

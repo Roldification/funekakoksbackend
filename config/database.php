@@ -100,7 +100,7 @@ return [
     		
     		'nabun' => [
     				'driver' => 'sqlsrv',
-    				'host' => '172.168.2.2',
+    				'host' => '192.168.162.2',
     				'port' => '1433',
     				'database' => 'TESTDB',
     				'username' => 'sa',
@@ -112,7 +112,7 @@ return [
     		
     		'carmen' => [
     				'driver' => 'sqlsrv',
-    				'host' => '172.168.3.2',
+    				'host' => '192.168.163.2',
     				'port' => '1433',
     				'database' => 'TESTDB',
     				'username' => 'sa',
@@ -124,7 +124,7 @@ return [
     		
     		'bajada' => [
     				'driver' => 'sqlsrv',
-    				'host' => '172.168.4.2',
+    				'host' => '192.168.164.2',
     				'port' => '1433',
     				'database' => 'TESTDB',
     				'username' => 'sa',
@@ -136,7 +136,7 @@ return [
     		
     		'matina' => [
     				'driver' => 'sqlsrv',
-    				'host' => '172.168.5.2',
+    				'host' => '192.168.165.2',
     				'port' => '1433',
     				'database' => 'TESTDB',
     				'username' => 'sa',
@@ -148,7 +148,7 @@ return [
     		
     		'mintal' => [
     				'driver' => 'sqlsrv',
-    				'host' => '172.168.6.2',
+    				'host' => '192.168.166.2',
     				'port' => '1433',
     				'database' => 'TESTDB',
     				'username' => 'sa',
@@ -160,7 +160,7 @@ return [
     		
     		'panabo' => [
     				'driver' => 'sqlsrv',
-    				'host' => '172.168.7.2',
+    				'host' => '192.168.167.2',
     				'port' => '1433',
     				'database' => 'TESTDB',
     				'username' => 'sa',
@@ -172,7 +172,7 @@ return [
     		
     		'market' => [
     				'driver' => 'sqlsrv',
-    				'host' => '172.168.8.2',
+    				'host' => '192.168.168.2',
     				'port' => '1433',
     				'database' => 'ICFS_MARKET',
     				'username' => 'sa',
