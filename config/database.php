@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'mysql'),
+    'default' => env('DB_CONNECTION', 'sqlsrv'),
 
     /*
     |--------------------------------------------------------------------------
@@ -75,11 +75,11 @@ return [
 
         'sqlsrv' => [
             'driver' => 'sqlsrv',
-            'host' => '.',
+            'host' => "localhost\MSSQL",
             'port' => '1433',
-            'database' => 'ICFS_FUNECARE',
+            'database' => 'FUNECARE_FOR_MIGRATION',
             'username' => 'sa',
-            'password' => 'sa',
+            'password' => 'r8d/1ct5041',
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,

@@ -206,8 +206,8 @@ class AccessController extends Controller
 			      'religion' => $deceaseValue['religion'],
 			      'primary_branch' => $deceaseValue['primary_branch'],
 			      'relationToSignee' => $deceaseValue['relationToSignee'],
-			      'gender' => $deceaseValue['gender'],
-			      'occupation' => $deceaseValue['occupation'],
+			      //'gender' => isset($deceaseValue['gender']) ? $deceaseValue['gender'] : '0',
+			      //'occupation' => $deceaseValue['occupation'],
 			      'fk_profile_id' => $memberProfile->id
 				]);
 
