@@ -170,6 +170,9 @@ class InventoryController extends Controller
 			      'isInventoriable' => $value['isInventoriable'],
 			      'rr_no' => '-',
 			      'selling_price' => $value['selling_price'],
+			      'expense_SLCode' => $value['expense_slcode'],
+			      'print_index' => $value['print_index'],
+			      'isViewPrint' => $value['isViewPrint'],
 			      'date_entry' => date('Y-m-d'),
 			      'transactedBy' => $value['transactedBy'],
 				]);
@@ -179,13 +182,16 @@ class InventoryController extends Controller
 				  'item_code' => $value['code'].'-'.$value['item_code'],
 			      'item_name' => $value['item_name'],
 			      'unit_type' => $value['unit_type'],
-			      'BatchNo' => ' ',
+			      'BatchNo' => '-',
 			      'SLCode' => '-',
 				  'income_SLCode' => $value['income_SLCode'],
 			      'isActive' => 1,
 			      'isInventoriable' => $value['isInventoriable'],
 			      'rr_no' => ' ',
 			      'selling_price' => $value['selling_price'],
+			      'expense_SLCode' => $value['expense_slcode'],
+			      'print_index' => $value['print_index'],
+			      'isViewPrint' => $value['isViewPrint'],
 			      'date_entry' => date('Y-m-d'),
 			      'transactedBy' => $value['transactedBy'],
 				]);
@@ -214,6 +220,8 @@ class InventoryController extends Controller
 				'SLCode' => $value['SLCode'],
 				'isActive' => 1,
 				'date_entry' => date('Y-m-d'),
+				'print_index' => $value['print_index'],
+			    'isViewPrint' => $value['isViewPrint'],
 				'transactedBy' => $value['transactedBy']
 			]);
 			return [
@@ -517,8 +525,12 @@ and left(item_code, 2)<>'01'"));
 	public function getItemList(Request $request) {
 		$value = (array)json_decode($request->post()['itemList']);
 		try {
-			$user_check = DB::select(DB::raw("SELECT * FROM _fis_items 
-				WHERE item_code = '".$value['item_code']."'"));
+			$user_check = DB::select(DB::raw("SELECT item_code, item_name, unit_type, isInventoriable,
+			SLCode, hasRR, item_price, BatchNo, isActive, income_SLCode,
+			selling_price, transactedBy, date_entry, rr_no, date_updated, 
+			print_index, isViewPrint, expense_SLCode
+			FROM _fis_items 
+			WHERE item_code = '".$value['item_code']."'"));
 				
 			if($user_check)
 				return	$user_check;
@@ -688,6 +700,8 @@ and left(item_code, 2)<>'01'"));
 			      'income_SLCode' => $value['income_SLCode'],
 			      'isInventoriable' => $value['isInventoriable'],
 			      'transactedBy' => $value['transactedBy'],
+			      'print_index' => $value['print_index'],
+			      'isViewPrint' => $value['isViewPrint'],
 			      'date_updated' => date('Y-m-d')
 				]);
 			return [
@@ -716,6 +730,8 @@ and left(item_code, 2)<>'01'"));
 			      'isActive' => $value['isActive'],
 			      'selling_price' => $value['selling_price'],
 			      'date_updated' => date('Y-m-d'),
+			      'print_index' => $value['print_index'],
+			      'isViewPrint' => $value['isViewPrint'],
 			      'transactedBy' =>  $value['transactedBy'],
 				]);
 			return [

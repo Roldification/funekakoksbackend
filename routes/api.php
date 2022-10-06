@@ -252,6 +252,9 @@ Route::get('get-pending-contract-count', 'ServiceContractController@getPendingCo
 Route::get('get-pending-service-contract-count', 'ServiceContractController@getPendingSContractCount')->middleware('cors');
 Route::get('get-pending-merchandise-contract-count', 'ServiceContractController@getPendingMContractCount')->middleware('cors');
 
+
+Route::get('agreement-contract', 'AccessController@printAgreement')->middleware('cors');
+
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
