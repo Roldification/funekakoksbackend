@@ -19,7 +19,7 @@ use Illuminate\Http\Request;
  * the routes within this group
  */
 
-//sample
+//sample changes ni willord
 Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-user', 'AccessController@insertAccess');
 	Route::post('get-accounts-of-client', 'ServiceContractController@getAccountsOfClient');
