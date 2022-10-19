@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlsrv'),
+    'default' => env('DB_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------
@@ -75,15 +75,112 @@ return [
 
         'sqlsrv' => [
             'driver' => 'sqlsrv',
-            'host' => "localhost",
+            'host' => '192.168.23.197\mssql',
             'port' => '1433',
-            'database' => 'ICFS_FUNECARE',
+            'database' => 'FUNECARE_FOR_MIGRATION',
             'username' => 'sa',
-            'password' => 'sa',
+            'password' => 'r8d/1ct5041',
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
         ],
+            
+            
+        'main' => [
+                    'driver' => 'sqlsrv',
+                    'host' => '192.168.161.2',
+                    'port' => '1433',
+                    'database' => 'TESTDB',
+                    'username' => 'sa',
+                    'password' => 'r8d/1ct5041',
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                    'prefix_indexes' => true,
+        ],
+            
+            'nabun' => [
+                    'driver' => 'sqlsrv',
+                    'host' => '172.168.2.2',
+                    'port' => '1433',
+                    'database' => 'TESTDB',
+                    'username' => 'sa',
+                    'password' => 'sa',
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                    'prefix_indexes' => true,
+            ],
+            
+            'carmen' => [
+                    'driver' => 'sqlsrv',
+                    'host' => '172.168.3.2',
+                    'port' => '1433',
+                    'database' => 'TESTDB',
+                    'username' => 'sa',
+                    'password' => 'sa',
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                    'prefix_indexes' => true,
+            ],
+            
+            'bajada' => [
+                    'driver' => 'sqlsrv',
+                    'host' => '172.168.4.2',
+                    'port' => '1433',
+                    'database' => 'TESTDB',
+                    'username' => 'sa',
+                    'password' => 'sa',
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                    'prefix_indexes' => true,
+            ],
+            
+            'matina' => [
+                    'driver' => 'sqlsrv',
+                    'host' => '172.168.5.2',
+                    'port' => '1433',
+                    'database' => 'TESTDB',
+                    'username' => 'sa',
+                    'password' => 'sa',
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                    'prefix_indexes' => true,
+            ],
+            
+            'mintal' => [
+                    'driver' => 'sqlsrv',
+                    'host' => '172.168.6.2',
+                    'port' => '1433',
+                    'database' => 'TESTDB',
+                    'username' => 'sa',
+                    'password' => 'sa',
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                    'prefix_indexes' => true,
+            ],
+            
+            'panabo' => [
+                    'driver' => 'sqlsrv',
+                    'host' => '172.168.7.2',
+                    'port' => '1433',
+                    'database' => 'TESTDB',
+                    'username' => 'sa',
+                    'password' => 'sa',
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                    'prefix_indexes' => true,
+            ],
+            
+            'market' => [
+                    'driver' => 'sqlsrv',
+                    'host' => '172.168.8.2',
+                    'port' => '1433',
+                    'database' => 'ICFS_MARKET',
+                    'username' => 'sa',
+                    'password' => 'r8d/1ct5041',
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                    'prefix_indexes' => true,
+            ],
 
     ],
 
