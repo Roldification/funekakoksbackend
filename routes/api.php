@@ -18,6 +18,8 @@ use Illuminate\Http\Request;
  * always be mindful that when putting POST requests via 3rd party application, always register
  * the routes within this group
  */
+
+//sample
 Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-user', 'AccessController@insertAccess');
 	Route::post('get-accounts-of-client', 'ServiceContractController@getAccountsOfClient');
@@ -251,6 +253,9 @@ Route::get('get-cash-transaction-request-of-user', 'UtilityController@getCashTra
 Route::get('get-pending-contract-count', 'ServiceContractController@getPendingContractCount')->middleware('cors');
 Route::get('get-pending-service-contract-count', 'ServiceContractController@getPendingSContractCount')->middleware('cors');
 Route::get('get-pending-merchandise-contract-count', 'ServiceContractController@getPendingMContractCount')->middleware('cors');
+
+
+Route::get('agreement-contract', 'AccessController@printAgreement')->middleware('cors');
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();

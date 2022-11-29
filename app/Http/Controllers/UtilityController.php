@@ -11,8 +11,10 @@ use App\FisSalesTransaction;
 use App\FisRemittanceHeader;
 use App\FisRemittanceDetails;
 use App\SystemUser;
+use App\SystemUser;
 use Illuminate\Database\Eloquent\Builder;
 use App\AccountingHelper;
+use App\FisCashDeposit;use App\AccountingHelper;
 use App\FisCashDeposit;
 
 class UtilityController extends Controller
@@ -33,7 +35,7 @@ class UtilityController extends Controller
 					->where('fk_misc_payment_id', 0)
 					->where('fk_cash_deposit_id', 0)
 					->get();
-					
+								
 		
 	   $receiptPayments= FisRemittanceDetails::with(['miscpayments' => function($query) {
 			$query->with(['header.itemsales' =>function($queryx) {
@@ -135,7 +137,7 @@ class UtilityController extends Controller
 			$sc_cash_receipt = $request->post()['sc_cash_receipts'];
 			$misc_cash_receipt = $request->post()['misc_cash_receipts'];
 			$cash_deposit = $request->post()['cash_deposit'];
-			$totalAmount = 0;
+			
 			$header_remittance = FisRemittanceHeader::create([
 					'requested_by'=> $request->post()['username'],
 					'date_transacted'=>date('Y-m-d'),

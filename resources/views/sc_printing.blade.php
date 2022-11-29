@@ -44,7 +44,7 @@
     	 		<tr>
     	 			<td style="width:180px;"><font face="arial" style="font-size:17; font-weight: bold;">SERVICE CONTRACT</font></td>
     	 			<td style="width:300px;"> </td>
-    	 			<td><font face="segoeui"><strong>Date:</strong> <?php echo date('F d, Y', strtotime($accounts[0]->contract_date)); ?></font></td>
+    	 			<td><font face="segoeui"><strong>Date:</strong> <?php echo date('F d, Y'); ?></font></td>
 					<td><font style="font-size:15;" color="red"><?php echo $accounts[0]->contract_no ?></font></td>
     	 		</tr>
     	 	</table>
@@ -315,5 +315,15 @@
     	 		</table>
 			</div>
     	 </div>
+
+    	 @if( $accounts[0]->is_member === '1') 
+    	 <div style="position: absolute; bottom: 0px; left:30px;">
+    	 	<div style="width: 180px; padding:10px; border: 3px solid #000000">
+	    	 	<font face="arial" style="font-size:30px; font-weight: bold;">
+		    	 	<strong>TC MEMBER</strong>
+		    	</font>
+	    	</div>
+    	</div>
+    	@endif
     </body>
 </html>

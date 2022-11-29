@@ -333,6 +333,15 @@
 	    	</div>
 	    </div>
 
+	    @if( $accounts[0]->is_member === '1') 
+    	 <div style="position: absolute; bottom: 0px; left:30px;">
+    	 	<div style="width: 180px; padding:10px; border: 3px solid #000000">
+	    	 	<font face="arial" style="font-size:30px; font-weight: bold;">
+		    	 	<strong>TC MEMBER</strong>
+		    	</font>
+	    	</div>
+    	</div>
+    	@endif
     	<!-- end - -->
     </body>
 </html>

@@ -232,6 +232,7 @@ class AccessController extends Controller
 					$signeeValue = (array)json_decode($request->post()['memberdata']);
 					$signeeProfile = FisSignee::create([
 				      'fb_account' => $signeeValue['fb_account'],
+				      'id_number' => $signeeValue['id_number'],
 				      'email_address' => $signeeValue['email_address'],
 				      'fk_profile_id' => $memberProfile->id
 					]);
@@ -335,11 +336,49 @@ class AccessController extends Controller
 			}
 		}
 				
-				
-		/*$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => [210, 1189]]);*/
 		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' =>'LETTER']);
-		//$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
 		$mpdf->WriteHTML(view('sc_printing', ['accounts'=>$accounts, 'inclusions'=>$inclusions, 'totalAdditionalAmount'=>$totalAdditionalAmount]));
+		$mpdf->use_kwt = true; 
+		$mpdf->Output();
+	}
+
+	public function printAgreement(Request $request)
+	{
+		$id = json_decode($request->post()['id']);
+		$id_number = $request->id_number;
+		$first_present = $request->first_present;
+		$second_present = $request->second_present;
+		// return $request->second_present;
+		
+		$accounts = DB::select(DB::raw("select *, dbo._computeAge(birthday, getdate())as deceased_age from _SERVICE_CONTRACT_VIEW where contract_id=$id"));
+		
+		$inclusions = DB::select(DB::raw("select * from
+		(select i.item_code, item_name as inclusionname, CAST(quantity as varchar(3)) + ' ' + unit_type as quantity, total_price,
+				case when left(i.item_code, 2)='01' then 1
+				else (select count(*)sdf from _fis_package_inclusions where inclusiontype='ITEM' and fk_package_id='".$accounts[0]->package_class_id."' and item_id = i.item_code)
+				end as ispackage, i.print_index
+				from _fis_item_sales sales
+				inner join _fis_items i on sales.product_id = i.item_code
+				where contract_id=$id and isViewPrint=1
+				union all
+				select CAST(s.id as varchar(3)) as item_code, service_name as inclusionname, CAST(service_duration as varchar(3)) + ' ' + duration_unit as quantity, total_amount,
+				(select count(*)sdf from _fis_package_inclusions where inclusiontype='SERV' and fk_package_id='".$accounts[0]->package_class_id."' and service_id = s.id)ispackage, s.print_index
+				from _fis_service_sales ss
+				inner join _fis_services s on s.id = ss.fk_service_id where fk_contract_id=$id and isViewPrint=1
+				)dfa order by print_index"));
+		
+		$totalAdditionalAmount = 0;
+		
+		foreach ($inclusions as $row)
+		{
+			if(!$row->ispackage)
+			{
+				$totalAdditionalAmount = $totalAdditionalAmount + $row->total_price;
+			}
+		}
+				
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' =>'LETTER']);
+		$mpdf->WriteHTML(view('contract_agreement', ['accounts'=>$accounts, 'id_number'=>$id_number, 'first_present'=>$first_present, 'second_present'=>$second_present, 'inclusions'=>$inclusions, 'totalAdditionalAmount'=>$totalAdditionalAmount]));
 		$mpdf->use_kwt = true; 
 		$mpdf->Output();
 	}
@@ -2104,7 +2143,8 @@ class AccessController extends Controller
 			
 			$qry = DB::select(DB::raw("
 				SELECT status, contract_id, contract_no, (s.lastname + ', ' + s.firstname + ' ' + s.middlename)signee, 
-				(d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, contract_date, package_name, 
+				(d.lastname + ', ' + d.firstname + ' ' +d.middlename)deceased, package_name, 
+				CONVERT(VARCHAR(30),contract_date,101) AS contract_date, 
 				 CONVERT(VARCHAR(30),contract_amount,0) AS contract_amount, 
 				 CONVERT(VARCHAR(30),contract_balance,0) AS contract_balance, 
 				 CONVERT(VARCHAR(30),package_amount,0) AS package_amount, 
@@ -2364,7 +2404,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		$appendix = isset($request->post()['typesearch']) ? "PL.profile_type in ('Walk-in', 'Signee') " : "PL.profile_type in ('Walk-in', 'Signee') ";
 		
 		try {
-			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, (select cast(count(*) as varchar(2)) + ' CONTRACT/S AVAILED' AS contractsavailed from _fis_service_contract where signee=PH.id) as sublabel  from _fis_profileheader AS PH
+			$user_check = DB::select(DB::raw("SELECT top 5 PH.id as value, (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename)label, (select cast(count(*) as varchar(2)) + ' CONTRACT/S AVAILED' AS contractsavailed from _fis_service_contract where signee=PH.id) as sublabel, PH.contact_no  from _fis_profileheader AS PH
 			LEFT JOIN _fis_ProfileLogs AS PL ON PH.id = PL.fk_profile_id
 			WHERE ".$appendix." and (PH.lastname + ', ' + PH.firstname + ' ' + PH.middlename) like '%".$request->post()['name']."%'"));
 
