@@ -11,8 +11,10 @@ use App\FisSalesTransaction;
 use App\FisRemittanceHeader;
 use App\FisRemittanceDetails;
 use App\SystemUser;
+use App\SystemUser;
 use Illuminate\Database\Eloquent\Builder;
 use App\AccountingHelper;
+use App\FisCashDeposit;use App\AccountingHelper;
 use App\FisCashDeposit;
 
 class UtilityController extends Controller
@@ -33,7 +35,7 @@ class UtilityController extends Controller
 					->where('fk_misc_payment_id', 0)
 					->where('fk_cash_deposit_id', 0)
 					->get();
-					
+								
 		
 	   $receiptPayments= FisRemittanceDetails::with(['miscpayments' => function($query) {
 			$query->with(['header.itemsales' =>function($queryx) {
@@ -130,7 +132,8 @@ class UtilityController extends Controller
 			$header = new FisRemittanceHeader();
 			
 			DB::beginTransaction();
-			
+			$user  = SystemUser::with('branch')->where('UserName', $request->post()['username'])->first();
+
 			$sc_cash_receipt = $request->post()['sc_cash_receipts'];
 			$misc_cash_receipt = $request->post()['misc_cash_receipts'];
 			$cash_deposit = $request->post()['cash_deposit'];
@@ -143,9 +146,27 @@ class UtilityController extends Controller
 					'approved_by'=>'',
 					'denominations_json'=>json_encode($request->post()['denominations'])
 			]);
+
+
+			// $acctgHeader = [];
+			// $acctgHeader['branch_code'] = $user->FKBranchID;
+			// $acctgHeader['transaction_date'] = date('Y-m-d');
+			// $acctgHeader['transaction_code'] = "JNLVOUCHER";
+			// $acctgHeader['username'] = $request->post()['username'];
+			// $acctgHeader['reference'] = "coll.".$user->FKBranchID.".".$header_remittance->id;
+			// $acctgHeader['status'] = 1;
+			// $acctgHeader['particulars'] = "Collection remittance";
+			// $acctgHeader['customer'] = $request->post()['username'];
+			// $acctgHeader['checkno'] = "";
+
+			// $acctgDetails = [];
+			// $pushDetails = [];
+
+
 			
 			foreach ($sc_cash_receipt as $row)
 			{
+				//$totalAmount+=(double)$row['AR_Credit'];
 				FisRemittanceDetails::create([
 					'fk_sc_payment_id'=>$row['payment_id'],
 					'fk_misc_payment_id'=>0,
@@ -159,11 +180,18 @@ class UtilityController extends Controller
 					'stub_no'=>$row['stub_no'],
 					'fk_remittance_header_id'=>$header_remittance->id	
 				]);
+
+				// $pushDetails['entry_type']="DR";
+				// $pushDetails['SLCode']=$user->branch->borrowHO;
+				// $pushDetails['amount']=$totalAmount;
+				// $pushDetails['detail_particulars']="this is particular details of cash collection approval";
+				// array_push($acctgDetails, $pushDetails);
 				
 			}
 			
 			foreach ($misc_cash_receipt as $row)
 			{
+				//$totalAmount+=(double)$row['ARCredit'];
 				FisRemittanceDetails::create([
 						'fk_sc_payment_id'=>0,
 						'fk_cash_deposit_id'=>0,
@@ -181,7 +209,7 @@ class UtilityController extends Controller
 			}
 
 			foreach ($cash_deposit as $row)
-			{
+			{	//$totalAmount+=(double)$row['amount'];
 				FisRemittanceDetails::create([
 						'fk_sc_payment_id'=>0,
 						'fk_cash_deposit_id'=>$row['id'],
@@ -240,9 +268,9 @@ class UtilityController extends Controller
 			
 			DB::beginTransaction();
 			$header = FisRemittanceHeader::where('id', $request->post()['request_id'])->first();
-			$user  = SystemUser::where('UserName', $header->requested_by)->first();
+			$user  = SystemUser::with('branch')->where('UserName', $header->requested_by)->first();
 
-			$details = FisRemittanceDetails::with(['scpayments.paymenttype','miscpayments.paymenttype'])->where('fk_remittance_header_id',  $request->post()['request_id']);
+			$details = FisRemittanceDetails::with(['scpayments.paymenttype','miscpayments.paymenttype', 'cashdeposits'])->where('fk_remittance_header_id',  $request->post()['request_id']);
 			
 
 			// DB::rollBack();
@@ -273,31 +301,44 @@ class UtilityController extends Controller
 
 			// assume this is a cash collection transfer
 			$pushDetails['entry_type']="DR";
-			$pushDetails['SLCode']="1-1-112-03-004";
+			$pushDetails['SLCode']=$user->branch->borrowHO;
 			$pushDetails['amount']=$totalAmount;
-			$pushDetails['detail_particulars']="sdf";
+			$pushDetails['detail_particulars']="this is particular details of cash collection approval";
 			array_push($acctgDetails, $pushDetails);
 
 
+			$pushDetails['entry_type']="CR";
+			$pushDetails['SLCode']='1-1-101-01-004';
+			$pushDetails['amount']=$totalAmount;
+			$pushDetails['detail_particulars']="this is particular details of cash collection approval";
+			array_push($acctgDetails, $pushDetails);
 
 			
 			foreach ($collectionDetails as $row)
 			{
-				if(!is_null($row['scpayments'])) {
-					$pushDetails['entry_type']="CR";
-					$pushDetails['SLCode']=$row['scpayments']->paymenttype->sl_credit;
-					$pushDetails['amount']=$row['amount'];
-					$pushDetails['detail_particulars']="this is particular details";
-					array_push($acctgDetails, $pushDetails);
-				}
+				// if(!is_null($row['scpayments'])) {
+				// 	$pushDetails['entry_type']="CR";
+				// 	$pushDetails['SLCode']=$row['scpayments']->paymenttype->sl_credit;
+				// 	$pushDetails['amount']=$row['amount'];
+				// 	$pushDetails['detail_particulars']="this is particular details";
+				// 	array_push($acctgDetails, $pushDetails);
+				// }
 
-				if(!is_null($row['miscpayments'])) {
-					$pushDetails['entry_type']="CR";
-					$pushDetails['SLCode']=$row['miscpayments']->paymenttype->sl_credit;
-					$pushDetails['amount']=$row['amount'];
-					$pushDetails['detail_particulars']="this is particular details";
-					array_push($acctgDetails, $pushDetails);
-				}
+				// if(!is_null($row['miscpayments'])) {
+				// 	$pushDetails['entry_type']="CR";
+				// 	$pushDetails['SLCode']=$row['miscpayments']->paymenttype->sl_credit;
+				// 	$pushDetails['amount']=$row['amount'];
+				// 	$pushDetails['detail_particulars']="this is particular details";
+				// 	array_push($acctgDetails, $pushDetails);
+				// }
+
+				// if(!is_null($row['cashdeposits'])) {
+				// 	$pushDetails['entry_type']="CR";
+				// 	$pushDetails['SLCode']=$row['miscpayments']->paymenttype->sl_credit;
+				// 	$pushDetails['amount']=$row['amount'];
+				// 	$pushDetails['detail_particulars']="this is particular details";
+				// 	array_push($acctgDetails, $pushDetails);
+				// }
 
 
 				if($row['fk_sc_payment_id']!=0 || $row['fk_sc_payment_id']!="0")
@@ -318,7 +359,16 @@ class UtilityController extends Controller
 							'dateRemitted'=>date('Y-m-d H:i:s'),
 							'remittedTo'=> $request->post()['username']
 					]);
-					
+				}
+
+				else if($row['fk_cash_deposit_id']!=0 || $row['fk_cash_deposit_id']!="0")
+				{
+					FisCashDeposit::where('id', $row['fk_cash_deposit_id'])
+					->update([
+							'isRemitted'=>1,
+							'dateRemitted'=>date('Y-m-d H:i:s'),
+							'remittedTo'=> $request->post()['username']
+					]);
 				}
 				
 			}
@@ -377,7 +427,8 @@ class UtilityController extends Controller
 			'transacted_by'=>$contracts['transactedBy'],
 			'date_transacted'=>date('Y-m-d H:i:s'),
 			'cancelled_by'=>null,
-			'date_cancelled'=>null
+			'date_cancelled'=>null,
+			'branch'=>$contracts['branch']
 		]);
 
 		$acctgHeader = [];
@@ -487,5 +538,50 @@ class UtilityController extends Controller
 					DB::rollback();
 					return $saveAccounting;
 				}
+	}
+
+	public function printCollection (Request $request) {
+
+		$mpdf = new \Mpdf\Mpdf(['mode' => 'utf-8', 'format' => 'LETTER']);
+
+		$collection = FisRemittanceHeader::with([
+			'remittancedetails.scpayments' => function($query) {
+				$query->with(['header.itemsales' => function($query) {
+								$query->with('items')->where('price', '>', 0);
+							},
+								'header.servicesales'=> function($query) {
+								$query->with('services')->where('total_amount', '>', 0);	
+							}, 'header.signeeprofile']);
+			},
+			'remittancedetails.miscpayments' => function($query) {
+				$query->with(['header.itemsales' => function($query) {
+					$query->with('items')->where('price', '>', 0);
+				},
+				'header.servicesales'=> function($query) {
+				$query->with('services')->where('total_amount', '>', 0);
+				}]);
+			},
+			'remittancedetails.cashdeposits.signee'
+		])
+					  ->where('id', $request->id)
+					  ->where('approve_status', 'APPROVED')
+					  ->get();
+
+		//$collection = 'yoww';
+		// return [
+		// 	'collection' => $collection,
+		// 	'denominations' => (array)json_decode($collection[0]['denominations_json'])
+		// ];
+
+		if(!$collection->first()) {
+			return "No approved collection found.";
+		}
+
+
+		$mpdf= new \Mpdf\Mpdf(['mode' => 'utf-8','format' => 'Letter','margin_left' => 0,'margin_right' => 0,'margin_top' => 0,'margin_bottom' => 0,'margin_header' => 0,'margin_footer' => 0]); //use this customization
+		$mpdf->Image('/images/funecare_contract.jpg', 0, 0, 210, 297, 'jpg', '', true, false);
+		$mpdf->WriteHTML(view('collection', ['collection' => $collection, 'denominations' => (array)json_decode($collection[0]['denominations_json'])]));
+		$mpdf->use_kwt = true; 
+		$mpdf->Output();
 	}
 }

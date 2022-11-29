@@ -21,4 +21,9 @@ class ServiceContract extends Model
 	{
 		return $this->hasMany('App\FisServiceSales', 'fk_contract_id', 'contract_id');
 	}
+
+	public function signeeprofile()
+	{
+		return $this->hasOne('App\FisMemberData', 'id', 'contract_id');
+	}
 }	

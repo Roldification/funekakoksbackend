@@ -187,7 +187,7 @@ Route::get('get-charging', 'ServiceContractController@getCharging')->middleware(
 Route::get('get-minimal-probabilities', 'AccessController@getMinimalProbabilities')->middleware('cors');
 Route::get('get-cc-locations', 'AccessController@getCCLocations')->middleware('cors');
 Route::get('statement-print', 'AccessController@statementPrint');
-
+Route::get('collection-print', 'UtilityController@printCollection');
 Route::get('get-items-services-for-merchandising', 'AccessController@getItemsServicesForMerchandising')->middleware('cors');
 Route::get('get-package-item-inclusions', 'AccessController@getPackageItemInclusions')->middleware('cors');
 Route::get('get-slcode', 'AccessController@getSLCode')->middleware('cors');
