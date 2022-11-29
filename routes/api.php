@@ -19,6 +19,8 @@ use Illuminate\Http\Request;
  * the routes within this group
  */
 
+// Route::post('login-user', 'AccessController@loginUser');
+
 //sample changes ni willord
 Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('insert-user', 'AccessController@insertAccess');
@@ -107,9 +109,12 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('update-branch', 'AccessController@updateBranch');
 	Route::post('update-location', 'AccessController@updateLocation');
 	Route::post('update-incentives', 'AccessController@updateIncentives');
+	Route::post('approve-incentives', 'AccessController@approveIncentives');
 	Route::post('update-incentives-details', 'AccessController@updateIncDetails');
 
 	Route::post('insert-mci', 'AccessController@insertMCI');
+
+	Route::post('update-otp', 'AccessController@updateOTP');
 
 	Route::post('update-user-detail-info', 'AccessController@updateUserDetailInfo');
 	Route::post('update-account-role', 'AccessController@updateAccountRole');
@@ -135,6 +140,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 
 	Route::post('get-user-details', 'AccessController@getUserDetails');
 	Route::post('get-incentives-id', 'AccessController@getIncentivesId');
+	Route::post('get-incentives-id-approver', 'AccessController@getIncentivesIdApprover');
 	Route::post('add-incentives', 'AccessController@AddIncentives');
 	Route::post('insert-profile', 'AccessController@insertProfile');
 	Route::post('get-ledger-data', 'AccessController@getLedgerData');

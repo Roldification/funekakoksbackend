@@ -50,9 +50,9 @@ class ApiAuth
     		
     		if($accessToken)
     		{
-    			$user_check = DB::select(DB::raw("select * from _fis_access_tokens where api_token='".$accessToken."' and date_expire>='".date('Y-m-d H:i:s')."'"));
     			
     			try {
+					$user_check = DB::select(DB::raw("select * from _fis_access_tokens where api_token='".$accessToken."' and date_expire>='".date('Y-m-d H:i:s')."'"));
     				if(count($user_check)>0)
     				{
     					$status = true;

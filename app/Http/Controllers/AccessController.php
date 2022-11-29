@@ -9,6 +9,7 @@ use App\SystemUser;
 use App\AccessTokens;
 use App\FisDeceased;
 use App\FisItems;
+use App\FisSentlog;
 use App\ServiceContract;
 use App\ReceivingItems;
 use App\FisSignee;
@@ -2091,7 +2092,7 @@ class AccessController extends Controller
 						'status'=>'saved',
 						'message'=>''
 				];
-			    //end here
+			    //end heregetIncentives
 		} catch (\Exception $e) {
 			return [
 					'status'=>'unsaved',
@@ -2183,6 +2184,7 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 			LEFT JOIN _fis_ProfileLogs AS PL ON P.id = PL.fk_profile_id
 			WHERE PL.profile_type = 'Informant'
 			"));
+		//var_dump($incentives)
 			if($incentives)
 				return	$incentives;
 				else return [];
@@ -2982,12 +2984,121 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	public function updateIncentives(Request $request)
 	{
 		try {
+
+
+			//TODO: Insert in Sentlog for query to send OTP
 				$value = (array)json_decode($request->post()['incentivesData']);
 
-				if ($value['amount'] == $value['inc_to_claim']) {
 					$incentives = FisIncentives::find($value['id']);
 					$incentives->update(
-	   					['status'=> 'CLAIMED',
+	   					['approver_status'=> 'PENDING',
+	   					'status'=> 'PENDING',
+	   					'remarks'=> $value['remarks'],
+	   					'date_claim'=> date('Y-m-d'),
+	   					'balance' => 0,
+	   					'otp' => $value['otp'],
+	   					'transactedClaimedBy'=> $value['transactedBy']
+	   				]);
+				
+		   			$incentives_trans = FisIncentivesLedger::create([
+					  'transaction_id' => $incentives->id,
+				      'informant_id' => $value['fk_profile_id'],
+				      'contract_no' => $value['contract_no'],
+				      'package_availed' => $value['package_amount'],
+				      'reference_no'=> $value['reference_no'],
+				      'incentives' => $value['inc_to_claim'],
+				      'date_claim'=> date('Y-m-d'),
+				      'status'=> 'PENDING',
+				      'remarks'=> 'REQUEST FOR CLAIM',
+				      'balance' => 0,
+				      'amount'=> $value['amount'],
+				      'transactedBy'=> $value['transactedBy']
+					]);
+
+					$adminRecepients = DB::select(DB::raw("SELECT mobilenumber from SystemUser where UserStatus = 1 and FkRoleID='ADMIN' and mobilenumber <> ''"));
+					foreach ($adminRecepients as $row) {
+						$incentives_sentlog = FisSentlog::create([
+							'MNumber' => $row->mobilenumber,
+							'Message' => 'Good Day! There is an incentive claim request from '.$value['informant_name'].' worth Php'. $value['inc_to_claim'] .'. The OTP is ' . $value['otp'] . ' with Ref#: ' . $value['reference_no']. '. Please inform ' .$value['transactedBy']. ' to proceed. Thank you!',
+							'Section' => '-',
+							'UserName'=> $value['id'],
+							'DateCreated' => date('Y-m-d'),
+							'Purpose'=> 'OTP - REQUEST FOR INCENTIVES CLAIM',
+							'Reference'=> $value['reference_no'],
+							'Status' => 0,
+							'RequestedBy' => $value['transactedBy'],
+							'Cid'=> $value['fk_profile_id'],
+							'ScheduleDate'=> date('Y-m-d'),
+						  ]);
+					}
+				
+			return [
+					'status'=>'saved',
+					'message'=>$incentives,$incentives_trans,$adminRecepients
+			];
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function updateOTP(Request $request)
+	{
+		try {
+			$value = (array)json_decode($request->post()['otpdata']);
+
+			$memcount = FisIncentives::where(['id'=>$value['id'], 'otp' => $value['otp']])->first();
+
+				if($memcount)
+				{
+					$incentives = FisIncentives::find($value['id']);
+					$incentives->update(
+	   					['approver_status'=> 'APPROVED',
+	   					'status'=> 'CLAIMED',
+	   					'date_claim'=> date('Y-m-d'),
+	   					'balance' => 0,
+	   					'otp' => $value['otp'],
+	   					'transactedClaimedBy'=> $request->post()['usrname']
+	   				]);
+		
+					return [
+						'status'=>'saved',
+						'message'=>'Username Already Exist.'
+					];	
+				}
+				else{
+					return [
+						'status'=>'unsaved',
+						'message'=>'OTP not match'
+					];	
+				}
+
+				
+
+			
+			
+		} catch (\Exception $e) {
+			
+			return [
+				'status'=>'unsaved',
+				'message'=>$e->getMessage()
+			];	
+		}
+	}
+
+	public function approveIncentives(Request $request)
+	{
+		try {
+				$value = (array)json_decode($request->post()['incentivesData']);
+
+					$incentives = FisIncentives::find($value['id']);
+					$incentives->update(
+	   					['approver_status'=> 'APPROVED',
+	   					'status'=> 'CLAIMED',
 	   					'remarks'=> $value['remarks'],
 	   					'date_claim'=> date('Y-m-d'),
 	   					'balance' => 0,
@@ -3003,94 +3114,11 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 				      'incentives' => $value['inc_to_claim'],
 				      'date_claim'=> date('Y-m-d'),
 				      'status'=> 'CLAIMED',
+				      'remarks'=> 'CLAIM IS APPROVED',
 				      'balance' => 0,
 				      'amount'=> $value['amount'],
 				      'transactedBy'=> $value['transactedBy']
 					]);
-				}
-
-			
-				else if ($value['status'] == 'PARTIAL') {
-					if ($value['amount'] == $value['balance']) {
-						$bal =  $value['balance'] - $value['amount'];
-						$incentives = FisIncentives::find($value['id']);
-						$incentives->update(
-		   					['status'=> 'CLAIMED',
-		   					'balance' => $bal,
-		   					'remarks'=> $value['remarks'],
-		   					'date_claim'=> date('Y-m-d'),
-		   					'transactedClaimedBy'=> $value['transactedBy']
-		   				]);
-				
-			   			$incentives_trans = FisIncentivesLedger::create([
-						  'transaction_id' => $incentives->id,
-					      'informant_id' => $value['fk_profile_id'],
-					      'contract_no' => $value['contract_no'],
-					      'balance' => $bal,
-					      'amount'=> $value['amount'],
-					      'package_availed' => $value['package_amount'],
-					      'reference_no'=> $value['reference_no'],
-					      'incentives' => $value['inc_to_claim'],
-					      'date_claim'=> date('Y-m-d'),
-					      'status'=> 'CLAIMED',
-					      'transactedBy'=> $value['transactedBy']
-						]);
-					}
-
-					else {
-						$bal =   $value['balance'] - $value['amount'];
-						$incentives = FisIncentives::find($value['id']);
-						$incentives->update(
-		   					['status'=> 'PARTIAL',
-		   					'balance' => $bal,		
-		   					'remarks'=> $value['remarks'],
-		   					'date_claim'=> date('Y-m-d'),
-		   					'transactedClaimedBy'=> $value['transactedBy']
-		   				]);
-				
-			   			$incentives_trans = FisIncentivesLedger::create([
-						  'transaction_id' => $incentives->id,
-					      'informant_id' => $value['fk_profile_id'],
-					      'contract_no' => $value['contract_no'],
-					      'balance' => $bal,
-					      'amount'=> $value['amount'],
-					      'package_availed' => $value['package_amount'],
-					      'reference_no'=> $value['reference_no'],
-					      'incentives' => $value['inc_to_claim'],
-					      'date_claim'=> date('Y-m-d'),
-					      'status'=> 'PARTIAL',
-					      'transactedBy'=> $value['transactedBy']
-						]);
-					}
-					
-				}
-
-				else {
-					$bal =  $value['inc_to_claim'] - $value['amount'] ;
-					$incentives = FisIncentives::find($value['id']);
-					$incentives->update(
-	   					['status'=> 'PARTIAL',
-	   					'balance' => $bal,
-	   					'remarks'=> $value['remarks'],
-	   					'date_claim'=> date('Y-m-d'),
-	   					'transactedClaimedBy'=> $value['transactedBy']
-	   				]);
-				
-		   			$incentives_trans = FisIncentivesLedger::create([
-					  'transaction_id' => $incentives->id,
-				      'informant_id' => $value['fk_profile_id'],
-				      'contract_no' => $value['contract_no'],
-				      'amount'=> $value['amount'],
-				      'balance' => $bal,
-				      'package_availed' => $value['package_amount'],
-				      'reference_no'=> $value['reference_no'],
-				      'incentives' => $value['inc_to_claim'],
-				      'date_claim'=> date('Y-m-d'),
-				      'status'=> 'PARTIAL',
-				      'transactedBy'=> $value['transactedBy']
-					]);
-				}
-
 					
 			
 			return [
@@ -3106,7 +3134,6 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 			];	
 		}
 	}
-
 
 	// CLOSE OF UPDATE
 
@@ -3213,7 +3240,8 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 	   					'MiddleName'=> $value['MiddleName'],
 	   					'LastName'=> $value['LastName'],
 	   					'DateUpdated'=> date('Y-m-d'),
-	   					'UpdatedBy'=> $value['UserName']
+	   					'UpdatedBy'=> $value['UserName'],
+	   					'MobileNumber'=> $value['MobileNumber']
 	   				]);
 				
 	   				
@@ -3336,11 +3364,39 @@ on sc.deceased_id = d.id where sc.status<>'CANCELLED' and sc.fun_branch='".$requ
 		$value = (array)json_decode($request->post()['dataIncentives']);
 		try {
 			$user_check = DB::select(DB::raw("
-				SELECT id,informant_id, decease_id, decease_name, contract_no, package_name, CONVERT(VARCHAR(30),package_amount,0) AS package_amount, CONVERT(VARCHAR(30),balance,0) AS balance, 
-				CONVERT(VARCHAR(30),date_inform,22) AS date_inform,
-				pull_out, remarks, CONVERT(VARCHAR(30),casket_price,0) AS casket_price, CONVERT(VARCHAR(30),incentives,0) AS incentives, 
-				status, CONVERT(VARCHAR(30),date_claim,22) AS date_claim, member_type
-				FROM _fis_informantInfo WHERE informant_id = '".$value['fk_profile_id']."'
+			SELECT inf.id, inf.informant_id, inf.decease_id, inf.decease_name, inf.contract_no, inf.package_name, 
+			CONVERT(VARCHAR(30), inf.package_amount,0) AS package_amount, CONVERT(VARCHAR(30),inf.balance,0) AS balance, 
+			CONVERT(VARCHAR(30),inf.date_inform,22) AS date_inform, inf.pull_out, inf.remarks, 
+			CONVERT(VARCHAR(30),inf.casket_price,0) AS casket_price, CONVERT(VARCHAR(30),inf.incentives,0) AS incentives, 
+			inf.status, CONVERT(VARCHAR(30),inf.date_claim,22) AS date_claim, inf.member_type, il.reference_no, inf.approver_status
+			FROM _fis_informantInfo as inf LEFT JOIN _fis_informant_ledger AS il ON il.transaction_id = inf.id 
+			WHERE inf.informant_id = '".$value['fk_profile_id']."'
+				"));
+				
+			if($user_check)
+				
+				return	$user_check;
+			else return [];
+
+		} catch (\Exception $e) {
+			return [
+			'status'=>'error',
+			'message'=>$e->getMessage()
+			];
+		}
+	}
+
+	public function getIncentivesIdApprover(Request $request) {
+		$value = (array)json_decode($request->post()['dataIncentives']);
+		try {
+			$user_check = DB::select(DB::raw("
+				SELECT inf.id, inf.informant_id, inf.decease_id, inf.decease_name, inf.contract_no, inf.package_name, 
+CONVERT(VARCHAR(30), inf.package_amount,0) AS package_amount, CONVERT(VARCHAR(30),inf.balance,0) AS balance, 
+CONVERT(VARCHAR(30),inf.date_inform,22) AS date_inform, inf.pull_out, inf.remarks, 
+CONVERT(VARCHAR(30),inf.casket_price,0) AS casket_price, CONVERT(VARCHAR(30),inf.incentives,0) AS incentives, 
+inf.status, CONVERT(VARCHAR(30),inf.date_claim,22) AS date_claim, inf.member_type, il.reference_no, inf.approver_status
+FROM _fis_informantInfo AS inf
+LEFT JOIN _fis_informant_ledger AS il ON il.transaction_id = inf.id WHERE inf.approver_status = 'PENDING' and inf.informant_id = '".$value['fk_profile_id']."'
 				"));
 				
 			if($user_check)
