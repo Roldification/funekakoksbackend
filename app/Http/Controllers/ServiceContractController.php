@@ -2170,12 +2170,16 @@ class ServiceContractController extends Controller
 						CONVERT(VARCHAR(30),balance,0) as balance, status 
 						FROM _fis_itemsales_header  WHERE signee_id = $clientid and fun_branch='".$branch."'"));
 					
+
+					$cashDeposits = DB::select(DB::raw("SELECT * FROM _fis_cash_deposit WHERE fk_signee_id = $clientid"));
+
 					return [
 							'status'=>'success',
 							'message'=> [
 									'signee' => $row,
 									'contractlist' => $contracts,
-									'merchandises' => $merchandises
+									'merchandises' => $merchandises,
+									'cashdeposit' => $cashDeposits
 							]
 					];
 				}

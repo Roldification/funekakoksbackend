@@ -22,4 +22,5 @@ class FisItemsalesHeader extends Model
 		return $this->hasMany('App\FisServiceSales', 'sales_id', 'id');
 	}
 	
+	
 }
