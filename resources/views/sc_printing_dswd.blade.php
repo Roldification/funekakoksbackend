@@ -92,7 +92,7 @@
     	 </div>
     	 
     	
-    	 
+    	
     	 <div class="row" style="border:1px solid black; text-align:center;">
     	 	<font face="segoeui"><strong>For the Burial and Funeral Services Rendered to</strong></font>
     	 </div>
