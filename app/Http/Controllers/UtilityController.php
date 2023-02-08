@@ -11,11 +11,10 @@ use App\FisSalesTransaction;
 use App\FisRemittanceHeader;
 use App\FisRemittanceDetails;
 use App\SystemUser;
-use App\SystemUser;
 use Illuminate\Database\Eloquent\Builder;
 use App\AccountingHelper;
-use App\FisCashDeposit;use App\AccountingHelper;
 use App\FisCashDeposit;
+
 
 class UtilityController extends Controller
 {
@@ -127,7 +126,6 @@ class UtilityController extends Controller
 	
 	public function saveRemittance(Request $request)
 	{
-		
 		try {
 			$header = new FisRemittanceHeader();
 			
@@ -225,22 +223,30 @@ class UtilityController extends Controller
 				]);
 				
 			}
-			
-			
-			DB::commit();
-						
-			return [
+
+			$how = $this->postCollectionRemittanceAcctg($header_remittance->id, $request->post()['username']);
+
+			if($how['status']=='saved'){
+				DB::commit();
+				return [
 					'status'=>'saved',
 					'message'=>'successfully saved'
-			];
-			
-			
+				];
+			}else{
+				DB::rollback();
+				return [
+					'status'=>'error',
+					'message'=> $e->getMessage()
+				];
+			}
+						
 		} catch (\Exception $e) {
 			return [
 					'status'=>'error',
 					'message'=> $e->getMessage()
 			];
 		}
+
 		
 	}
 	
@@ -256,11 +262,90 @@ class UtilityController extends Controller
 		
 		return FisRemittanceHeader::with('remittancedetails')
 		->join('SystemUser', 'requested_by', 'UserName')
-		->where('FKBranchID', '202')
+		// ->where('FKBranchID', '201')
 		->whereIn('approve_status', $statusArray)->get();
 		
 	}
 	
+	public function postCollectionRemittanceAcctg($headerid, $username)
+	{
+		try{
+			$header = FisRemittanceHeader::where('id', $headerid)->first();
+			$user  = SystemUser::with('branch')->where('UserName', $header->requested_by)->first();
+			$details = FisRemittanceDetails::with(['scpayments.paymenttype','miscpayments.paymenttype', 'cashdeposits'])->where('fk_remittance_header_id',  $headerid);
+			
+			$acctgHeader = [];
+			$acctgHeader['branch_code'] = $user->FKBranchID;
+			$acctgHeader['transaction_date'] = date('Y-m-d');
+			$acctgHeader['transaction_code'] = "JNLVOUCHER";
+			$acctgHeader['username'] = $username;
+			$acctgHeader['reference'] = "coll.".$user->FKBranchID.".".$header->id;
+			$acctgHeader['status'] = 1;
+			$acctgHeader['particulars'] = "Posting Collection Remittance";
+			$acctgHeader['customer'] = $header->requested_by;
+			$acctgHeader['checkno'] = "";
+
+			$collectionDetails = $details->get();
+			$saveAccounting = [];
+
+			foreach ($collectionDetails as $row) {
+				$acctgDetails = [];
+				$pushDetails = [];
+
+				$pushDetails['entry_type']="DR";
+				$pushDetails['SLCode']='1-1-101-01-004';
+				$pushDetails['amount']=$row['amount'];
+				$pushDetails['detail_particulars']="this is particular details of collection remittance";
+				array_push($acctgDetails, $pushDetails);
+
+				$pushDetails['entry_type']="CR";
+				//$pushDetails['SLCode']='1-1-101-01-004';
+				$pushDetails['amount']=$row['amount'];
+				$pushDetails['detail_particulars']="this is particular details of collection remittance";
+
+				//Cash Receipts Service Contract Payments (For Remittance)
+				if($row['fk_sc_payment_id']!=0 || $row['fk_sc_payment_id']!="0")
+				{
+					$pushDetails['SLCode']='1-1-112-03-004';
+				}
+				//Cash Receipts Miscellaneous Sales (For Remittance)
+				else if($row['fk_misc_payment_id']!=0 || $row['fk_misc_payment_id']!="0")
+				{
+					$pushDetails['SLCode']='4-1-410-03-001';
+				}
+				//Cash Deposits (For Remittance)
+				else if($row['fk_cash_deposit_id']!=0 || $row['fk_cash_deposit_id']!="0")
+				{
+					$pushDetails['SLCode']='2-1-316-01-001';
+				}
+				array_push($acctgDetails, $pushDetails);
+				$saveAccounting =  AccountingHelper::processAccounting($acctgHeader, $acctgDetails);
+			}
+
+			if($saveAccounting['status']=='saved')
+			{
+				return [
+						'status'=>'saved',
+						'message'=>'',
+						'header'=>$acctgHeader,
+						'res'=>$acctgDetails
+				];
+			}
+	
+			else
+			{
+				DB::rollback();
+				return $saveAccounting;
+			}
+			
+		}catch (\Exception $e) {
+			DB::rollback();
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+	}
 	
 	public function approveRemittance(Request $request)
 	{
@@ -286,7 +371,7 @@ class UtilityController extends Controller
 			$acctgHeader['username'] = $request->post()['username'];
 			$acctgHeader['reference'] = "coll.".$user->FKBranchID.".".$header->id;
 			$acctgHeader['status'] = 1;
-			$acctgHeader['particulars'] = "Collection remittance";
+			$acctgHeader['particulars'] = "Remittance Approval";
 			$acctgHeader['customer'] = $header->requested_by;
 			$acctgHeader['checkno'] = "";
 
@@ -403,6 +488,56 @@ class UtilityController extends Controller
 					DB::rollback();
 					return $saveAccounting;
 				}
+			
+		} catch (\Exception $e) {
+			DB::rollback();
+			return [
+					'status'=>'error',
+					'message'=>$e->getMessage()
+			];
+		}
+		
+	}
+
+
+	public function cancelApproveRemittance(Request $request)
+	{
+		try {
+			
+			DB::beginTransaction();
+			$header = FisRemittanceHeader::where('id', $request->post()['request_id'])->first();
+			$details = FisRemittanceDetails::where('fk_remittance_header_id', $request->post()['request_id'])->get();
+			$user  = SystemUser::with('branch')->where('UserName', $header->requested_by)->first();
+
+
+			$header->update([
+				'approve_status'=>'CANCELLED',
+				'isCancelled'=>1,
+				'cancelled_by'=>$request->post()['username'],
+			    'cancelled_date'=>date('Y-m-d H:i:s')
+			]);
+
+			foreach ($details as $row){
+				$row->update([
+					'isCancelled'=>1,
+				]);
+			}
+
+			if($details[count($details)-1]['isCancelled']==1)
+			   {
+				   DB::commit();
+				   return [
+						   'status'=>'saved',
+						   'message'=>''
+				   ];
+			   }
+			   
+			   else
+			   {
+				   DB::rollback();
+				   return $details;
+			   }
+	
 			
 		} catch (\Exception $e) {
 			DB::rollback();

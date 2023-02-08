@@ -164,6 +164,7 @@ Route::group(['middleware' => ['apiauth', 'cors']], function() {
 	Route::post('approve-remittance', 'UtilityController@approveRemittance');
 	Route::post('insert-cash-deposit', 'UtilityController@insertCashDeposit');
 	Route::post('cancel-cash-deposit', 'UtilityController@cancelCashDeposit');
+	Route::post('cancel-approve-remittance', 'UtilityController@cancelApproveRemittance'); //willord
 });
 
 
